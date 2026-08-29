@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DSE 數學操卷神器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <div class="title-row">
+        <div>
+          <h1>DSE 數學操卷神器</h1>
+          <div class="sub">自己用／小班用 · 資料存在呢部瀏覽器 · 可匯出 JSON</div>
+        </div>
+      </div>
+      <nav class="tabs" id="tabs">
+        <button class="tab on" data-view="tracker">進度</button>
+        <button class="tab" data-view="weak">弱項</button>
+        <button class="tab" data-view="mc">MC</button>
+        <button class="tab" data-view="grades">成績</button>
+        <button class="tab" data-view="items">全港平均</button>
+        <button class="tab" data-view="cutoffs">Cut-off</button>
+        <button class="tab" data-view="timer">計時</button>
+      </nav>
+      <div class="toolbar" id="peopleBar">
+        <label>學生 <select id="profile"></select></label>
+        <input id="newProfile" type="text" placeholder="新增名稱" />
+        <button type="button" id="addProfile">新增</button>
+        <button type="button" class="ghost" id="renameProfile">改名</button>
+        <button type="button" class="danger" id="delProfile">刪除</button>
+        <button type="button" class="ghost" id="exportBtn">匯出備份</button>
+        <button type="button" class="ghost" id="importBtn">匯入</button>
+        <button type="button" class="ghost" id="undoBtn">復原標記／分數</button>
+        <input id="importFile" type="file" accept=".json,application/json,text/json" hidden />
+      </div>
+      <div id="trackerTheme">
+      <div class="toolbar" id="trackerBar">
+        <label>試卷 <select id="paper"></select></label>
+        <button type="button" class="ghost" id="batchBtn">批量選擇</button>
+        <label>篩選
+          <select id="cellFilter">
+            <option value="all">全部</option>
+            <option value="3">已掌握</option>
+            <option value="2">一般</option>
+            <option value="1">唔識</option>
+            <option value="0">未做</option>
+            <option value="note">有筆記</option>
+          </select>
+        </label>
+        <button type="button" class="ghost" id="hitBtn" hidden>顯示命中率</button>
+      </div>
+      <div class="toolbar batch-apply" id="batchBar">
+        <span class="legend-inline">
+          <span><i class="dot" style="background:var(--mastered)"></i>已掌握</span>
+          <span><i class="dot" style="background:var(--ok)"></i>一般</span>
+          <span><i class="dot" style="background:var(--weak)"></i>唔識</span>
+          <span><i class="dot" style="background:var(--empty)"></i>未做</span>
+        </span>
+        <button type="button" class="ok" data-apply="3">已掌握</button>
+        <button type="button" class="warn" data-apply="2">一般</button>
+        <button type="button" class="danger" data-apply="1">唔識</button>
+        <button type="button" class="ghost" data-apply="0">未做</button>
+        <span class="sub" id="selCount">已選 0 格</span>
+        <button type="button" class="ghost" id="clearSel">取消選擇</button>
+      </div>
+      </div>
+      <div class="toolbar" id="mcBar" hidden>
+        <label>試卷
+          <select id="mcSeries">
+            <option value="dse">DSE 必修卷二</option>
+            <option value="ce">CE Maths</option>
+          </select>
+        </label>
+        <label id="mcModeLab">模式
+          <select id="mcMode">
+            <option value="year">本年試題</option>
+            <option value="topic">按課題反查</option>
+          </select>
+        </label>
+        <label id="mcYearLab">年份 <select id="mcYear"></select></label>
+        <label id="mcQLab">題號 <select id="mcQ"><option value="all">全年</option></select></label>
+        <label id="mcTopicLab">課題 <select id="mcTopic"></select></label>
+        <label id="mcOrderLab" hidden>年份次序
+          <select id="mcOrder">
+            <option value="desc">近→遠</option>
+            <option value="asc">遠→近</option>
+          </select>
+        </label>
+        <button type="button" class="ghost" id="mcUnseenBtn" hidden>只睇未做</button>
+        <button type="button" class="ghost" id="mcHideAnsBtn">隱藏答案</button>
+        <button type="button" class="ghost" id="mcReset">重設</button>
+        <span class="mc-now" id="mcNowTopic"></span>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="view on" id="view-tracker">
+      <h2 class="page-title">操卷進度</h2>
+      <div class="year-jump" id="yearJump"></div>
+      <div class="stats" id="stats"></div>
+      <p class="hint">短按格改狀態 · 題號跳 MC · 長按或鉛筆寫筆記 · 分數只接受整數 · Enter 跳去下一年</p>
+      <div id="grid"></div>
+      <div class="summary" id="summary"></div>
+    </section>
+    <section class="view" id="view-weak">
+      <h2 class="page-title">弱項分析</h2>
+      <p class="hint">雷達最長＝最穩。實色＝你嘅標記平均；虛線＝全港命中率。課題掣底色跟你嘅標記。功課跟簡易／中等／困難。</p>
+      <div class="toolbar" id="weakBar">
+        <label>試卷
+          <select id="weakPaper">
+            <option value="p2">必修數學卷二</option>
+            <option value="p1" disabled>必修卷一（未有課題分類）</option>
+            <option value="m1" disabled>M1（未有課題分類）</option>
+            <option value="m2" disabled>M2（未有課題分類）</option>
+          </select>
+        </label>
+        <label>排列
+          <select id="weakArrange">
+            <option value="topic">按課題</option>
+            <option value="year">按年份</option>
+          </select>
+        </label>
+        <div class="chip-row" id="weakChips">
+          <button type="button" class="chip hi on" data-band="hi">簡易</button>
+          <button type="button" class="chip mid" data-band="mid">中等</button>
+          <button type="button" class="chip lo" data-band="lo">困難</button>
+        </div>
+        <button type="button" class="ghost" id="hkRefBtn">全港參照　開</button>
+        <button type="button" class="ghost" id="copyHw">複製題號範圍</button>
+        <button type="button" class="ghost" id="csvHw">下載 CSV</button>
+      </div>
+      <div class="radar-wrap">
+        <div id="radarBox" class="radar-box"></div>
+        <details class="axis-legend" open>
+          <summary>8 軸課題對照</summary>
+          <div id="axisLegend"></div>
+        </details>
+      </div>
+      <div id="weakBox" class="weak-box"></div>
+    </section>
+    <section class="view" id="view-mc">
+      <h2 class="page-title">卷二 MC 查詢</h2>
+      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撳小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
+      <div id="mcResult"></div>
+      <details class="freq-box" id="mcFreqBox">
+        <summary>課題頻率（只列該部分曾出現過嘅課題）</summary>
+        <div id="mcFreq"></div>
+      </details>
+    </section>
+    <section class="view" id="view-grades">
+      <h2 class="page-title">個人數學成績</h2>
+      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撳年份跳返進度該年。</p>
+      <div class="toolbar">
+        <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
+        <label class="chk"><input type="checkbox" id="showM2" /> 顯示 M2</label>
+      </div>
+      <div style="overflow:auto"><table class="grade-table" id="gradeTable"></table></div>
+    </section>
+    <section class="view" id="view-items">
+      <h2 class="page-title">全港平均表現</h2>
+      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撳格跳去該年。2026 未公布則為 -。</p>
+      <div class="toolbar">
+        <label>試卷
+          <select id="itemPaper">
+            <option value="p1">必修卷一</option>
+            <option value="p2">必修卷二</option>
+            <option value="m1">M1</option>
+            <option value="m2">M2</option>
+          </select>
+        </label>
+        <label>單年 <select id="itemYear"></select></label>
+      </div>
+      <h3 class="sec-title">多年分部對比</h3>
+      <div style="overflow:auto" id="itemMulti"></div>
+      <h3 class="sec-title" id="itemYearHead">單年</h3>
+      <div id="itemYearView"></div>
+    </section>
+    <section class="view" id="view-cutoffs">
+      <h2 class="page-title">Cut-off 分數</h2>
+      <p class="hint">顯示整數％最低要求。只供參考，等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。</p>
+      <h3 class="sec-title">必修</h3>
+      <div style="overflow:auto" id="cutCore"></div>
+      <p class="hint">呢個係加權後全卷％，唔係卷一卷面分。</p>
+      <h3 class="sec-title">M1</h3>
+      <div style="overflow:auto" id="cutM1"></div>
+      <h3 class="sec-title">M2</h3>
+      <div style="overflow:auto" id="cutM2"></div>
+    </section>
+    <section class="view" id="view-timer">
+      <h2 class="page-title">計時</h2>
+      <div class="timer-now" id="timerNow"></div>
+      <div class="toolbar">
+        <label>試卷
+          <select id="timerPaper">
+            <option value="p1">必修卷一</option>
+            <option value="p2">必修卷二</option>
+            <option value="m1">M1</option>
+            <option value="m2">M2</option>
+          </select>
+        </label>
+        <button type="button" class="ghost" id="timerExtra">不加時</button>
+        <label class="chk"><input type="checkbox" id="timerSound" /> 結束音效　關／開</label>
+      </div>
+      <div class="timer-clock" id="timerClock">0:00:00</div>
+      <div class="timer-sub" id="timerElapsed">已用 0:00:00</div>
+      <div class="timer-alerts" id="timerAlerts"></div>
+      <div class="toolbar">
+        <button type="button" id="timerStart">開始</button>
+        <button type="button" class="ghost" id="timerPause">暫停</button>
+        <button type="button" class="ghost" id="timerReset">重設</button>
+      </div>
+    </section>
+  </main>
+  <footer>Powered by Chan Yiu Hei</footer>
+  <button type="button" id="toTop" class="to-top" hidden aria-label="回到頂">↑</button>
+  <dialog id="noteDlg">
+    <div class="dlg">
+      <h3 id="noteTitle" style="margin:0 0 8px">筆記／錯因</h3>
+      <div class="sub">最多揀 3 個標籤</div>
+      <div class="tags" id="tagBox"></div>
+      <textarea id="noteText" placeholder="可寫個人事項、重做日期…"></textarea>
+      <div class="row">
+        <button type="button" class="ghost" id="noteCancel">取消</button>
+        <button type="button" id="noteSave">儲存</button>
+      </div>
+    </div>
+  </dialog>
+  <audio id="endSound" src="./timer-end.wav" preload="auto"></audio>
+  <script src="./data/cutoffs.js"></script>
+  <script src="./data/p2-answers.js"></script>
+  <script src="./data/p2-topics.js"></script>
+  <script src="./data/item-stats.js"></script>
+  <script src="./app.js"></script>
+</body>
+</html>
