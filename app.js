@@ -624,7 +624,6 @@ function startMap(pack) {
 function cutDisplay(kind, pack, lv) {
   const m = startMap(pack || {});
   if (m[lv] == null) return "-";
-  if (kind === "core" && pack && pack.total) return String(Math.round(m[lv] / 100 * pack.total));
   return String(Math.round(m[lv]));
 }
 function cutoffTable(kind) {
