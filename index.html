@@ -35,7 +35,7 @@
         <button type="button" class="ghost" id="exportBtn">匯出備份</button>
         <button type="button" class="ghost" id="importBtn">匯入</button>
         <button type="button" class="ghost" id="undoBtn">復原標記／分數</button>
-        <input id="importFile" type="file" accept=".json,application/json,text/json" hidden />
+        <input id="importFile" type="file" accept=".json,application/json,text/json" multiple hidden />
       </div>
       <div id="trackerTheme">
       <div class="toolbar" id="trackerBar">
@@ -130,6 +130,7 @@
           <button type="button" class="chip lo" data-band="lo">困難</button>
         </div>
         <button type="button" class="ghost" id="hkRefBtn">全港參照　開</button>
+        <button type="button" class="ghost" id="oldSyllBtn">含舊課程　關</button>
         <button type="button" class="ghost" id="copyHw">複製題號範圍</button>
         <button type="button" class="ghost" id="csvHw">下載 CSV</button>
       </div>
@@ -147,7 +148,7 @@
       <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撳小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
       <div id="mcResult"></div>
       <details class="freq-box" id="mcFreqBox">
-        <summary>課題頻率（只列該部分曾出現過嘅課題）</summary>
+        <summary>課題頻率（只列該部分曾出現過嘅課題；已隱藏舊課程）</summary>
         <div id="mcFreq"></div>
       </details>
     </section>
@@ -155,6 +156,7 @@
       <h2 class="page-title">個人數學成績</h2>
       <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撳年份跳返進度該年。</p>
       <div class="toolbar">
+        <label class="chk"><input type="checkbox" id="showCore" checked /> 顯示必修數學</label>
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
         <label class="chk"><input type="checkbox" id="showM2" /> 顯示 M2</label>
       </div>

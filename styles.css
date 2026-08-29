@@ -216,7 +216,15 @@ textarea { width: 100%; min-height: 80px; font: inherit; border-radius: 10px; bo
   background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
   padding: 10px; box-shadow: var(--shadow);
 }
-.radar-box svg { width: 100%; height: auto; display: block; }
+.radar-stu { transition: stroke-width .15s, fill .15s; cursor: pointer; }
+.radar-stu:hover { stroke-width: 3.5; fill: rgba(61,110,140,.42); }
+.cell.syll-old::after, .cell.syll-part::after {
+  position: absolute; left: 1px; top: 0; font-size: 8px; line-height: 1;
+  color: #8a8178; font-weight: 700; pointer-events: none;
+}
+.cell.syll-old::after { content: "舊"; }
+.cell.syll-part::after { content: "部"; }
+.qcard.syll-old, .qcard.syll-part { box-shadow: inset 3px 0 0 #c4bdb3; }
 .radar-box .miss { fill: #c4bdb3; }
 .axis-legend {
   background: var(--paper); border: 1px solid var(--line); border-radius: 14px;

@@ -68,13 +68,33 @@ const AXES = [
   { id: "a-meas", name: "甲　度量圖形", part: "甲", topics: ["量度與誤差","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","圓的性質"] },
   { id: "a-coord", name: "甲　坐標幾何", part: "甲", topics: ["直線方程","圓方程","軌跡","極坐標","坐標幾何：點"] },
   { id: "a-stat", name: "甲　統計與概率", part: "甲", topics: ["概率","統計"] },
-  { id: "b-alg", name: "乙　數與代數", part: "乙", topics: ["複數","進制","指數與對數","H.C.F./L.C.F.","線性規劃","續方程","數列","二次方程"] },
+  { id: "b-alg", name: "乙　數與代數", part: "乙", topics: ["進制","複數","指數與對數","H.C.F./L.C.M.","線性規劃","續方程","數列","二次方程"] },
   { id: "b-shape", name: "乙　圖形與幾何", part: "乙", topics: ["三角學（乙部）","三角函數","立體三角","圓的性質"] },
   { id: "b-coord", name: "乙　坐標幾何", part: "乙", topics: ["圖像變換","圖像軸的變換","圓方程","三角形的心"] },
   { id: "b-stat", name: "乙　統計與概率", part: "乙", topics: ["排列組合","概率","統計"] }
 ];
 function axisOf(part, topic) {
   return AXES.find(a => a.part === part && a.topics.includes(topic)) || null;
+}
+const OLD_TOPICS = new Set(["極坐標"]);
+const HEX_QS = new Set(["2012:33", "2013:33", "2016:33", "2017:32", "2020:31", "2021:32", "2022:34", "2024:32", "2025:31"]);
+const PARTIAL_SYLL = new Set([
+  "p2:2012:45", "p2:2013:31", "p2:2014:11", "p2:2015:45", "p2:2016:31", "p2:2018:14", "p2:2020:14", "p2:2025:32",
+  "p1:2013:6", "p1:2016:7", "p1:2021:7", "p1:2024:7"
+]);
+function isHexQ(y, q) { return HEX_QS.has(y + ":" + q); }
+function syllKind(paper, y, q) {
+  if (paper === "p2") {
+    if (OLD_TOPICS.has(topicOf(y, q))) return "old";
+    if (isHexQ(y, q)) return "old";
+  }
+  return PARTIAL_SYLL.has(paper + ":" + y + ":" + q) ? "part" : "";
+}
+function syllOn() { return !!prefs.includeOld; }
+function skipOldTopic(topic) { return !syllOn() && OLD_TOPICS.has(topic); }
+function skipOldQ(y, q, topic) {
+  if (isHexQ(y, q)) return !syllOn();
+  return skipOldTopic(topic);
 }
 function pushUndo() {
   const pr = prof();
@@ -94,7 +114,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -254,8 +274,11 @@ function cellHtml(y, q) {
   const qn = currentPaper === "p2"
     ? `<span class="qn" data-jump="${y}:${q}">${q}</span>`
     : `<span class="qn" style="cursor:default;text-decoration:none;color:var(--muted)">${q}</span>`;
+  const sk = syllKind(currentPaper, y, q);
+  const syllCls = sk === "old" ? " syll-old" : sk === "part" ? " syll-part" : "";
+  const syllTitle = sk === "old" ? "舊課程" : sk === "part" ? "部分舊課程" : "";
   return `<div class="qcell ${dim}">${qn}
-    <div class="cell ${STATE_CLASS[c.s] || ""} ${sel}" data-y="${y}" data-q="${q}">${hitHtml}</div>
+    <div class="cell ${STATE_CLASS[c.s] || ""} ${sel}${syllCls}" data-y="${y}" data-q="${q}" ${syllTitle ? `title="${syllTitle}"` : ""}>${hitHtml}</div>
     <button class="pencil ${hasNote(c) ? "filled" : ""}" data-note="${y}:${q}" title="筆記">✎</button>
   </div>`;
 }
@@ -341,6 +364,8 @@ function weakItems() {
       if (!(c.s === 1 || c.s === 2)) continue;
       const pct = p2Hit(y, q);
       const it = { y, q, s: c.s, topic: topicOf(y, q) || "未分類", tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", pct };
+      if (isHexQ(y, q)) continue;
+      if (skipOldTopic(it.topic)) continue;
       if (!bandOk(pct)) continue;
       out.push(it);
     }
@@ -352,7 +377,8 @@ function itemRowHtml(it) {
   const lab = bandLabel(it.pct);
   const pct = it.pct == null ? "—" : it.pct + "%";
   const sh = lab ? `<span class="should ${bandOf(it.pct)}">${lab}</span>` : "";
-  return `<tr data-jump="${it.y}:${it.q}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(it.topic)}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
+  const sk = syllKind("p2", it.y, it.q);
+  return `<tr data-jump="${it.y}:${it.q}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(it.topic)}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
 }
 function paintWeakChips() {
   const bands = prefs.weakBands || { hi: true, mid: false, lo: false };
@@ -385,7 +411,7 @@ function abilityBand(L) {
   return "mid";
 }
 function axisScore(axis) {
-  const items = (P2_TOPICS.items || []).filter(x => x.part === axis.part && axis.topics.includes(x.topic));
+  const items = (P2_TOPICS.items || []).filter(x => x.part === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic));
   let sum = 0, n = 0, hk = [], qs = [];
   items.forEach(x => {
     const c = getCell("p2", x.y, x.q);
@@ -436,7 +462,7 @@ function renderRadar() {
   let stu = "", hk = "";
   const ratedL = radarPolyRated(L, cx, cy, r);
   if (ratedL.length >= 3) {
-    stu = `<polygon points="${ratedL.join(" ")}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>`;
+    stu = `<polygon class="radar-stu" points="${ratedL.join(" ")}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>`;
   } else {
     L.forEach((v, i) => {
       if (v == null) return;
@@ -460,12 +486,13 @@ function renderRadar() {
   document.getElementById("radarBox").innerHTML = empty
     ? `<p class="hint">去進度標記卷二先出圖。</p>`
     : `<svg viewBox="0 0 340 340">${rings}${spokes}${hk}${stu}${labels}
-      <text x="170" y="328" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅標記平均　虛線＝全港命中率</text></svg>`;
+      <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅標記平均　虛線＝全港命中率</text>
+      <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%</text></svg>`;
   document.getElementById("axisLegend").innerHTML = AXES.map((a, i) => {
     const sc = scores[i];
     const stuLab = sc.L == null ? "未評" : Math.round(sc.L * 100) + "%";
     const hkLab = sc.hk == null ? "—" : Math.round(sc.hk * 100) + "%";
-    const chips = a.topics.map(t => {
+    const chips = a.topics.filter(t => !skipOldTopic(t)).map(t => {
       const ab = topicAbility(a.part, t);
       const bc = abilityBand(ab.L);
       return `<button type="button" class="tchip${bc ? " " + bc : ""}" data-jump-topic="${esc(t)}">${esc(t)}</button>`;
@@ -477,11 +504,16 @@ function renderWeak() {
   paintWeakChips();
   const hkBtn = document.getElementById("hkRefBtn");
   hkBtn.textContent = prefs.hkRef ? "全港參照　開" : "全港參照　關";
+  const oldBtn = document.getElementById("oldSyllBtn");
+  if (oldBtn) {
+    oldBtn.textContent = prefs.includeOld ? "含舊課程　開" : "含舊課程　關";
+    oldBtn.classList.toggle("on-toggle", !!prefs.includeOld);
+  }
   renderRadar();
   const items0 = weakItems();
   const box = document.getElementById("weakBox");
   if (markedP2Count() === 0) {
-    box.innerHTML = `<p class="hint">去進度標記卷二先出圖同功課。</p>`;
+    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">去進度標記卷二先出圖同功課。</p>`;
     return;
   }
   let items = items0;
@@ -491,7 +523,7 @@ function renderWeak() {
   }
   const arrange = document.getElementById("weakArrange").value;
   if (!items.length) {
-    box.innerHTML = `<p class="hint">呢個學生未有符合色掣嘅弱項。</p>`;
+    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">呢個學生未有符合色掣嘅弱項。</p>`;
     return;
   }
   items = sortWeakList(items, arrange);
@@ -503,7 +535,7 @@ function renderWeak() {
       const list = items.filter(x => x.y === y);
       html += `<h3 class="sec-title">${y}（${list.length}）</h3><div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
     });
-    box.innerHTML = html;
+    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3>` + html;
     return;
   }
   const counts = {};
@@ -517,7 +549,7 @@ function renderWeak() {
   ).join("") + (rest ? `<div class="sub">其他課題 ${rest} 題</div>` : "");
   const focus = box.dataset.topic || "";
   const list = (focus ? items.filter(x => x.topic === focus) : items).slice(0, 120);
-  box.innerHTML = `${bars}${focus ? `<p class="hint">而家睇：${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : ""}
+  box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3>${bars}${focus ? `<p class="hint">而家睇：${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : ""}
     <div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
 }
 
@@ -574,10 +606,13 @@ function lvCellHtml(lvText, starts, pct, ready) {
   return `<td class="lv"><div class="lv-cell"><span>${lvText}</span><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></div></td>`;
 }
 function renderGrades() {
+  if (prefs.showCore !== false) prefs.showCore = true;
+  document.getElementById("showCore").checked = prefs.showCore !== false;
   document.getElementById("showM1").checked = !!prefs.showM1;
   document.getElementById("showM2").checked = !!prefs.showM2;
-  const showM1 = prefs.showM1, showM2 = prefs.showM2;
-  let head = `<tr><th>年份</th><th>卷一 /105</th><th>卷二 /45</th><th>綜合％</th><th>估計等級</th>`;
+  const showCore = prefs.showCore !== false, showM1 = prefs.showM1, showM2 = prefs.showM2;
+  let head = `<tr><th>年份</th>`;
+  if (showCore) head += `<th>卷一 /105</th><th>卷二 /45</th><th>綜合％</th><th>估計等級</th>`;
   if (showM1) head += `<th>M1 /100</th><th>M1 等級</th>`;
   if (showM2) head += `<th>M2 /100</th><th>M2 等級</th>`;
   head += `</tr>`;
@@ -594,11 +629,13 @@ function renderGrades() {
       coreLv = pack.incomplete ? "資料未齊" : estimateShort("core", y, cp);
     }
     rows += `<tr>
-      <td class="clickable" data-go-year="${y}">${y}</td>
-      <td><input type="number" min="0" max="105" step="1" inputmode="numeric" data-gs="p1:${y}" value="${p1}"></td>
+      <td class="clickable" data-go-year="${y}">${y}</td>`;
+    if (showCore) {
+      rows += `<td><input type="number" min="0" max="105" step="1" inputmode="numeric" data-gs="p1:${y}" value="${p1}"></td>
       <td><input type="number" min="0" max="45" step="1" inputmode="numeric" data-gs="p2:${y}" value="${p2}"></td>
       <td>${coreCell}</td>
       ${ready && pack && !pack.incomplete ? lvCellHtml(coreLv, pack.starts, cp, true) : `<td class="lv">${coreLv}</td>`}`;
+    }
     if (showM1) {
       const packM1 = window.CUTOFFS.m1[String(y)];
       let lv = m1 === "" ? "-" : (packM1.incomplete ? "資料未齊" : estimateShort("m1", y, Number(m1)));
@@ -658,10 +695,12 @@ function fillMcTopics() {
   if (tSel.dataset.ready) return;
   const freq = window.P2_TOPICS.freq || [];
   const a = freq.filter(f => f.part === "甲");
-  const b = freq.filter(f => f.part === "乙");
+  const bRaw = freq.filter(f => f.part === "乙");
+  const b = bRaw.filter(f => f.topic === "進制").concat(bRaw.filter(f => f.topic !== "進制"));
+  const lab = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
   tSel.innerHTML = `<option value="">全部課題</option>
-    <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${esc(f.topic)}</option>`).join("")}</optgroup>
-    <optgroup label="乙">${b.map(f => `<option value="${esc(f.topic)}">${esc(f.topic)}</option>`).join("")}</optgroup>`;
+    <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>
+    <optgroup label="乙">${b.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>`;
   tSel.dataset.ready = "1";
 }
 function fillMcQ() {
@@ -676,14 +715,18 @@ function fillMcQ() {
 function mcCard(year, rec, extra, picked, series) {
   const b = bandOf(rec.pct);
   const t = series === "ce" ? "" : topicOf(+year || year, rec.q);
+  const sk = series === "ce" ? "" : syllKind("p2", +year || year, rec.q);
+  const tag = sk === "old" ? "舊課程" : sk === "part" ? "部分舊課程" : "";
   const pct = rec.pct == null ? "—" : rec.pct + "%";
   const part = series === "ce" ? "" : (rec.q <= 30 ? " · 甲" : " · 乙");
   const on = picked === rec.q ? " pick" : "";
-  return `<div class="qcard ${b}${on}" data-q="${rec.q}" data-y="${year}"><small>${extra || ""}Q${rec.q}${part}</small><b>${rec.ans || "?"}</b><small>${pct}</small>${t ? `<small>${esc(t)}</small>` : ""}</div>`;
+  return `<div class="qcard ${b}${on}${sk ? " " + (sk === "old" ? "syll-old" : "syll-part") : ""}" data-q="${rec.q}" data-y="${year}"><small>${extra || ""}Q${rec.q}${part}${tag ? " · " + tag : ""}</small><b>${rec.ans || "?"}</b><small>${pct}</small>${t ? `<small>${esc(t)}</small>` : ""}</div>`;
 }
 function focusHtml(series, year, rec, hide) {
   if (!rec) return "";
   const t = series === "dse" ? (topicOf(+year, rec.q) || "未分類") : "";
+  const sk = series === "dse" ? syllKind("p2", +year, rec.q) : "";
+  const syllLab = sk === "old" ? "　·　舊課程" : sk === "part" ? "　·　部分舊課程" : "";
   const part = series === "ce" ? "" : (rec.q <= 30 ? "甲部" : "乙部");
   const pctLine = rec.pct == null ? "未有命中率" : `全港命中率 ${rec.pct}%`;
   const bar = rec.pct == null ? "" : `<div class="focus-bar"><i style="width:${rec.pct}%"></i></div>`;
@@ -698,7 +741,7 @@ function focusHtml(series, year, rec, hide) {
       <button type="button" class="ghost${st !== 0 ? "" : " fade"}" data-mark="0">未做</button>
     </div>` : "";
   return `<section class="focus-card sticky-focus" data-fy="${year}" data-fq="${rec.q}">
-    <div class="meta">${series === "dse" ? "DSE 必修卷二" : "CE Maths"}　${year}　Q${rec.q}${part ? "　" + part : ""}${t ? "　·　課題：" + esc(t) : ""}</div>
+    <div class="meta">${series === "dse" ? "DSE 必修卷二" : "CE Maths"}　${year}　Q${rec.q}${part ? "　" + part : ""}${t ? "　·　課題：" + esc(t) : ""}${syllLab}</div>
     <div class="ans">${hide ? "？" : (rec.ans || "?")}</div>
     <div class="meta">${pctLine}</div>${bar}${marks}
   </section>`;
@@ -774,8 +817,15 @@ function renderMcTopic() {
 function renderMcFreq() {
   const years = (P2_TOPICS.years || []).slice().reverse();
   const yIdx = (P2_TOPICS.years || []).map((_, i) => i).reverse();
+  const hexByYear = {};
+  HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
   const head = `<thead><tr><th class="sticky-col">部分</th><th class="sticky-col" style="left:52px">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
-  const body = `<tbody>` + P2_TOPICS.freq.map(r =>
+  const rows = (P2_TOPICS.freq || []).filter(r => !OLD_TOPICS.has(r.topic)).map(r => {
+    if (r.topic !== "進制") return r;
+    const ys = (P2_TOPICS.years || []).map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
+    return { part: r.part, topic: r.topic, years: ys, total: ys.reduce((a, b) => a + b, 0) };
+  });
+  const body = `<tbody>` + rows.map(r =>
     `<tr><td class="sticky-col">${r.part}</td><td class="sticky-col" style="left:52px">${esc(r.topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`
   ).join("") + `</tbody>`;
   document.getElementById("mcFreq").innerHTML = `<div style="overflow:auto"><table class="data-table">${head}${body}</table></div>`;
@@ -1151,6 +1201,7 @@ document.getElementById("batchBtn").onclick = () => { batch = !batch; selected.c
 document.getElementById("hitBtn").onclick = () => { showHit = !showHit; renderTracker(); };
 document.getElementById("undoBtn").onclick = doUndo;
 document.getElementById("hkRefBtn").onclick = () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); };
+document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
 document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
 document.getElementById("clearSel").onclick = () => { selected.clear(); renderTracker(); };
 document.getElementById("copyHw").onclick = copyHw;
@@ -1328,8 +1379,18 @@ document.getElementById("gradeTable").addEventListener("click", e => {
   showView("tracker");
   setTimeout(() => scrollToYear(+td.dataset.goYear), 40);
 });
-document.getElementById("showM1").onchange = e => { prefs.showM1 = e.target.checked; savePrefs(); renderGrades(); };
-document.getElementById("showM2").onchange = e => { prefs.showM2 = e.target.checked; savePrefs(); renderGrades(); };
+document.getElementById("showCore").onchange = e => {
+  if (!e.target.checked && !prefs.showM1 && !prefs.showM2) { e.target.checked = true; return; }
+  prefs.showCore = e.target.checked; savePrefs(); renderGrades();
+};
+document.getElementById("showM1").onchange = e => {
+  if (!e.target.checked && prefs.showCore === false && !prefs.showM2) { e.target.checked = true; return; }
+  prefs.showM1 = e.target.checked; savePrefs(); renderGrades();
+};
+document.getElementById("showM2").onchange = e => {
+  if (!e.target.checked && prefs.showCore === false && !prefs.showM1) { e.target.checked = true; return; }
+  prefs.showM2 = e.target.checked; savePrefs(); renderGrades();
+};
 
 document.getElementById("mcSeries").addEventListener("change", () => {
   mcYearFilled[document.getElementById("mcSeries").value] = false;
@@ -1453,31 +1514,30 @@ document.getElementById("importBtn").onclick = () => {
   inp.click();
 };
 document.getElementById("importFile").onchange = e => {
-  const file = e.target.files[0];
+  const files = [...(e.target.files || [])];
   e.target.value = "";
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    try {
-      const text = String(reader.result || "").replace(/^\uFEFF/, "");
-      const incoming = JSON.parse(text);
-      const src = incoming.profiles && typeof incoming.profiles === "object"
-        ? incoming.profiles
-        : (incoming.cells ? { [incoming.name || incoming.currentProfile || file.name.replace(/\.json$/i, "")]: incoming } : null);
-      if (!src || !Object.keys(src).length) throw new Error("格式唔啱（要有 profiles）");
-      for (const [name, p] of Object.entries(src)) {
-        if (!p || typeof p !== "object") continue;
-        db.profiles[name] = {
-          name,
-          cells: p.cells && typeof p.cells === "object" ? p.cells : {},
-          scores: p.scores && typeof p.scores === "object" ? p.scores : {},
-          updatedAt: p.updatedAt || Date.now()
-        };
-      }
-      const pick = incoming.currentProfile && db.profiles[incoming.currentProfile]
-        ? incoming.currentProfile
-        : (Object.keys(src).find(n => db.profiles[n]) || currentProfile);
-      currentProfile = pick;
+  if (!files.length) return;
+  const mergeOne = (incoming, fileName) => {
+    const src = incoming.profiles && typeof incoming.profiles === "object"
+      ? incoming.profiles
+      : (incoming.cells ? { [incoming.name || incoming.currentProfile || String(fileName).replace(/\.json$/i, "")]: incoming } : null);
+    if (!src || !Object.keys(src).length) throw new Error(fileName + " 格式唔啱（要有 profiles）");
+    for (const [name, p] of Object.entries(src)) {
+      if (!p || typeof p !== "object") continue;
+      db.profiles[name] = {
+        name,
+        cells: p.cells && typeof p.cells === "object" ? p.cells : {},
+        scores: p.scores && typeof p.scores === "object" ? p.scores : {},
+        updatedAt: p.updatedAt || Date.now()
+      };
+    }
+    return incoming.currentProfile && db.profiles[incoming.currentProfile] ? incoming.currentProfile : Object.keys(src)[0];
+  };
+  Promise.all(files.map(f => f.text().then(t => ({ name: f.name, text: String(t || "").replace(/^\uFEFF/, "") }))))
+    .then(list => {
+      let last = currentProfile;
+      list.forEach(({ name, text }) => { last = mergeOne(JSON.parse(text), name) || last; });
+      currentProfile = db.profiles[last] ? last : currentProfile;
       save();
       renderProfiles();
       if (currentView === "tracker") renderTracker();
@@ -1485,9 +1545,8 @@ document.getElementById("importFile").onchange = e => {
       else if (currentView === "mc") renderMc();
       else if (currentView === "grades") renderGrades();
       else renderTracker();
-    } catch (err) { alert("匯入失敗：" + err.message); }
-  };
-  reader.readAsText(file);
+    })
+    .catch(err => alert("匯入失敗：" + err.message));
 };
 
 document.getElementById("timerSound").checked = !!prefs.timerSound;
