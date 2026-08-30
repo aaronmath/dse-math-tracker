@@ -1122,7 +1122,9 @@ function topicYearAvg(year, topic) {
 function renderItemYear(focusSec) {
   const paper = document.getElementById("itemPaper").value;
   const year = +document.getElementById("itemYear").value;
-  document.getElementById("itemYearHead").textContent = paper === "p2" ? "單年課題（平均命中率）" : "單年分題（卷序）";
+  document.getElementById("itemYearHead").textContent = paper === "p2"
+    ? `單年課題命中率（${year}）（平均命中率）`
+    : `單年分題（${year}）（卷序）`;
   if (paper === "p2") {
     const rows = (P2_TOPICS.freq || []).map(f => {
       const avg = topicYearAvg(year, f.topic);
@@ -1178,22 +1180,21 @@ function renderItemYear(focusSec) {
 }
 function renderItemTopics() {
   const paper = document.getElementById("itemPaper").value;
-  const head = document.getElementById("itemTopicHead");
+  const wrap = document.getElementById("itemTopicBox");
   const box = document.getElementById("itemTopics");
-  if (!head || !box) return;
-  if (paper !== "p2") { head.hidden = true; box.hidden = true; box.innerHTML = ""; return; }
-  head.hidden = false;
-  box.hidden = false;
+  if (!wrap || !box) return;
+  if (paper !== "p2") { wrap.hidden = true; box.innerHTML = ""; return; }
+  wrap.hidden = false;
   const rows = sortTopicRows(P2_TOPICS.freq || []).map(f => {
     const items = (P2_TOPICS.items || []).filter(x => x.part === f.part && x.topic === f.topic);
     const pcts = items.map(x => p2Hit(x.y, x.q)).filter(p => p != null);
     if (!pcts.length) return null;
     const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
     return { part: f.part, topic: f.topic, avg, n: pcts.length, old: OLD_TOPICS.has(f.topic) };
-  }).filter(Boolean).sort((a, b) => a.avg - b.avg || a.part.localeCompare(b.part));
-  box.innerHTML = `<table class="data-table"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>` +
+  }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
+  box.innerHTML = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>` +
     rows.map(r => `<tr class="${bandClass(r.avg)}"><td>${r.part}</td><td>${esc(r.topic)}${r.old ? "　<span class='sub'>舊課程</span>" : ""}</td><td>${Math.round(r.avg)}%</td><td>${r.n}</td></tr>`).join("") +
-    `</tbody></table><p class="hint">按全港命中率由低至高。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>`;
+    `</tbody></table></div><p class="hint">按全港命中率由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>`;
 }
 function renderItems() {
   const ySel = document.getElementById("itemYear");

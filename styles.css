@@ -265,7 +265,8 @@ textarea { width: 100%; min-height: 80px; font: inherit; border-radius: 10px; bo
   background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
   padding: 10px 12px; font-size: 12px; line-height: 1.5;
 }
-.axis-legend summary { cursor: pointer; font-weight: 600; }
+#itemTopicBox { margin: 8px 0 14px; }
+#itemTopicBox > summary { cursor: pointer; list-style-position: outside; }
 .axis-row { margin: 8px 0 10px; padding: 6px 8px; border-radius: 10px; }
 .axis-row.on { outline: 2px solid var(--accent); background: #eef6f2; }
 .axis-row b { display: block; margin-bottom: 4px; }
