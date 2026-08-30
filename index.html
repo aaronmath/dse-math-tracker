@@ -40,7 +40,6 @@
       <div id="trackerTheme">
       <div class="toolbar" id="trackerBar">
         <label>試卷 <select id="paper"></select></label>
-        <button type="button" class="ghost" id="batchBtn">批量選擇</button>
         <label>篩選
           <select id="cellFilter">
             <option value="all">全部</option>
@@ -60,12 +59,15 @@
           <span><i class="dot" style="background:var(--weak)"></i>唔識</span>
           <span><i class="dot" style="background:var(--empty)"></i>未做</span>
         </span>
-        <button type="button" class="ok" data-apply="3">已掌握</button>
-        <button type="button" class="warn" data-apply="2">一般</button>
-        <button type="button" class="danger" data-apply="1">唔識</button>
-        <button type="button" class="ghost" data-apply="0">未做</button>
-        <span class="sub" id="selCount">已選 0 格</span>
-        <button type="button" class="ghost" id="clearSel">取消選擇</button>
+        <span id="batchApply" hidden>
+          <button type="button" class="ok" data-apply="3">已掌握</button>
+          <button type="button" class="warn" data-apply="2">一般</button>
+          <button type="button" class="danger" data-apply="1">唔識</button>
+          <button type="button" class="ghost" data-apply="0">未做</button>
+          <span class="sub" id="selCount">已選 0 格</span>
+        </span>
+        <button type="button" class="ghost" id="batchBtn">批量選擇</button>
+        <button type="button" class="ghost" id="clearSel" hidden>取消選擇</button>
       </div>
       </div>
       <div class="toolbar" id="mcBar" hidden>
@@ -92,6 +94,7 @@
         </label>
         <button type="button" class="ghost" id="mcUnseenBtn" hidden>只睇未做</button>
         <button type="button" class="ghost" id="mcHideAnsBtn">隱藏答案</button>
+        <button type="button" class="ghost" id="mcOldBtn">含舊課程　開</button>
         <button type="button" class="ghost" id="mcReset">重設</button>
         <span class="mc-now" id="mcNowTopic"></span>
       </div>

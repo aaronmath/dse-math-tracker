@@ -131,7 +131,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -278,6 +278,15 @@ function tagStats() {
   }
   return TAGS.map(([id, name]) => [id, name, n[id]]).filter(x => x[2]).sort((a, b) => b[2] - a[2]);
 }
+function ringSvg(pct) {
+  const p = Math.max(0, Math.min(100, pct));
+  const r = 16, c = 2 * Math.PI * r, dash = c * p / 100;
+  return `<svg class="ring" viewBox="0 0 40 40" aria-hidden="true">
+    <circle cx="20" cy="20" r="${r}" fill="none" stroke="#eee8dc" stroke-width="4"/>
+    <circle cx="20" cy="20" r="${r}" fill="none" stroke="#2f5d50" stroke-width="4" stroke-linecap="round" stroke-dasharray="${dash.toFixed(2)} ${c.toFixed(2)}" transform="rotate(-90 20 20)"/>
+    <text x="20" y="24" text-anchor="middle" font-size="10" font-family="JetBrains Mono, monospace" fill="#1c1915">${p}%</text>
+  </svg>`;
+}
 function yearStatusCounts(y) {
   const c = [0, 0, 0, 0];
   for (const q of allQs(currentPaper, y)) {
@@ -328,7 +337,7 @@ function renderStats() {
   ).join("");
   const hero = top[0];
   document.getElementById("stats").innerHTML = `
-    <div class="stat"><b>${pct}%</b><span>已標記</span></div>
+    <div class="stat ring-stat">${ringSvg(pct)}<span>已標記　${done}/${total}</span></div>
     <div class="stat mix-stat">${mix}</div>
     <div class="stat"><b>${counts[0]}</b><span>未做</span></div>
     <div class="stat tag-stat${hero && onTag === hero[0] ? " on" : ""}">${hero ? `<b>${esc(hero[1])}</b><span>最常錯　${hero[2]}</span><div class="mini-bars">${bars}</div>` : `<b>—</b><span>最常錯</span>`}</div>`;
@@ -412,6 +421,9 @@ function renderTracker() {
   renderSummary();
   document.getElementById("batchBar").hidden = false;
   document.getElementById("trackerTheme").hidden = false;
+  document.getElementById("trackerTheme").classList.toggle("is-batch", !!batch);
+  document.getElementById("batchApply").hidden = !batch;
+  document.getElementById("clearSel").hidden = !batch;
   document.getElementById("batchBtn").textContent = batch ? "退出批量" : "批量選擇";
   document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
 }
@@ -493,6 +505,17 @@ function axisScore(axis) {
   const hkL = hk.length ? hk.reduce((a, b) => a + b, 0) / hk.length : null;
   return { n, L: sum / n, hk: hkL };
 }
+function radarSpokes(vals, cx, cy, r, stroke, dash) {
+  let s = "";
+  vals.forEach((v, i) => {
+    if (v == null) return;
+    const ang = -Math.PI / 2 + i * 2 * Math.PI / vals.length;
+    const x = (cx + r * v * Math.cos(ang)).toFixed(1), y = (cy + r * v * Math.sin(ang)).toFixed(1);
+    s += `<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="${stroke}" stroke-width="2.2"${dash ? ` stroke-dasharray="${dash}"` : ""}/>`;
+    s += `<circle cx="${x}" cy="${y}" r="4.5" fill="${stroke}"/>`;
+  });
+  return s;
+}
 function radarPolyRated(vals, cx, cy, r) {
   const pts = [];
   vals.forEach((v, i) => {
@@ -528,14 +551,10 @@ function renderRadar() {
   const H = scores.map(s => s.hk);
   let stu = "", hk = "";
   const ratedL = radarPolyRated(L, cx, cy, r);
-  if (ratedL.length >= 3) {
+  if (ratedL.length >= 4) {
     stu = `<polygon class="radar-stu" points="${ratedL.join(" ")}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>`;
   } else {
-    L.forEach((v, i) => {
-      if (v == null) return;
-      const ang = -Math.PI / 2 + i * 2 * Math.PI / N;
-      stu += `<circle cx="${(cx + r * v * Math.cos(ang)).toFixed(1)}" cy="${(cy + r * v * Math.sin(ang)).toFixed(1)}" r="4" fill="#3d6e8c"/>`;
-    });
+    stu = radarSpokes(L, cx, cy, r, "#3d6e8c");
   }
   L.forEach((v, i) => {
     if (v != null) return;
@@ -545,8 +564,10 @@ function renderRadar() {
   });
   if (prefs.hkRef) {
     const ratedH = radarPolyRated(H, cx, cy, r);
-    if (ratedH.length >= 3) {
+    if (ratedH.length >= 4) {
       hk = `<polygon points="${ratedH.join(" ")}" fill="none" stroke="#8a8178" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    } else {
+      hk = radarSpokes(H, cx, cy, r, "#8a8178", "5 4").replace(/fill="#8a8178"/g, 'fill="none" stroke="#8a8178"');
     }
   }
   const empty = markedP2Count() === 0;
@@ -564,7 +585,7 @@ function renderRadar() {
       const bc = abilityBand(ab.L);
       return `<button type="button" class="tchip${bc ? " " + bc : ""}" data-jump-topic="${esc(t)}">${esc(t)}</button>`;
     }).join("");
-    return `<div class="axis-row${radarAxis === a.id ? " on" : ""}" data-axis="${a.id}"><b>${esc(a.name)}　學生 ${stuLab}　全港 ${hkLab}${sc.n ? " · " + sc.n + " 題" : ""}</b>${chips}</div>`;
+    return `<div class="axis-row${radarAxis === a.id ? " on" : ""}" data-axis="${a.id}"><b>${esc(a.name)}　${esc(currentProfile)} ${stuLab}　全港 ${hkLab}${sc.n ? " · " + sc.n + " 題" : ""}</b>${chips}</div>`;
   }).join("");
 }
 function renderWeak() {
@@ -834,15 +855,19 @@ function fillMcYears(series) {
 }
 function fillMcTopics() {
   const tSel = document.getElementById("mcTopic");
-  if (tSel.dataset.ready) return;
-  const freq = sortTopicRows(window.P2_TOPICS.freq || []);
+  const hideOld = prefs.mcIncludeOld === false;
+  const sig = hideOld ? "hide" : "show";
+  if (tSel.dataset.ready === sig && tSel.options.length > 1) return;
+  const freq = sortTopicRows(window.P2_TOPICS.freq || []).filter(f => !(hideOld && OLD_TOPICS.has(f.topic)));
   const a = freq.filter(f => f.part === "甲");
   const b = freq.filter(f => f.part === "乙");
   const lab = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
+  const keep = tSel.value;
   tSel.innerHTML = `<option value="">全部課題</option>
     <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>
     <optgroup label="乙">${b.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>`;
-  tSel.dataset.ready = "1";
+  if ([...tSel.options].some(o => o.value === keep)) tSel.value = keep;
+  tSel.dataset.ready = sig;
 }
 function fillMcQ() {
   const series = document.getElementById("mcSeries").value;
@@ -880,6 +905,7 @@ function focusHtml(series, year, rec, hide) {
       <button type="button" class="warn${fade(2)}" data-mark="2">一般</button>
       <button type="button" class="danger${fade(1)}" data-mark="1">唔識</button>
       <button type="button" class="ghost${st !== 0 ? "" : " fade"}" data-mark="0">未做</button>
+      <button type="button" class="ghost${hasNote(getCell("p2", +year, rec.q)) ? " filled-note" : ""}" data-mc-note>筆記</button>
     </div>` : "";
   return `<section class="focus-card sticky-focus" data-fy="${year}" data-fq="${rec.q}">
     <div class="meta">${series === "dse" ? "DSE 必修卷二" : "CE Maths"}　${year}　Q${rec.q}${part ? "　" + part : ""}${t ? "　·　課題：" + esc(t) : ""}${syllLab}</div>
@@ -961,8 +987,9 @@ function renderMcFreq() {
   const hexByYear = {};
   HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
   const head = `<thead><tr><th class="sticky-col">部分</th><th class="sticky-col" style="left:52px">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
-  const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !OLD_TOPICS.has(r.topic)).map(r => {
-    if (r.topic !== "進制") return r;
+  const hideOld = prefs.mcIncludeOld === false;
+  const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !(hideOld && OLD_TOPICS.has(r.topic))).map(r => {
+    if (r.topic !== "進制" || !hideOld) return r;
     const ys = (P2_TOPICS.years || []).map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
     return { part: r.part, topic: r.topic, years: ys, total: ys.reduce((a, b) => a + b, 0) };
   }));
@@ -970,6 +997,11 @@ function renderMcFreq() {
     `<tr><td class="sticky-col">${r.part}</td><td class="sticky-col" style="left:52px">${esc(r.topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`
   ).join("") + `</tbody>`;
   document.getElementById("mcFreq").innerHTML = `<div style="overflow:auto"><table class="data-table">${head}${body}</table></div>`;
+}
+function renderMcKeep() {
+  const y = window.scrollY;
+  renderMc();
+  window.scrollTo(0, y);
 }
 function paintMcToggles() {
   const hideBtn = document.getElementById("mcHideAnsBtn");
@@ -991,6 +1023,13 @@ function renderMc() {
   document.getElementById("mcOrderLab").hidden = isCE || document.getElementById("mcMode").value !== "topic";
   document.getElementById("mcUnseenBtn").hidden = isCE || document.getElementById("mcMode").value !== "topic";
   paintMcToggles();
+  const oldMc = document.getElementById("mcOldBtn");
+  if (oldMc) {
+    const on = prefs.mcIncludeOld !== false;
+    oldMc.textContent = on ? "含舊課程　開" : "含舊課程　關";
+    oldMc.classList.toggle("on-toggle", on);
+    oldMc.hidden = isCE;
+  }
   document.getElementById("mcFreqBox").hidden = isCE;
   const now = document.getElementById("mcNowTopic");
   if (now) {
@@ -1289,10 +1328,10 @@ function showView(id) {
   if (id === "timer") renderTimer();
   location.hash = id;
 }
-function openNote(y, q) {
-  noteTarget = { y, q };
-  const c = getCell(currentPaper, y, q);
-  document.getElementById("noteTitle").textContent = PAPERS[currentPaper].name + " " + y + " Q" + q;
+function openNote(y, q, paper) {
+  noteTarget = { y, q, paper: paper || currentPaper };
+  const c = getCell(noteTarget.paper, y, q);
+  document.getElementById("noteTitle").textContent = PAPERS[noteTarget.paper].name + " " + y + " Q" + q;
   document.getElementById("noteText").value = c.note || "";
   document.getElementById("tagBox").innerHTML = TAGS.map(([id, name]) =>
     `<label><input type="checkbox" value="${id}" ${(c.tags || []).includes(id) ? "checked" : ""}><span>${name}</span></label>`
@@ -1500,9 +1539,11 @@ document.getElementById("noteCancel").onclick = () => document.getElementById("n
 document.getElementById("noteSave").onclick = () => {
   const tags = [...document.querySelectorAll("#tagBox input:checked")].map(x => x.value).slice(0, 3);
   pushUndo();
-  setCell(currentPaper, noteTarget.y, noteTarget.q, { note: document.getElementById("noteText").value.trim(), tags });
+  setCell(noteTarget.paper || currentPaper, noteTarget.y, noteTarget.q, { note: document.getElementById("noteText").value.trim(), tags });
   document.getElementById("noteDlg").close();
-  renderTracker();
+  if (currentView === "mc") renderMcKeep();
+  else if (currentView === "tracker") renderTracker();
+  else renderTracker();
 };
 document.getElementById("gradeTable").addEventListener("change", e => {
   const gs = e.target.dataset.gs;
@@ -1576,6 +1617,12 @@ document.getElementById("mcSeries").addEventListener("change", () => {
 });
 document.getElementById("mcHideAnsBtn").onclick = () => { mcHideAns = !mcHideAns; renderMc(); };
 document.getElementById("mcUnseenBtn").onclick = () => { mcUnseen = !mcUnseen; renderMc(); };
+document.getElementById("mcOldBtn").onclick = () => {
+  prefs.mcIncludeOld = prefs.mcIncludeOld === false;
+  savePrefs();
+  document.getElementById("mcTopic").dataset.ready = "";
+  renderMc();
+};
 document.getElementById("mcReset").onclick = () => {
   document.getElementById("mcSeries").value = "dse";
   document.getElementById("mcMode").value = "year";
@@ -1597,7 +1644,14 @@ document.getElementById("mcResult").addEventListener("click", e => {
     if (!card) return;
     pushUndo();
     setCell("p2", +card.dataset.fy, +card.dataset.fq, { s: +mark.dataset.mark });
-    renderMc();
+    renderMcKeep();
+    return;
+  }
+  const noteBtn = e.target.closest("[data-mc-note]");
+  if (noteBtn) {
+    const card = e.target.closest(".focus-card");
+    if (!card) return;
+    openNote(+card.dataset.fy, +card.dataset.fq, "p2");
     return;
   }
   const card = e.target.closest(".qcard[data-q]");
