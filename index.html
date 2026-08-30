@@ -50,6 +50,9 @@
             <option value="note">有筆記</option>
           </select>
         </label>
+        <label id="topicFilterLab" hidden>課題
+          <select id="topicFilter"><option value="">全部課題</option></select>
+        </label>
         <button type="button" class="ghost" id="hitBtn" hidden>顯示命中率</button>
       </div>
       <div class="toolbar batch-apply" id="batchBar">
@@ -181,6 +184,8 @@
       </div>
       <h3 class="sec-title">多年分部對比</h3>
       <div style="overflow:auto" id="itemMulti"></div>
+      <h3 class="sec-title" id="itemTopicHead" hidden>卷二課題表現（全年合計）</h3>
+      <div style="overflow:auto" id="itemTopics" hidden></div>
       <h3 class="sec-title" id="itemYearHead">單年</h3>
       <div id="itemYearView"></div>
     </section>

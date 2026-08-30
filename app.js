@@ -53,6 +53,7 @@ let longFired = false;
 let showHit = true;
 let yearHitOff = {};
 let cellFilter = "all";
+let topicFilter = "";
 let prefs = loadPrefs();
 let mcYearFilled = { dse: false, ce: false };
 let itemYearFilled = false;
@@ -221,6 +222,14 @@ function qLead(label) {
   return m ? +m[1] : 0;
 }
 function hasNote(c) { return !!(c.note && c.note.length) || !!(c.tags && c.tags.length); }
+function matchTopic(y, q) {
+  if (currentPaper !== "p2" || !topicFilter) return true;
+  return topicOf(y, q) === topicFilter;
+}
+function visQs(y, qs) {
+  const miss = PAPERS[currentPaper].missing(y);
+  return qs.filter(q => !miss.includes(q) && matchTopic(y, q));
+}
 function matchFilter(c) {
   if (cellFilter === "all") return true;
   if (cellFilter === "note") return hasNote(c);
@@ -259,7 +268,7 @@ function renderPaperSelect() {
 }
 function renderYearJump() {
   const el = document.getElementById("yearJump");
-  el.innerHTML = yearsDesc().map(y => {
+  el.innerHTML = yearsDesc().filter(y => visQs(y, allQs(currentPaper, y)).length).map(y => {
     const entered = hasYearScore(currentPaper, y);
     return `<button type="button" class="year-pill${entered ? " entered" : ""}" data-jump-year="${y}">${y}</button>`;
   }).join("");
@@ -272,7 +281,7 @@ function tagStats() {
   const n = {};
   TAGS.forEach(([id]) => { n[id] = 0; });
   for (const y of YEARS) {
-    for (const q of allQs(currentPaper, y)) {
+    for (const q of visQs(y, allQs(currentPaper, y))) {
       (getCell(currentPaper, y, q).tags || []).forEach(t => { if (n[t] != null) n[t]++; });
     }
   }
@@ -289,8 +298,7 @@ function ringSvg(pct) {
 }
 function yearStatusCounts(y) {
   const c = [0, 0, 0, 0];
-  for (const q of allQs(currentPaper, y)) {
-    if (PAPERS[currentPaper].missing(y).includes(q)) continue;
+  for (const q of visQs(y, allQs(currentPaper, y))) {
     c[getCell(currentPaper, y, q).s]++;
   }
   return c;
@@ -320,7 +328,7 @@ function paintCellEl(cell, y, q) {
 function renderStats() {
   let total = 0, counts = [0, 0, 0, 0];
   for (const y of YEARS) {
-    for (const q of allQs(currentPaper, y)) { total++; counts[getCell(currentPaper, y, q).s]++; }
+    for (const q of visQs(y, allQs(currentPaper, y))) { total++; counts[getCell(currentPaper, y, q).s]++; }
   }
   const done = total - counts[0];
   const pct = total ? Math.round(done * 100 / total) : 0;
@@ -364,13 +372,12 @@ function renderGrid() {
   const paper = PAPERS[currentPaper];
   let html = "";
   for (const y of YEARS.slice().reverse()) {
-    const secs = paper.sectionsFor(y);
+    const secs = paper.sectionsFor(y).map(sec => ({ name: sec.name, qs: visQs(y, sec.qs) })).filter(sec => sec.qs.length);
+    if (!secs.length) continue;
     const secHtml = secs.map((sec, i) => {
-      const cells = sec.qs.map(q => paper.missing(y).includes(q)
-        ? `<div class="qcell"><span class="qn" style="cursor:default;text-decoration:none;color:var(--muted)">${q}</span><div class="cell missing"></div></div>`
-        : cellHtml(y, q)).join("");
+      const cells = sec.qs.map(q => cellHtml(y, q)).join("");
       return `${i ? '<div class="split"></div>' : ""}
-        <div class="sec-wrap"><span class="sec-lab">${sec.name} ${sec.qs[0]}–${sec.qs[sec.qs.length - 1]}</span>
+        <div class="sec-wrap"><span class="sec-lab">${sec.name} ${sec.qs[0]}${sec.qs.length > 1 ? "–" + sec.qs[sec.qs.length - 1] : ""}</span>
         <div class="sec">${cells}</div></div>`;
     }).join("");
     const sc = getScore(currentPaper, y);
@@ -390,7 +397,7 @@ function renderGrid() {
       <div class="qrow">${secHtml}</div>
     </div>`;
   }
-  document.getElementById("grid").innerHTML = html;
+  document.getElementById("grid").innerHTML = html || `<p class="hint">呢個課題喺可見年份冇題。</p>`;
 }
 function renderSummary() {
   const tagCount = {}; TAGS.forEach(([id]) => tagCount[id] = 0);
@@ -412,9 +419,28 @@ function renderSummary() {
   document.getElementById("summary").innerHTML =
     `甲部未穩 ${aWeak} · 其餘未穩 ${bWeak} · 有筆記／標籤 ${notes} 題`;
 }
+function fillTopicFilter() {
+  const lab = document.getElementById("topicFilterLab");
+  const sel = document.getElementById("topicFilter");
+  if (!lab || !sel) return;
+  const show = currentPaper === "p2";
+  lab.hidden = !show;
+  if (!show) { topicFilter = ""; return; }
+  const freq = sortTopicRows(window.P2_TOPICS.freq || []);
+  const a = freq.filter(f => f.part === "甲");
+  const b = freq.filter(f => f.part === "乙");
+  const labT = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
+  const keep = topicFilter;
+  sel.innerHTML = `<option value="">全部課題</option>
+    <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${labT(f)}</option>`).join("")}</optgroup>
+    <optgroup label="乙">${b.map(f => `<option value="${esc(f.topic)}">${labT(f)}</option>`).join("")}</optgroup>`;
+  if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
+  else { sel.value = ""; topicFilter = ""; }
+}
 function renderTracker() {
   renderProfiles();
   renderPaperSelect();
+  fillTopicFilter();
   renderYearJump();
   renderStats();
   renderGrid();
@@ -1150,6 +1176,25 @@ function renderItemYear(focusSec) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
+function renderItemTopics() {
+  const paper = document.getElementById("itemPaper").value;
+  const head = document.getElementById("itemTopicHead");
+  const box = document.getElementById("itemTopics");
+  if (!head || !box) return;
+  if (paper !== "p2") { head.hidden = true; box.hidden = true; box.innerHTML = ""; return; }
+  head.hidden = false;
+  box.hidden = false;
+  const rows = sortTopicRows(P2_TOPICS.freq || []).map(f => {
+    const items = (P2_TOPICS.items || []).filter(x => x.part === f.part && x.topic === f.topic);
+    const pcts = items.map(x => p2Hit(x.y, x.q)).filter(p => p != null);
+    if (!pcts.length) return null;
+    const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+    return { part: f.part, topic: f.topic, avg, n: pcts.length, old: OLD_TOPICS.has(f.topic) };
+  }).filter(Boolean).sort((a, b) => a.avg - b.avg || a.part.localeCompare(b.part));
+  box.innerHTML = `<table class="data-table"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>` +
+    rows.map(r => `<tr class="${bandClass(r.avg)}"><td>${r.part}</td><td>${esc(r.topic)}${r.old ? "　<span class='sub'>舊課程</span>" : ""}</td><td>${Math.round(r.avg)}%</td><td>${r.n}</td></tr>`).join("") +
+    `</tbody></table><p class="hint">按全港命中率由低至高。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>`;
+}
 function renderItems() {
   const ySel = document.getElementById("itemYear");
   if (!itemYearFilled) {
@@ -1158,6 +1203,7 @@ function renderItems() {
     itemYearFilled = true;
   }
   renderItemMulti();
+  renderItemTopics();
   renderItemYear();
 }
 
@@ -1376,13 +1422,14 @@ document.getElementById("delProfile").onclick = () => {
   save();
   if (currentView === "tracker") renderTracker(); else renderProfiles();
 };
-document.getElementById("paper").onchange = e => { currentPaper = e.target.value; selected.clear(); renderTracker(); };
+document.getElementById("paper").onchange = e => { currentPaper = e.target.value; selected.clear(); topicFilter = ""; renderTracker(); };
 document.getElementById("batchBtn").onclick = () => { batch = !batch; selected.clear(); renderTracker(); };
 document.getElementById("hitBtn").onclick = () => { showHit = !showHit; renderTracker(); };
 document.getElementById("undoBtn").onclick = doUndo;
 document.getElementById("hkRefBtn").onclick = () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); };
 document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
 document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
+document.getElementById("topicFilter").onchange = e => { topicFilter = e.target.value; renderTracker(); };
 document.getElementById("stats").addEventListener("click", e => {
   const bar = e.target.closest("[data-tag]");
   if (!bar) return;
@@ -1461,8 +1508,8 @@ document.getElementById("grid").addEventListener("click", e => {
     const block = pick.closest(".year-block");
     const y = +block.dataset.year;
     const qs = pick.dataset.pick === "year"
-      ? allQs(currentPaper, y)
-      : range(+pick.dataset.from, +pick.dataset.to).filter(q => !PAPERS[currentPaper].missing(y).includes(q));
+      ? visQs(y, allQs(currentPaper, y))
+      : visQs(y, range(+pick.dataset.from, +pick.dataset.to));
     qs.forEach(q => selected.add(y + ":" + q));
     renderTracker();
     return;
