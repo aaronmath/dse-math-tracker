@@ -133,7 +133,7 @@ button.filled-note { box-shadow: inset 0 0 0 2px var(--accent); }
 .sec-wrap { display: flex; flex-direction: column; gap: 4px; }
 .split { width: 1px; background: #c9c0b2; align-self: stretch; margin: 0 4px; }
 .qcell { position: relative; width: 36px; }
-.qcell.dim { opacity: .18; pointer-events: none; }
+.qcell.dim { opacity: .28; }
 .qn { display: block; text-align: center; font-size: 10px; color: var(--accent-2); cursor: pointer; text-decoration: underline; }
 .cell {
   width: 36px; height: 30px; border: 1px solid var(--line); border-radius: 7px;
