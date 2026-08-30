@@ -74,10 +74,26 @@ const AXES = [
   { id: "b-coord", name: "乙　坐標幾何", part: "乙", topics: ["圖像變換","圖像軸的變換","圓方程","三角形的心"] },
   { id: "b-stat", name: "乙　統計與概率", part: "乙", topics: ["排列組合","概率","統計"] }
 ];
+const TOPIC_ORDER = {
+  "甲": ["指數","主項變換","因式分解","代數分式","不等式","百分數","恆等式","量度與誤差","聯立方程","函數","二次方程","數列","率與比","二次函數圖像","多項式","極坐標","變分","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","坐標幾何：點","圓的性質","直線方程","圓方程","軌跡","概率","統計"],
+  "乙": ["進制","複數","H.C.F./L.C.M.","圖像變換","二次方程","續方程","指數與對數","圖像軸的變換","線性規劃","三角學（乙部）","三角函數","立體三角","數列","圓的性質","圓方程","三角形的心","排列組合","概率","統計"]
+};
+function topicRank(part, topic) {
+  const list = TOPIC_ORDER[part] || [];
+  const i = list.indexOf(topic);
+  return i < 0 ? 1000 : i;
+}
+function sortTopicRows(rows) {
+  return rows.slice().sort((a, b) => {
+    const pa = a.part === "乙" ? 1 : 0, pb = b.part === "乙" ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return topicRank(a.part, a.topic) - topicRank(b.part, b.topic);
+  });
+}
 function axisOf(part, topic) {
   return AXES.find(a => a.part === part && a.topics.includes(topic)) || null;
 }
-const OLD_TOPICS = new Set(["極坐標"]);
+const OLD_TOPICS = new Set(["極坐標", "對稱"]);
 const HEX_QS = new Set(["2012:33", "2013:33", "2016:33", "2017:32", "2020:31", "2021:32", "2022:34", "2024:32", "2025:31"]);
 const PARTIAL_SYLL = new Set([
   "p2:2012:45", "p2:2013:31", "p2:2014:11", "p2:2015:45", "p2:2016:31", "p2:2018:14", "p2:2020:14", "p2:2025:32",
@@ -299,6 +315,11 @@ function renderStats() {
   }
   const done = total - counts[0];
   const pct = total ? Math.round(done * 100 / total) : 0;
+  const filled = counts[1] + counts[2] + counts[3];
+  const mix = filled
+    ? `<div class="ystack ystack-lg" title="已掌握 ${counts[3]} · 一般 ${counts[2]} · 唔識 ${counts[1]}">${[3, 2, 1].map(s => `<i class="ys${s}" style="flex:${counts[s]}"></i>`).join("")}</div>
+       <span>已填 ${filled}　掌握 ${counts[3]} · 一般 ${counts[2]} · 唔識 ${counts[1]}</span>`
+    : `<b>—</b><span>已填 0</span>`;
   const top = tagStats().slice(0, 3);
   const onTag = String(cellFilter).startsWith("tag:") ? cellFilter.slice(4) : "";
   const maxT = top[0] ? top[0][2] : 1;
@@ -308,9 +329,7 @@ function renderStats() {
   const hero = top[0];
   document.getElementById("stats").innerHTML = `
     <div class="stat"><b>${pct}%</b><span>已標記</span></div>
-    <div class="stat"><b>${counts[3]}</b><span>已掌握</span></div>
-    <div class="stat"><b>${counts[2]}</b><span>一般</span></div>
-    <div class="stat"><b>${counts[1]}</b><span>唔識</span></div>
+    <div class="stat mix-stat">${mix}</div>
     <div class="stat"><b>${counts[0]}</b><span>未做</span></div>
     <div class="stat tag-stat${hero && onTag === hero[0] ? " on" : ""}">${hero ? `<b>${esc(hero[1])}</b><span>最常錯　${hero[2]}</span><div class="mini-bars">${bars}</div>` : `<b>—</b><span>最常錯</span>`}</div>`;
 }
@@ -699,7 +718,6 @@ function renderGrades() {
     rows += `</tr>`;
   }
   document.getElementById("gradeTable").innerHTML = rows;
-  renderCutChart();
 }
 
 function stuCutPct(kind, y) {
@@ -796,6 +814,7 @@ function cutoffTable(kind) {
   return html + `</tbody></table>`;
 }
 function renderCutoffs() {
+  renderCutChart();
   document.getElementById("cutCore").innerHTML = cutoffTable("core");
   document.getElementById("cutM1").innerHTML = cutoffTable("m1");
   document.getElementById("cutM2").innerHTML = cutoffTable("m2");
@@ -816,10 +835,9 @@ function fillMcYears(series) {
 function fillMcTopics() {
   const tSel = document.getElementById("mcTopic");
   if (tSel.dataset.ready) return;
-  const freq = window.P2_TOPICS.freq || [];
+  const freq = sortTopicRows(window.P2_TOPICS.freq || []);
   const a = freq.filter(f => f.part === "甲");
-  const bRaw = freq.filter(f => f.part === "乙");
-  const b = bRaw.filter(f => f.topic === "進制").concat(bRaw.filter(f => f.topic !== "進制"));
+  const b = freq.filter(f => f.part === "乙");
   const lab = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
   tSel.innerHTML = `<option value="">全部課題</option>
     <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>
@@ -943,11 +961,11 @@ function renderMcFreq() {
   const hexByYear = {};
   HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
   const head = `<thead><tr><th class="sticky-col">部分</th><th class="sticky-col" style="left:52px">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
-  const rows = (P2_TOPICS.freq || []).filter(r => !OLD_TOPICS.has(r.topic)).map(r => {
+  const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !OLD_TOPICS.has(r.topic)).map(r => {
     if (r.topic !== "進制") return r;
     const ys = (P2_TOPICS.years || []).map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
     return { part: r.part, topic: r.topic, years: ys, total: ys.reduce((a, b) => a + b, 0) };
-  });
+  }));
   const body = `<tbody>` + rows.map(r =>
     `<tr><td class="sticky-col">${r.part}</td><td class="sticky-col" style="left:52px">${esc(r.topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`
   ).join("") + `</tbody>`;

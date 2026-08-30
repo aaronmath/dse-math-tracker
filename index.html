@@ -160,20 +160,6 @@
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
         <label class="chk"><input type="checkbox" id="showM2" /> 顯示 M2</label>
       </div>
-      <div class="cut-chart-box">
-        <div class="toolbar">
-          <label>Cut-off 圖
-            <select id="cutChartKind">
-              <option value="core">必修</option>
-              <option value="m1">M1</option>
-              <option value="m2">M2</option>
-            </select>
-          </label>
-          <div class="chip-row" id="cutLvChips"></div>
-          <button type="button" class="ghost" id="cutStuBtn">你的成績　開</button>
-        </div>
-        <div id="cutChart"></div>
-      </div>
       <div style="overflow:auto"><table class="grade-table" id="gradeTable"></table></div>
     </section>
     <section class="view" id="view-items">
@@ -198,6 +184,20 @@
     <section class="view" id="view-cutoffs">
       <h2 class="page-title">Cut-off 分數</h2>
       <p class="hint">顯示整數％最低要求。只供參考，等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。</p>
+      <div class="cut-chart-box">
+        <div class="toolbar">
+          <label>Cut-off 圖
+            <select id="cutChartKind">
+              <option value="core">必修</option>
+              <option value="m1">M1</option>
+              <option value="m2">M2</option>
+            </select>
+          </label>
+          <div class="chip-row" id="cutLvChips"></div>
+          <button type="button" class="ghost" id="cutStuBtn">你的成績　開</button>
+        </div>
+        <div id="cutChart"></div>
+      </div>
       <h3 class="sec-title">必修</h3>
       <div style="overflow:auto" id="cutCore"></div>
       <p class="hint">呢個係加權後全卷％，唔係卷一卷面分。</p>
