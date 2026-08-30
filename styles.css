@@ -66,10 +66,39 @@ button.warn { background: #b8860b; }
 button.danger { background: #8b3a2d; }
 .view { display: none; }
 .view.on { display: block; }
-.stats { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 8px; margin: 10px 0; }
+.stats { display: grid; grid-template-columns: repeat(6, minmax(0,1fr)); gap: 8px; margin: 10px 0; }
 .stat { background: var(--paper); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; box-shadow: var(--shadow); }
 .stat b { display: block; font-size: 20px; font-family: "JetBrains Mono", monospace; }
 .stat span { color: var(--muted); font-size: 12px; }
+.stat.tag-stat { cursor: pointer; }
+.stat.tag-stat.on { outline: 2px solid var(--accent); }
+.stat.tag-stat b { font-size: 15px; font-family: inherit; line-height: 1.2; }
+.mini-bars { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; }
+.mini-bar {
+  display: grid; grid-template-columns: 64px 1fr 18px; gap: 4px; align-items: center;
+  height: auto; padding: 0; background: transparent; color: var(--ink); border: none;
+  font-size: 10px; text-align: left;
+}
+.mini-bar i { display: block; height: 5px; background: #eee8dc; border-radius: 99px; overflow: hidden; }
+.mini-bar i b { display: block; height: 100%; background: var(--accent); font-size: 0; }
+.mini-bar em { font-style: normal; font-family: "JetBrains Mono", monospace; font-size: 10px; color: var(--muted); }
+.mini-bar.on span { font-weight: 700; color: var(--accent); }
+.ystack {
+  display: inline-flex; width: 72px; height: 8px; border-radius: 99px; overflow: hidden;
+  background: #eee8dc; vertical-align: middle; margin-left: 4px; flex-shrink: 0;
+}
+.ystack i { display: block; height: 100%; min-width: 0; }
+.ystack .ys3 { background: var(--mastered); }
+.ystack .ys2 { background: var(--ok); }
+.ystack .ys1 { background: var(--weak); }
+.ystack .ys0 { background: #e4ddd2; }
+.cut-chart-box {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px 12px; margin: 10px 0 14px; box-shadow: var(--shadow);
+}
+.cut-svg { width: 100%; height: auto; display: block; }
+.cut-chip { opacity: .4; }
+.cut-chip.on { opacity: 1; background: var(--cut, var(--accent)); color: #fff; border-color: transparent; }
 .dot { width: 12px; height: 12px; border-radius: 3px; display: inline-block; margin-right: 4px; vertical-align: -1px; border: 1px solid #d5cfc4; }
 .year-jump {
   display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px;

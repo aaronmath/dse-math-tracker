@@ -160,6 +160,20 @@
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
         <label class="chk"><input type="checkbox" id="showM2" /> 顯示 M2</label>
       </div>
+      <div class="cut-chart-box">
+        <div class="toolbar">
+          <label>Cut-off 圖
+            <select id="cutChartKind">
+              <option value="core">必修</option>
+              <option value="m1">M1</option>
+              <option value="m2">M2</option>
+            </select>
+          </label>
+          <div class="chip-row" id="cutLvChips"></div>
+          <button type="button" class="ghost" id="cutStuBtn">你的成績　開</button>
+        </div>
+        <div id="cutChart"></div>
+      </div>
       <div style="overflow:auto"><table class="grade-table" id="gradeTable"></table></div>
     </section>
     <section class="view" id="view-items">

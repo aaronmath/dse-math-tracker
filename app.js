@@ -8,6 +8,7 @@ const TAGS = [
 ];
 const LV_COLS = ["U", "1", "2", "3", "4", "5", "5*", "5**"];
 const CUT_COLS = ["5**", "5*", "5", "4", "3", "2"];
+const CUT_COLORS = { "5**": "#1c1915", "5*": "#3d6e8c", "5": "#2f5d50", "4": "#6a8f3d", "3": "#c4a35a", "2": "#a35a4a", stu: "#3d6e8c" };
 const PREF_KEY = "dse-math-tracker-prefs";
 const TIMER = {
   p1: { name: "必修卷一", normal: 2 * 3600 + 15 * 60, extra: 2 * 3600 + 48 * 60 + 45 },
@@ -114,7 +115,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -207,6 +208,7 @@ function hasNote(c) { return !!(c.note && c.note.length) || !!(c.tags && c.tags.
 function matchFilter(c) {
   if (cellFilter === "all") return true;
   if (cellFilter === "note") return hasNote(c);
+  if (String(cellFilter).startsWith("tag:")) return (c.tags || []).includes(cellFilter.slice(4));
   return String(c.s) === cellFilter;
 }
 function tagName(id) { return (TAGS.find(t => t[0] === id) || [id, id])[1]; }
@@ -250,6 +252,46 @@ function scrollToYear(y) {
   const el = document.querySelector(`.year-block[data-year="${y}"]`);
   if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
 }
+function tagStats() {
+  const n = {};
+  TAGS.forEach(([id]) => { n[id] = 0; });
+  for (const y of YEARS) {
+    for (const q of allQs(currentPaper, y)) {
+      (getCell(currentPaper, y, q).tags || []).forEach(t => { if (n[t] != null) n[t]++; });
+    }
+  }
+  return TAGS.map(([id, name]) => [id, name, n[id]]).filter(x => x[2]).sort((a, b) => b[2] - a[2]);
+}
+function yearStatusCounts(y) {
+  const c = [0, 0, 0, 0];
+  for (const q of allQs(currentPaper, y)) {
+    if (PAPERS[currentPaper].missing(y).includes(q)) continue;
+    c[getCell(currentPaper, y, q).s]++;
+  }
+  return c;
+}
+function yearStackHtml(y) {
+  const c = yearStatusCounts(y);
+  return `<span class="ystack" title="已掌握 ${c[3]} · 一般 ${c[2]} · 唔識 ${c[1]} · 未做 ${c[0]}">${[3, 2, 1, 0].map(s => `<i class="ys${s}" style="flex:${c[s]}"></i>`).join("")}</span>`;
+}
+function paintYearStack(y) {
+  const el = document.querySelector(`.year-block[data-year="${y}"] .ystack`);
+  if (!el) return;
+  const wrap = document.createElement("div");
+  wrap.innerHTML = yearStackHtml(y);
+  el.replaceWith(wrap.firstElementChild);
+}
+function paintCellEl(cell, y, q) {
+  const c = getCell(currentPaper, y, q);
+  const sk = syllKind(currentPaper, y, q);
+  cell.classList.remove("s1", "s2", "s3", "sel", "syll-old", "syll-part");
+  if (STATE_CLASS[c.s]) cell.classList.add(STATE_CLASS[c.s]);
+  if (selected.has(y + ":" + q)) cell.classList.add("sel");
+  if (sk === "old") cell.classList.add("syll-old");
+  if (sk === "part") cell.classList.add("syll-part");
+  const qcell = cell.closest(".qcell");
+  if (qcell) qcell.classList.toggle("dim", !matchFilter(c));
+}
 function renderStats() {
   let total = 0, counts = [0, 0, 0, 0];
   for (const y of YEARS) {
@@ -257,12 +299,20 @@ function renderStats() {
   }
   const done = total - counts[0];
   const pct = total ? Math.round(done * 100 / total) : 0;
+  const top = tagStats().slice(0, 3);
+  const onTag = String(cellFilter).startsWith("tag:") ? cellFilter.slice(4) : "";
+  const maxT = top[0] ? top[0][2] : 1;
+  const bars = top.map(([id, name, n]) =>
+    `<button type="button" class="mini-bar${onTag === id ? " on" : ""}" data-tag="${id}"><span>${esc(name)}</span><i><b style="width:${Math.round(n * 100 / maxT)}%"></b></i><em>${n}</em></button>`
+  ).join("");
+  const hero = top[0];
   document.getElementById("stats").innerHTML = `
     <div class="stat"><b>${pct}%</b><span>已標記</span></div>
     <div class="stat"><b>${counts[3]}</b><span>已掌握</span></div>
     <div class="stat"><b>${counts[2]}</b><span>一般</span></div>
     <div class="stat"><b>${counts[1]}</b><span>唔識</span></div>
-    <div class="stat"><b>${counts[0]}</b><span>未做</span></div>`;
+    <div class="stat"><b>${counts[0]}</b><span>未做</span></div>
+    <div class="stat tag-stat${hero && onTag === hero[0] ? " on" : ""}">${hero ? `<b>${esc(hero[1])}</b><span>最常錯　${hero[2]}</span><div class="mini-bars">${bars}</div>` : `<b>—</b><span>最常錯</span>`}</div>`;
 }
 function cellHtml(y, q) {
   const c = getCell(currentPaper, y, q);
@@ -301,6 +351,7 @@ function renderGrid() {
     html += `<div class="year-block" data-year="${y}">
       <div class="year-head">
         <b>${y}</b>
+        ${yearStackHtml(y)}
         <div class="score-box">分數 / ${paper.full}
           <input type="number" min="0" max="${paper.full}" step="1" inputmode="numeric" data-score="${y}" value="${sc}">
         </div>
@@ -330,11 +381,8 @@ function renderSummary() {
       });
     });
   }
-  const top = TAGS.map(([id, name]) => [name, tagCount[id]]).filter(x => x[1]).sort((a, b) => b[1] - a[1]).slice(0, 3);
-  const tagLine = top.length ? "錯因：" + top.map(x => x[0] + " " + x[1]).join(" · ") : "尚未標記錯因";
   document.getElementById("summary").innerHTML =
-    `已掌握 ${counts[3]} · 一般 ${counts[2]} · 唔識 ${counts[1]} · 未做 ${counts[0]}<br>` +
-    `甲部未穩 ${aWeak} · 其餘未穩 ${bWeak}<br>${tagLine}<br>有筆記／標籤：${notes} 題`;
+    `甲部未穩 ${aWeak} · 其餘未穩 ${bWeak} · 有筆記／標籤 ${notes} 題`;
 }
 function renderTracker() {
   renderProfiles();
@@ -651,6 +699,81 @@ function renderGrades() {
     rows += `</tr>`;
   }
   document.getElementById("gradeTable").innerHTML = rows;
+  renderCutChart();
+}
+
+function stuCutPct(kind, y) {
+  if (kind === "core") {
+    const p1 = getScore("p1", y), p2 = getScore("p2", y);
+    if (p1 === "" || p2 === "") return null;
+    return corePct(y, p1, p2);
+  }
+  const sc = getScore(kind, y);
+  return sc === "" ? null : Number(sc);
+}
+function cutPolyline(vals, xOf, yOf) {
+  const segs = [];
+  let cur = [];
+  vals.forEach((v, i) => {
+    if (v == null) {
+      if (cur.length > 1) segs.push(cur);
+      cur = [];
+      return;
+    }
+    cur.push(xOf(i).toFixed(1) + "," + yOf(v).toFixed(1));
+  });
+  if (cur.length > 1) segs.push(cur);
+  return segs;
+}
+function renderCutChart() {
+  const kind = prefs.cutKind || "core";
+  const kindSel = document.getElementById("cutChartKind");
+  if (kindSel) kindSel.value = kind;
+  const lvOn = Object.assign({ "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, prefs.cutLv || {});
+  const chips = document.getElementById("cutLvChips");
+  if (chips) {
+    chips.innerHTML = CUT_COLS.map(lv =>
+      `<button type="button" class="chip cut-chip${lvOn[lv] ? " on" : ""}" data-cut-lv="${lv}" style="--cut:${CUT_COLORS[lv]}">${lv}</button>`
+    ).join("");
+  }
+  const stuBtn = document.getElementById("cutStuBtn");
+  if (stuBtn) {
+    stuBtn.textContent = prefs.cutStu !== false ? "你的成績　開" : "你的成績　關";
+    stuBtn.classList.toggle("on-toggle", prefs.cutStu !== false);
+  }
+  const W = 640, H = 220, l = 36, t = 14, r = 10, b = 28;
+  const xOf = i => l + i * (W - l - r) / (YEARS.length - 1);
+  const yOf = pct => t + (1 - Math.max(0, Math.min(100, pct)) / 100) * (H - t - b);
+  const grid = [0, 20, 40, 60, 80, 100].map(p => {
+    const y = yOf(p);
+    return `<line x1="${l}" y1="${y}" x2="${W - r}" y2="${y}" stroke="#efe8dc" /><text x="${l - 4}" y="${y + 3}" text-anchor="end" font-size="9" fill="#6b645b">${p}</text>`;
+  }).join("");
+  const xlabels = YEARS.map((y, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="#6b645b">${String(y).slice(2)}</text>`).join("");
+  let lines = "";
+  CUT_COLS.forEach(lv => {
+    if (!lvOn[lv]) return;
+    const vals = YEARS.map(y => {
+      const pack = window.CUTOFFS[kind] && CUTOFFS[kind][String(y)];
+      const m = startMap(pack || {});
+      return m[lv] == null ? null : m[lv];
+    });
+    cutPolyline(vals, xOf, yOf).forEach(seg => {
+      lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" points="${seg.join(" ")}" />`;
+    });
+  });
+  if (prefs.cutStu !== false) {
+    const vals = YEARS.map(y => stuCutPct(kind, y));
+    cutPolyline(vals, xOf, yOf).forEach(seg => {
+      lines += `<polyline fill="none" stroke="${CUT_COLORS.stu}" stroke-width="2.6" points="${seg.join(" ")}" />`;
+    });
+    YEARS.forEach((y, i) => {
+      const v = stuCutPct(kind, y);
+      if (v == null) return;
+      lines += `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="3" fill="${CUT_COLORS.stu}" />`;
+    });
+  }
+  document.getElementById("cutChart").innerHTML =
+    `<svg viewBox="0 0 ${W} ${H}" class="cut-svg">${grid}${lines}${xlabels}</svg>`;
 }
 
 function startMap(pack) {
@@ -1203,6 +1326,15 @@ document.getElementById("undoBtn").onclick = doUndo;
 document.getElementById("hkRefBtn").onclick = () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); };
 document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
 document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
+document.getElementById("stats").addEventListener("click", e => {
+  const bar = e.target.closest("[data-tag]");
+  if (!bar) return;
+  const tag = bar.dataset.tag;
+  cellFilter = cellFilter === "tag:" + tag ? "all" : "tag:" + tag;
+  document.getElementById("cellFilter").value = "all";
+  document.querySelectorAll("#grid .cell[data-y]").forEach(el => paintCellEl(el, +el.dataset.y, +el.dataset.q));
+  renderStats();
+});
 document.getElementById("clearSel").onclick = () => { selected.clear(); renderTracker(); };
 document.getElementById("copyHw").onclick = copyHw;
 document.getElementById("csvHw").onclick = csvHw;
@@ -1288,14 +1420,18 @@ document.getElementById("grid").addEventListener("click", e => {
   const key = y + ":" + q;
   if (batch) {
     if (selected.has(key)) selected.delete(key); else selected.add(key);
-    renderTracker();
+    paintCellEl(cell, y, q);
+    document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
     return;
   }
   pushUndo();
   const cur = getCell(currentPaper, y, q).s;
   const next = { 0: 3, 3: 2, 2: 1, 1: 0 }[cur] ?? 3;
   setCell(currentPaper, y, q, { s: next });
-  renderTracker();
+  paintCellEl(cell, y, q);
+  paintYearStack(y);
+  renderStats();
+  renderSummary();
 });
 document.getElementById("grid").addEventListener("pointerdown", e => {
   const cell = e.target.closest(".cell");
@@ -1391,6 +1527,26 @@ document.getElementById("showM2").onchange = e => {
   if (!e.target.checked && prefs.showCore === false && !prefs.showM1) { e.target.checked = true; return; }
   prefs.showM2 = e.target.checked; savePrefs(); renderGrades();
 };
+document.getElementById("cutChartKind").onchange = e => {
+  prefs.cutKind = e.target.value; savePrefs(); renderCutChart();
+};
+document.getElementById("cutStuBtn").onclick = () => {
+  const lvOn = CUT_COLS.some(lv => (prefs.cutLv || {})[lv] !== false);
+  if (prefs.cutStu !== false && !lvOn) return;
+  prefs.cutStu = prefs.cutStu === false; savePrefs(); renderCutChart();
+};
+document.getElementById("cutLvChips").addEventListener("click", e => {
+  const btn = e.target.closest("[data-cut-lv]");
+  if (!btn) return;
+  if (!prefs.cutLv) prefs.cutLv = { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true };
+  const lv = btn.dataset.cutLv;
+  const turningOff = prefs.cutLv[lv] !== false;
+  const others = CUT_COLS.some(x => x !== lv && prefs.cutLv[x] !== false);
+  if (turningOff && !others && prefs.cutStu === false) return;
+  prefs.cutLv[lv] = !turningOff;
+  savePrefs();
+  renderCutChart();
+});
 
 document.getElementById("mcSeries").addEventListener("change", () => {
   mcYearFilled[document.getElementById("mcSeries").value] = false;
