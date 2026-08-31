@@ -2,7 +2,7 @@
 
 ## 下載本地完整包
 
-倉庫根目錄有 **[本地完整包.zip](./本地完整包.zip)**，亦可喺 [Releases](https://github.com/aaronmath/dse-math-tracker/releases/latest) 下載。
+倉庫根目錄有 **[本地完整包.zip](./本地完整包.zip)**，正式下載喺 [Releases · 本地完整包](https://github.com/aaronmath/dse-math-tracker/releases/latest)。
 
 1. 下載 ZIP，解壓
 2. 用瀏覽器打開資料夾入面嘅 `index.html`（Chrome / Safari / Edge 都得）
