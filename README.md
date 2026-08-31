@@ -3,7 +3,7 @@
 靜態頁，用瀏覽器直接打開 `index.html`，或上傳整個資料夾成 GitHub Pages。
 資料存在本機 localStorage（`dse-math-tracker-v2`），可用「匯出備份」JSON。
 
-年份 2012–2026。分頁：進度／能力／MC／成績／全港平均／Cut-off／計時。
+年份 2012–2026。分頁：進度／能力／MC／成績／全港平均／Cut-off／計時。卷一已接入課題分類（進度一格一題、雷達用主課題加權、全港平均可開關課題名）。
 
 ## 放到 GitHub Pages
 
