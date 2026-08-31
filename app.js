@@ -357,9 +357,7 @@ function cellHtml(y, q) {
   const hit = currentPaper === "p2" && showHit && !yearHitOff[y] ? p2Hit(y, q) : null;
   const b = bandOf(hit);
   const hitHtml = hit != null ? `<span class="hit ${b}">${String(Math.round(hit)).padStart(2, "0")}</span>` : "";
-  const qn = currentPaper === "p2"
-    ? `<span class="qn" data-jump="${y}:${q}">${q}</span>`
-    : `<span class="qn" style="cursor:default;text-decoration:none;color:var(--muted)">${q}</span>`;
+  const qn = `<span class="qn" style="cursor:default;text-decoration:none;color:var(--muted)">${q}</span>`;
   const sk = syllKind(currentPaper, y, q);
   const syllCls = sk === "old" ? " syll-old" : sk === "part" ? " syll-part" : "";
   const syllTitle = sk === "old" ? "舊課程" : sk === "part" ? "部分舊課程" : "";
@@ -618,6 +616,7 @@ function renderWeak() {
   paintWeakChips();
   const hkBtn = document.getElementById("hkRefBtn");
   hkBtn.textContent = prefs.hkRef ? "全港參照　開" : "全港參照　關";
+  hkBtn.classList.toggle("on-toggle", !!prefs.hkRef);
   const oldBtn = document.getElementById("oldSyllBtn");
   if (oldBtn) {
     oldBtn.textContent = prefs.includeOld ? "含舊課程　開" : "含舊課程　關";
@@ -637,7 +636,7 @@ function renderWeak() {
   }
   const arrange = document.getElementById("weakArrange").value;
   if (!items.length) {
-    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">呢個學生未有符合色掣嘅弱項。</p>`;
+    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">未有符合色掣嘅能力記錄。</p>`;
     return;
   }
   items = sortWeakList(items, arrange);
