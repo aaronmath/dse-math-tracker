@@ -141,16 +141,27 @@ button.filled-note { box-shadow: inset 0 0 0 2px var(--accent); }
 .split { width: 1px; background: #c9c0b2; align-self: stretch; margin: 0 4px; }
 .qcell { position: relative; width: 36px; }
 .qcell.dim { opacity: .28; }
+.qcell:has(.cell.flash) { opacity: 1; z-index: 3; }
 .qn { display: block; text-align: center; font-size: 10px; color: var(--accent-2); cursor: pointer; text-decoration: underline; }
 .cell {
   width: 36px; height: 30px; border: 1px solid var(--line); border-radius: 7px;
   background: var(--empty); cursor: pointer; user-select: none; position: relative;
-  touch-action: manipulation;
+  touch-action: manipulation; scroll-margin-top: 280px; scroll-margin-bottom: 80px;
 }
 .cell.s1 { background: var(--weak); }
 .cell.s2 { background: var(--ok); }
 .cell.s3 { background: var(--mastered); }
 .cell.sel { outline: 2px solid var(--accent); }
+.cell.flash {
+  z-index: 3;
+  animation: cell-flash 1.8s ease-in-out 1;
+  outline: 2px solid var(--accent);
+}
+@keyframes cell-flash {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(47, 93, 80, 0); }
+  12%, 38%, 64% { box-shadow: 0 0 0 5px rgba(47, 93, 80, .45); }
+  25%, 51%, 77% { box-shadow: 0 0 0 0 rgba(47, 93, 80, 0); }
+}
 .cell.missing { background: repeating-linear-gradient(45deg,#eee,#eee 4px,#f7f7f7 4px,#f7f7f7 8px); cursor: default; }
 .hit {
   position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;

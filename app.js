@@ -1488,6 +1488,34 @@ function jumpMc(year, q) {
   document.getElementById("mcQ").value = String(q);
   showView("mc");
 }
+function jumpToTrackerCell(paper, y, q) {
+  const id = paper === "p1" || paper === "p2" || paper === "m1" || paper === "m2" ? paper : "p1";
+  currentPaper = id;
+  y = +y;
+  q = +q;
+  if (topicFilter) {
+    const keep = currentPaper;
+    if (!matchTopic(y, q)) topicFilter = "";
+    currentPaper = keep;
+  }
+  showView("tracker");
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => flashTrackerCell(y, q));
+  });
+}
+function flashTrackerCell(y, q) {
+  const cell = document.querySelector(`#grid .cell[data-y="${y}"][data-q="${q}"]`);
+  if (!cell) {
+    scrollToYear(y);
+    return;
+  }
+  cell.classList.remove("flash");
+  void cell.offsetWidth;
+  cell.classList.add("flash");
+  cell.scrollIntoView({ behavior: "smooth", block: "center" });
+  clearTimeout(flashTrackerCell._t);
+  flashTrackerCell._t = setTimeout(() => cell.classList.remove("flash"), 2200);
+}
 
 function timerDuration() {
   const p = document.getElementById("timerPaper").value;
@@ -1697,13 +1725,7 @@ document.getElementById("weakBox").addEventListener("click", e => {
   if (jump) {
     const [y, q] = jump.dataset.jump.split(":");
     const paper = jump.dataset.jumpPaper || "p2";
-    if (paper === "p1") {
-      currentPaper = "p1";
-      showView("tracker");
-      setTimeout(() => scrollToYear(+y), 50);
-      return;
-    }
-    jumpMc(y, q);
+    jumpToTrackerCell(paper, y, q);
   }
 });
 
