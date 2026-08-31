@@ -1,16 +1,19 @@
 # DSE 數學操卷神器
 
-## 下載本地完整包
-
-倉庫根目錄有 **[本地完整包.zip](./本地完整包.zip)**，正式下載喺 [Releases · 本地完整包](https://github.com/aaronmath/dse-math-tracker/releases/latest)。
-
-1. 下載 ZIP，解壓
-2. 用瀏覽器打開資料夾入面嘅 `index.html`（Chrome / Safari / Edge 都得）
-3. 唔使安裝、唔使伺服器。資料存在本機瀏覽器，可用「匯出備份」JSON
-
 線上版：https://aaronmath.github.io/dse-math-tracker/
 
-年份 2012–2026。分頁：進度／能力／MC／成績／全港平均／Cut-off／計時。卷一已接入課題分類（進度一格一題、雷達用主課題加權、全港平均可開關課題名）。
+**呢個倉庫根目錄就係完整網站。** 冇 `artifacts` 資料夾，亦冇多一層 `dse-math-tracker/` 子目錄（GitHub Pages 必須把 `index.html` 放在根目錄）。
+
+## 下載本地完整包
+
+- 檔案列表最底：**[本地完整包.zip](./本地完整包.zip)**
+- 正式下載：[Releases · 本地完整包](https://github.com/aaronmath/dse-math-tracker/releases/latest)
+
+1. 下載 ZIP，解壓會得到資料夾 `dse-math-tracker`
+2. 用瀏覽器打開入面嘅 `index.html`（Chrome / Safari / Edge 都得）
+3. 唔使安裝、唔使伺服器。資料存在本機瀏覽器，可用「匯出備份」JSON
+
+年份 2012–2026。分頁：進度／能力／MC／成績／全港平均／Cut-off／計時。卷一已接入課題分類資料。
 
 ## 放到 GitHub Pages
 
