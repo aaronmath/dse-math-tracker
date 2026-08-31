@@ -1725,7 +1725,8 @@ document.getElementById("weakBox").addEventListener("click", e => {
   if (jump) {
     const [y, q] = jump.dataset.jump.split(":");
     const paper = jump.dataset.jumpPaper || "p2";
-    jumpToTrackerCell(paper, y, q);
+    if (paper === "p1") jumpToTrackerCell("p1", y, q);
+    else jumpMc(y, q);
   }
 });
 
