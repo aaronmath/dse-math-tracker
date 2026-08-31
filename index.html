@@ -108,37 +108,24 @@
       <h2 class="page-title">操卷進度</h2>
       <div class="year-jump" id="yearJump"></div>
       <div class="stats" id="stats"></div>
-      <p class="hint">短按格改狀態 · 長按或鉛筆寫筆記 · 分數只接受整數 · Enter 跳去下一年</p>
+      <p class="hint">短按格改狀態 · 長按或鉑筆寫筆記 · 分數只接受整數 · Enter 跳去下一年</p>
       <div id="grid"></div>
       <div class="summary" id="summary"></div>
     </section>
     <section class="view" id="view-weak">
       <h2 class="page-title">能力分析</h2>
-      <p class="hint">雷達最長＝最穩。實色＝你嘅標記平均；虛線＝全港命中率。課題掣底色跟你嘅標記。功課跟簡易／中等／困難。</p>
+      <p class="hint">試卷切換卷一／卷二雷達。實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。</p>
       <div class="toolbar" id="weakBar">
         <label>試卷
           <select id="weakPaper">
             <option value="p2">必修數學卷二</option>
-            <option value="p1" disabled>必修卷一（未有課題分類）</option>
+            <option value="p1">必修數學卷一</option>
             <option value="m1" disabled>M1（未有課題分類）</option>
             <option value="m2" disabled>M2（未有課題分類）</option>
           </select>
         </label>
-        <label>排列
-          <select id="weakArrange">
-            <option value="topic">按課題</option>
-            <option value="year">按年份</option>
-          </select>
-        </label>
-        <div class="chip-row" id="weakChips">
-          <button type="button" class="chip hi on" data-band="hi">簡易</button>
-          <button type="button" class="chip mid" data-band="mid">中等</button>
-          <button type="button" class="chip lo" data-band="lo">困難</button>
-        </div>
         <button type="button" class="ghost" id="hkRefBtn">全港參照　開</button>
         <button type="button" class="ghost" id="oldSyllBtn">含舊課程　關</button>
-        <button type="button" class="ghost" id="copyHw">複製題號範圍</button>
-        <button type="button" class="ghost" id="csvHw">下載 CSV</button>
       </div>
       <div class="radar-wrap">
         <div id="radarBox" class="radar-box"></div>
@@ -147,11 +134,31 @@
           <div id="axisLegend"></div>
         </details>
       </div>
+      <div class="toolbar excerpt-bar" id="weakExcerptBar">
+        <h3 class="page-title excerpt-title">錯題摘錄</h3>
+        <label>排列
+          <select id="weakArrange">
+            <option value="topic">按課題</option>
+            <option value="year">按年份</option>
+          </select>
+        </label>
+        <div class="chip-row" id="weakStatChips">
+          <button type="button" class="chip s2 on" data-stat="2">一般</button>
+          <button type="button" class="chip s1 on" data-stat="1">唔識</button>
+        </div>
+        <div class="chip-row" id="weakChips">
+          <button type="button" class="chip hi on" data-band="hi">簡易</button>
+          <button type="button" class="chip mid" data-band="mid">中等</button>
+          <button type="button" class="chip lo" data-band="lo">困難</button>
+        </div>
+        <button type="button" class="ghost" id="copyHw">複製題目範圍</button>
+        <button type="button" class="ghost" id="csvHw">下載 CSV</button>
+      </div>
       <div id="weakBox" class="weak-box"></div>
     </section>
     <section class="view" id="view-mc">
       <h2 class="page-title">卷二 MC 查詢</h2>
-      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撳小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
+      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撞小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
       <div id="mcResult"></div>
       <details class="freq-box" id="mcFreqBox">
         <summary>課題頻率（只列該部分曾出現過嘅課題；已隱藏舊課程）</summary>
@@ -160,7 +167,7 @@
     </section>
     <section class="view" id="view-grades">
       <h2 class="page-title">個人數學成績</h2>
-      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撳年份跳返進度該年。</p>
+      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撞年份跳返進度該年。</p>
       <div class="toolbar">
         <label class="chk"><input type="checkbox" id="showCore" checked /> 顯示必修數學</label>
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
@@ -170,7 +177,7 @@
     </section>
     <section class="view" id="view-items">
       <h2 class="page-title">全港平均表現</h2>
-      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撳格跳去該年。2026 未公布則為 -。</p>
+      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撞格跳去該年。2026 未公布則為 -。<br>卷一課題名預設隱藏（單年只收起課題欄，短表摺埋）；要對題先開「顯示卷一課題」。</p>
       <div class="toolbar">
         <label>試卷
           <select id="itemPaper">
@@ -181,11 +188,12 @@
           </select>
         </label>
         <label>單年 <select id="itemYear"></select></label>
+        <button type="button" class="ghost" id="itemP1TopicBtn" hidden>顯示卷一課題　關</button>
       </div>
       <h3 class="sec-title">多年分部對比</h3>
       <div style="overflow:auto" id="itemMulti"></div>
       <details id="itemTopicBox" hidden>
-        <summary class="sec-title">卷二課題表現（所有合計）</summary>
+        <summary class="sec-title" id="itemTopicSummary">卷二課題表現（所有合計）</summary>
         <div id="itemTopics"></div>
       </details>
       <h3 class="sec-title" id="itemYearHead">單年</h3>
@@ -246,7 +254,7 @@
   <dialog id="noteDlg">
     <div class="dlg">
       <h3 id="noteTitle" style="margin:0 0 8px">筆記／錯因</h3>
-      <div class="sub">最多揀 3 個標籤</div>
+      <div class="sub">最多撿 3 個標籤</div>
       <div class="tags" id="tagBox"></div>
       <textarea id="noteText" placeholder="可寫個人事項、重做日期…"></textarea>
       <div class="row">
@@ -259,6 +267,7 @@
   <script src="./data/cutoffs.js"></script>
   <script src="./data/p2-answers.js"></script>
   <script src="./data/p2-topics.js"></script>
+  <script src="./data/p1-topics.js"></script>
   <script src="./data/item-stats.js"></script>
   <script src="./app.js"></script>
 </body>
