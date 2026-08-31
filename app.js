@@ -227,7 +227,8 @@ function p1TopicLine(y, q) {
   return names.join("／");
 }
 function p1TopicForSub(year, sub) {
-  const hit = p1Items().find(x => x.y === year && String(x.sub) === String(sub));
+  const key = normQLabel(sub);
+  const hit = p1Items().find(x => x.y === year && normQLabel(x.sub) === key);
   if (!hit) return "";
   return [hit.topic, hit.sub1, hit.sub2].filter(Boolean).join("／");
 }
@@ -282,10 +283,17 @@ function qLead(label) {
   const m = String(label).match(/^(\d+)/);
   return m ? +m[1] : 0;
 }
+function normQLabel(s) {
+  const t = String(s == null ? "" : s).trim();
+  const m = t.match(/^(\d+)(?:\.0+)?(.*)$/);
+  return m ? m[1] + m[2] : t;
+}
 function hasNote(c) { return !!(c.note && c.note.length) || !!(c.tags && c.tags.length); }
 function matchTopic(y, q) {
-  if (currentPaper !== "p2" || !topicFilter) return true;
-  return topicOf(y, q) === topicFilter;
+  if (!topicFilter) return true;
+  if (currentPaper === "p2") return topicOf(y, q) === topicFilter;
+  if (currentPaper === "p1") return qTopics("p1", y, q).includes(topicFilter);
+  return true;
 }
 function visQs(y, qs) {
   const miss = PAPERS[currentPaper].missing(y);
@@ -485,10 +493,14 @@ function fillTopicFilter() {
   const lab = document.getElementById("topicFilterLab");
   const sel = document.getElementById("topicFilter");
   if (!lab || !sel) return;
-  const show = currentPaper === "p2";
+  const show = currentPaper === "p1" || currentPaper === "p2";
   lab.hidden = !show;
   if (!show) { topicFilter = ""; return; }
-  const freq = sortTopicRows(window.P2_TOPICS.freq || []);
+  const freq = sortTopicRows(
+    currentPaper === "p1"
+      ? ((window.P1_TOPICS && P1_TOPICS.freq) || [])
+      : ((window.P2_TOPICS && P2_TOPICS.freq) || [])
+  );
   const a = freq.filter(f => f.part === "甲");
   const b = freq.filter(f => f.part === "乙");
   const labT = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
@@ -1298,7 +1310,7 @@ function renderItemYear(focusSec) {
       <table class="data-table"><thead><tr><th>題</th><th>滿分</th><th>平均分</th>${showT ? "<th>課題</th>" : ""}</tr></thead><tbody>`;
     list.forEach(p => {
       const topic = showT ? p1TopicForSub(year, p.q) : "";
-      html += `<tr class="${bandClass(p.pct)}"><td>${esc(p.q)}</td><td>${p.full}</td><td>${p.mean == null ? "-" : fmt1(p.mean)}</td>${showT ? `<td>${esc(topic)}</td>` : ""}</tr>`;
+      html += `<tr class="${bandClass(p.pct)}"><td>${esc(normQLabel(p.q))}</td><td>${p.full}</td><td>${p.mean == null ? "-" : fmt1(p.mean)}</td>${showT ? `<td>${esc(topic)}</td>` : ""}</tr>`;
     });
     html += `</tbody></table></div>`;
   });
@@ -1328,10 +1340,6 @@ function renderItemTopics() {
   if (paper === "p1") {
     wrap.hidden = false;
     if (sum) sum.textContent = "卷一課題表現（所有合計）";
-    if (!prefs.itemP1Topics) {
-      box.innerHTML = `<p class="hint">課題短表已收起。要對題先開「顯示卷一課題」（單年表亦只會隱藏課題名，分數照出）。</p>`;
-      return;
-    }
     const rows = sortTopicRows(window.P1_TOPICS && P1_TOPICS.freq || []).map(f => {
       const items = p1Items().filter(x => p1PartOfSec(x.sec) === f.part && x.topic === f.topic);
       let hk = 0, m = 0, n = 0;
@@ -1344,7 +1352,7 @@ function renderItemTopics() {
     }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
     box.innerHTML = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>部</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>` +
       rows.map(r => `<tr class="${bandClass(r.avg)}"><td>${r.part}</td><td>${esc(r.topic)}${r.old ? "　<span class='sub'>舊課程</span>" : ""}</td><td>${Math.round(r.avg)}%</td><td>${r.n}</td></tr>`).join("") +
-      `</tbody></table></div><p class="hint">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋。</p>`;
+      `</tbody></table></div><p class="hint">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋，可隨時打開（唔使開「顯示卷一課題」）。</p>`;
     return;
   }
   if (paper !== "p2") { wrap.hidden = true; box.innerHTML = ""; return; }

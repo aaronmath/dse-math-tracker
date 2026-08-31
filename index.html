@@ -143,11 +143,13 @@
             <option value="year">按年份</option>
           </select>
         </label>
-        <div class="chip-row" id="weakStatChips">
+        <div class="chip-group" id="weakStatChips">
+          <span class="chip-lab">狀態</span>
           <button type="button" class="chip s2 on" data-stat="2">一般</button>
           <button type="button" class="chip s1 on" data-stat="1">唔識</button>
         </div>
-        <div class="chip-row" id="weakChips">
+        <div class="chip-group" id="weakChips">
+          <span class="chip-lab">全港難度</span>
           <button type="button" class="chip hi on" data-band="hi">簡易</button>
           <button type="button" class="chip mid" data-band="mid">中等</button>
           <button type="button" class="chip lo" data-band="lo">困難</button>
@@ -178,7 +180,7 @@
     </section>
     <section class="view" id="view-items">
       <h2 class="page-title">全港平均表現</h2>
-      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撳格跳去該年。2026 未公布則為 -。<br>卷一課題名預設隱藏（單年只收起課題欄，短表摺埋）；要對題先開「顯示卷一課題」。</p>
+      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撳格跳去該年。2026 未公布則為 -。<br>卷一單年課題名預設隱藏；「卷一課題表現」短表預設摺埋，可隨時打開。要對單年題號先開「顯示卷一課題」。</p>
       <div class="toolbar">
         <label>試卷
           <select id="itemPaper">
