@@ -186,6 +186,8 @@ button.filled-note { box-shadow: inset 0 0 0 2px var(--accent); }
 .chip.hi.on { background: #2c6b38; }
 .chip.mid.on { background: #b8860b; }
 .chip.lo.on { background: #8b3a2d; }
+.chip.s2.on { background: #b8860b; }
+.chip.s1.on { background: #8b3a2d; }
 .grade-table, .data-table { width: 100%; border-collapse: collapse; background: var(--paper); }
 .grade-table th, .grade-table td, .data-table th, .data-table td {
   border: 1px solid var(--line); padding: 7px 8px; font-size: 13px; text-align: left;

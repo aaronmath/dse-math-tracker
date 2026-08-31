@@ -50,7 +50,7 @@ let selected = new Set();
 let noteTarget = null;
 let longTimer = null;
 let longFired = false;
-let showHit = true;
+let showHit = false;
 let yearHitOff = {};
 let cellFilter = "all";
 let topicFilter = "";
@@ -67,7 +67,7 @@ let mcUnseen = false;
 let radarAxis = "";
 const AXES = [
   { id: "a-alg", name: "甲　數與代數", part: "甲", topics: ["指數","主項變換","因式分解","代數分式","不等式","百分數","恆等式","聯立方程","函數","二次方程","數列","率與比","二次函數圖像","多項式","變分"] },
-  { id: "a-meas", name: "甲　度量圖形", part: "甲", topics: ["量度與誤差","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","圓的性質"] },
+  { id: "a-meas", name: "甲　度量圖形", part: "甲", topics: ["量度與誤差","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","圓的性質","全等與相似三角形"] },
   { id: "a-coord", name: "甲　坐標幾何", part: "甲", topics: ["直線方程","圓方程","軌跡","極坐標","坐標幾何：點"] },
   { id: "a-stat", name: "甲　統計與概率", part: "甲", topics: ["概率","統計"] },
   { id: "b-alg", name: "乙　數與代數", part: "乙", topics: ["進制","複數","指數與對數","H.C.F./L.C.M.","線性規劃","續方程","數列","二次方程"] },
@@ -76,7 +76,7 @@ const AXES = [
   { id: "b-stat", name: "乙　統計與概率", part: "乙", topics: ["排列組合","概率","統計"] }
 ];
 const TOPIC_ORDER = {
-  "甲": ["指數","主項變換","因式分解","代數分式","不等式","百分數","恆等式","量度與誤差","聯立方程","函數","二次方程","數列","率與比","二次函數圖像","多項式","極坐標","變分","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","坐標幾何：點","圓的性質","直線方程","圓方程","軌跡","概率","統計"],
+  "甲": ["指數","主項變換","因式分解","代數分式","不等式","百分數","恆等式","量度與誤差","聯立方程","函數","二次方程","數列","率與比","二次函數圖像","多項式","極坐標","變分","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","全等與相似三角形","三角函數","三角學（甲部）","坐標幾何：點","圓的性質","直線方程","圓方程","軌跡","概率","統計"],
   "乙": ["進制","複數","H.C.F./L.C.M.","圖像變換","二次方程","續方程","指數與對數","圖像軸的變換","線性規劃","三角學（乙部）","三角函數","立體三角","數列","圓的性質","圓方程","三角形的心","排列組合","概率","統計"]
 };
 function topicRank(part, topic) {
@@ -106,6 +106,10 @@ function syllKind(paper, y, q) {
     if (OLD_TOPICS.has(topicOf(y, q))) return "old";
     if (isHexQ(y, q)) return "old";
   }
+  if (paper === "p1") {
+    const tops = qTopics("p1", y, q);
+    if (tops.some(t => OLD_TOPICS.has(t))) return "old";
+  }
   return PARTIAL_SYLL.has(paper + ":" + y + ":" + q) ? "part" : "";
 }
 function syllOn() { return !!prefs.includeOld; }
@@ -132,7 +136,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -203,6 +207,63 @@ function topicOf(year, q) {
   const hit = (window.P2_TOPICS && P2_TOPICS.items || []).find(x => x.y === year && x.q === q);
   return hit ? hit.topic : "";
 }
+function p1Items() { return (window.P1_TOPICS && P1_TOPICS.items) || []; }
+function p1PartOfSec(sec) { return sec === "乙" || sec === "乙部" ? "乙" : "甲"; }
+function p1Subs(y, q) { return p1Items().filter(x => x.y === y && x.q === q); }
+function p1MainTopic(y, q) {
+  const subs = p1Subs(y, q);
+  if (!subs.length) return "";
+  const by = {};
+  subs.forEach(s => { by[s.topic] = (by[s.topic] || 0) + (s.marks || 0); });
+  return Object.entries(by).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0][0];
+}
+function p1TopicLine(y, q) {
+  const names = [], seen = new Set();
+  p1Subs(y, q).forEach(s => {
+    [s.topic, s.sub1, s.sub2].forEach(t => {
+      if (t && !seen.has(t)) { seen.add(t); names.push(t); }
+    });
+  });
+  return names.join("／");
+}
+function p1TopicForSub(year, sub) {
+  const hit = p1Items().find(x => x.y === year && String(x.sub) === String(sub));
+  if (!hit) return "";
+  return [hit.topic, hit.sub1, hit.sub2].filter(Boolean).join("／");
+}
+function p1HitPct(y, q) {
+  const subs = p1Subs(y, q);
+  let hk = 0, m = 0;
+  for (const s of subs) {
+    if (s.hk == null || s.hk === "" || !s.marks) return null;
+    hk += s.hk;
+    m += s.marks;
+  }
+  if (!m) return null;
+  return Math.round(hk / m * 100);
+}
+function qTopics(paper, y, q) {
+  if (paper === "p2") {
+    const t = topicOf(y, q);
+    return t ? [t] : [];
+  }
+  if (paper === "p1") {
+    const names = [], seen = new Set();
+    p1Subs(y, q).forEach(s => {
+      [s.topic, s.sub1, s.sub2].forEach(t => {
+        if (t && !seen.has(t)) { seen.add(t); names.push(t); }
+      });
+    });
+    return names;
+  }
+  return [];
+}
+function weakPaperId() {
+  const el = document.getElementById("weakPaper");
+  const v = (el && el.value) || prefs.weakPaper || "p1";
+  return v === "p1" || v === "p2" ? v : "p1";
+}
+function paperLabel(id) { return (PAPERS[id] && PAPERS[id].name) || id; }
 function bandOf(pct) {
   if (pct == null) return "";
   if (pct >= 60) return "hi";
@@ -264,7 +325,10 @@ function renderPaperSelect() {
   const hb = document.getElementById("hitBtn");
   hb.hidden = currentPaper !== "p2";
   hb.style.display = "";
-  if (!hb.hidden) hb.textContent = showHit ? "隱藏命中率" : "顯示命中率";
+  if (!hb.hidden) {
+    hb.textContent = showHit ? "隱藏命中率" : "顯示命中率";
+    hb.classList.toggle("on-toggle", !!showHit);
+  }
 }
 function renderYearJump() {
   const el = document.getElementById("yearJump");
@@ -459,18 +523,40 @@ function bandOk(pct) {
   const bands = prefs.weakBands || { hi: true, mid: false, lo: false };
   return !!bands[b];
 }
+function statOk(s) {
+  const st = prefs.weakStats || { 2: true, 1: true };
+  return !!st[s];
+}
 function weakItems() {
   const out = [];
-  for (const y of YEARS) {
-    for (const q of allQs("p2", y)) {
-      const c = getCell("p2", y, q);
-      if (!(c.s === 1 || c.s === 2)) continue;
-      const pct = p2Hit(y, q);
-      const it = { y, q, s: c.s, topic: topicOf(y, q) || "未分類", tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", pct };
-      if (isHexQ(y, q)) continue;
-      if (skipOldTopic(it.topic)) continue;
-      if (!bandOk(pct)) continue;
-      out.push(it);
+  const paper = weakPaperId();
+  if (paper === "p1") {
+    for (const y of YEARS) {
+      for (const q of allQs("p1", y)) {
+        const c = getCell("p1", y, q);
+        if (!(c.s === 1 || c.s === 2) || !statOk(c.s)) continue;
+        const topic = p1MainTopic(y, q) || "未分類";
+        if (skipOldTopic(topic)) continue;
+        const subs = p1Subs(y, q);
+        const sec = (subs[0] && subs[0].sec) || (q <= 9 ? "甲一" : q <= 14 ? "甲二" : "乙");
+        const pct = p1HitPct(y, q);
+        if (!bandOk(pct)) continue;
+        out.push({ paper, y, q, s: c.s, topic, topics: p1TopicLine(y, q), tags: c.tags || [], note: c.note || "", part: sec, axisPart: p1PartOfSec(sec), pct });
+      }
+    }
+  } else {
+    for (const y of YEARS) {
+      for (const q of allQs("p2", y)) {
+        const c = getCell("p2", y, q);
+        if (!(c.s === 1 || c.s === 2) || !statOk(c.s)) continue;
+        const pct = p2Hit(y, q);
+        const topic = topicOf(y, q) || "未分類";
+        const it = { paper: "p2", y, q, s: c.s, topic, topics: topic, tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", axisPart: q <= 30 ? "甲" : "乙", pct };
+        if (isHexQ(y, q)) continue;
+        if (skipOldTopic(it.topic)) continue;
+        if (!bandOk(pct)) continue;
+        out.push(it);
+      }
     }
   }
   out.sort((a, b) => a.s - b.s || b.y - a.y || a.q - b.q);
@@ -480,22 +566,42 @@ function itemRowHtml(it) {
   const lab = bandLabel(it.pct);
   const pct = it.pct == null ? "—" : it.pct + "%";
   const sh = lab ? `<span class="should ${bandOf(it.pct)}">${lab}</span>` : "";
-  const sk = syllKind("p2", it.y, it.q);
-  return `<tr data-jump="${it.y}:${it.q}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(it.topic)}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
+  const sk = syllKind(it.paper || "p2", it.y, it.q);
+  const topic = it.topics || it.topic;
+  return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(topic)}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
 }
 function paintWeakChips() {
   const bands = prefs.weakBands || { hi: true, mid: false, lo: false };
   document.querySelectorAll("#weakChips .chip").forEach(btn => {
     btn.classList.toggle("on", !!bands[btn.dataset.band]);
   });
+  const st = prefs.weakStats || { 2: true, 1: true };
+  document.querySelectorAll("#weakStatChips .chip").forEach(btn => {
+    btn.classList.toggle("on", !!st[btn.dataset.stat]);
+  });
 }
 
-function markedP2Count() {
+function markedPaperCount(paper) {
   let n = 0;
-  for (const y of YEARS) for (const q of allQs("p2", y)) if (getCell("p2", y, q).s) n++;
+  for (const y of YEARS) for (const q of allQs(paper, y)) if (getCell(paper, y, q).s) n++;
   return n;
 }
+function markedP2Count() { return markedPaperCount("p2"); }
 function topicAbility(part, topic) {
+  const paper = weakPaperId();
+  if (paper === "p1") {
+    const items = p1Items().filter(x => p1PartOfSec(x.sec) === part && x.topic === topic);
+    let sum = 0, w = 0;
+    items.forEach(x => {
+      const c = getCell("p1", x.y, x.q);
+      if (!c.s) return;
+      const m = x.marks || 0;
+      sum += (c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0) * m;
+      w += m;
+    });
+    if (!w) return { n: 0, L: null };
+    return { n: items.length, L: sum / w };
+  }
   const items = (P2_TOPICS.items || []).filter(x => x.part === part && x.topic === topic);
   let sum = 0, n = 0;
   items.forEach(x => {
@@ -514,6 +620,24 @@ function abilityBand(L) {
   return "mid";
 }
 function axisScore(axis) {
+  const paper = weakPaperId();
+  if (paper === "p1") {
+    const items = p1Items().filter(x => p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic));
+    let sum = 0, wsum = 0, hkSum = 0, hkW = 0;
+    const seenQ = new Set();
+    items.forEach(x => {
+      const c = getCell("p1", x.y, x.q);
+      if (!c.s) return;
+      const w = c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
+      const m = x.marks || 0;
+      sum += w * m;
+      wsum += m;
+      seenQ.add(x.y + ":" + x.q);
+      if (x.hk != null && x.hk !== "" && m) { hkSum += x.hk; hkW += m; }
+    });
+    if (seenQ.size < 4) return { n: seenQ.size, L: null, hk: null };
+    return { n: seenQ.size, L: wsum ? sum / wsum : null, hk: hkW ? hkSum / hkW : null };
+  }
   const items = (P2_TOPICS.items || []).filter(x => x.part === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic));
   let sum = 0, n = 0, hk = [], qs = [];
   items.forEach(x => {
@@ -594,12 +718,13 @@ function renderRadar() {
       hk = radarSpokes(H, cx, cy, r, "#8a8178", "5 4").replace(/fill="#8a8178"/g, 'fill="none" stroke="#8a8178"');
     }
   }
-  const empty = markedP2Count() === 0;
+  const empty = markedPaperCount(weakPaperId()) === 0;
+  const emptyHint = `去進度標記${paperLabel(weakPaperId())}先出圖。`;
   document.getElementById("radarBox").innerHTML = empty
-    ? `<p class="hint">去進度標記卷二先出圖。</p>`
+    ? `<p class="hint">${emptyHint}</p>`
     : `<svg viewBox="0 0 340 340">${rings}${spokes}${hk}${stu}${labels}
       <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅標記平均　虛線＝全港命中率</text>
-      <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%</text></svg>`;
+      <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　卷一按分數加權</text></svg>`;
   document.getElementById("axisLegend").innerHTML = AXES.map((a, i) => {
     const sc = scores[i];
     const stuLab = sc.L == null ? "未評" : Math.round(sc.L * 100) + "%";
@@ -614,6 +739,8 @@ function renderRadar() {
 }
 function renderWeak() {
   paintWeakChips();
+  const wp = document.getElementById("weakPaper");
+  if (wp && prefs.weakPaper && [...wp.options].some(o => o.value === prefs.weakPaper && !o.disabled)) wp.value = prefs.weakPaper;
   const hkBtn = document.getElementById("hkRefBtn");
   hkBtn.textContent = prefs.hkRef ? "全港參照　開" : "全港參照　關";
   hkBtn.classList.toggle("on-toggle", !!prefs.hkRef);
@@ -623,20 +750,21 @@ function renderWeak() {
     oldBtn.classList.toggle("on-toggle", !!prefs.includeOld);
   }
   renderRadar();
+  const paper = weakPaperId();
   const items0 = weakItems();
   const box = document.getElementById("weakBox");
-  if (markedP2Count() === 0) {
-    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">去進度標記卷二先出圖同功課。</p>`;
+  if (markedPaperCount(paper) === 0) {
+    box.innerHTML = `<p class="hint">去進度標記${paperLabel(paper)}先出圖同功課。</p>`;
     return;
   }
   let items = items0;
   if (radarAxis) {
     const ax = AXES.find(a => a.id === radarAxis);
-    if (ax) items = items.filter(it => it.part === ax.part && ax.topics.includes(it.topic));
+    if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
   }
   const arrange = document.getElementById("weakArrange").value;
   if (!items.length) {
-    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3><p class="hint">未有符合色掣嘅能力記錄。</p>`;
+    box.innerHTML = `<p class="hint">未有符合色掣嘅能力記錄。</p>`;
     return;
   }
   items = sortWeakList(items, arrange);
@@ -648,7 +776,7 @@ function renderWeak() {
       const list = items.filter(x => x.y === y);
       html += `<h3 class="sec-title">${y}（${list.length}）</h3><div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
     });
-    box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3>` + html;
+    box.innerHTML = html;
     return;
   }
   const counts = {};
@@ -662,7 +790,7 @@ function renderWeak() {
   ).join("") + (rest ? `<div class="sub">其他課題 ${rest} 題</div>` : "");
   const focus = box.dataset.topic || "";
   const list = (focus ? items.filter(x => x.topic === focus) : items).slice(0, 120);
-  box.innerHTML = `<h3 class="page-title" style="margin-top:8px">錯題摘錄</h3>${bars}${focus ? `<p class="hint">而家睇：${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : ""}
+  box.innerHTML = `${bars}${focus ? `<p class="hint">而家睇：${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : ""}
     <div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
 }
 
@@ -1121,6 +1249,7 @@ function topicYearAvg(year, topic) {
 function renderItemYear(focusSec) {
   const paper = document.getElementById("itemPaper").value;
   const year = +document.getElementById("itemYear").value;
+  paintItemP1TopicBtn();
   document.getElementById("itemYearHead").textContent = paper === "p2"
     ? `單年課題命中率（${year}）（平均命中率）`
     : `單年分題（${year}）（卷序）`;
@@ -1161,13 +1290,15 @@ function renderItemYear(focusSec) {
     (groups[g] = groups[g] || []).push(p);
   });
   const order = paper === "p1" ? ["甲一", "甲二", "乙"] : ["甲", "乙"];
+  const showT = paper === "p1" && !!prefs.itemP1Topics;
   let html = "";
   order.forEach(g => {
     const list = groups[g] || [];
     html += `<div class="year-block" id="item-sec-${g}"><div class="year-head"><b>${g}</b></div>
-      <table class="data-table"><thead><tr><th>題</th><th>滿分</th><th>平均分</th></tr></thead><tbody>`;
+      <table class="data-table"><thead><tr><th>題</th><th>滿分</th><th>平均分</th>${showT ? "<th>課題</th>" : ""}</tr></thead><tbody>`;
     list.forEach(p => {
-      html += `<tr class="${bandClass(p.pct)}"><td>${esc(p.q)}</td><td>${p.full}</td><td>${p.mean == null ? "-" : fmt1(p.mean)}</td></tr>`;
+      const topic = showT ? p1TopicForSub(year, p.q) : "";
+      html += `<tr class="${bandClass(p.pct)}"><td>${esc(p.q)}</td><td>${p.full}</td><td>${p.mean == null ? "-" : fmt1(p.mean)}</td>${showT ? `<td>${esc(topic)}</td>` : ""}</tr>`;
     });
     html += `</tbody></table></div>`;
   });
@@ -1177,13 +1308,48 @@ function renderItemYear(focusSec) {
     if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 }
+function paintItemP1TopicBtn() {
+  const btn = document.getElementById("itemP1TopicBtn");
+  if (!btn) return;
+  const paper = document.getElementById("itemPaper").value;
+  btn.hidden = paper !== "p1";
+  const on = !!prefs.itemP1Topics;
+  btn.textContent = on ? "顯示卷一課題　開" : "顯示卷一課題　關";
+  btn.classList.toggle("on-toggle", on);
+}
 function renderItemTopics() {
   const paper = document.getElementById("itemPaper").value;
   const wrap = document.getElementById("itemTopicBox");
   const box = document.getElementById("itemTopics");
+  const sum = document.getElementById("itemTopicSummary");
   if (!wrap || !box) return;
+  paintItemP1TopicBtn();
+  wrap.open = false;
+  if (paper === "p1") {
+    wrap.hidden = false;
+    if (sum) sum.textContent = "卷一課題表現（所有合計）";
+    if (!prefs.itemP1Topics) {
+      box.innerHTML = `<p class="hint">課題短表已收起。要對題先開「顯示卷一課題」（單年表亦只會隱藏課題名，分數照出）。</p>`;
+      return;
+    }
+    const rows = sortTopicRows(window.P1_TOPICS && P1_TOPICS.freq || []).map(f => {
+      const items = p1Items().filter(x => p1PartOfSec(x.sec) === f.part && x.topic === f.topic);
+      let hk = 0, m = 0, n = 0;
+      items.forEach(x => {
+        if (x.hk == null || x.hk === "" || !x.marks) return;
+        hk += x.hk; m += x.marks; n++;
+      });
+      if (!m) return null;
+      return { part: f.part, topic: f.topic, avg: hk / m * 100, n, old: OLD_TOPICS.has(f.topic) };
+    }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
+    box.innerHTML = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>部</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>` +
+      rows.map(r => `<tr class="${bandClass(r.avg)}"><td>${r.part}</td><td>${esc(r.topic)}${r.old ? "　<span class='sub'>舊課程</span>" : ""}</td><td>${Math.round(r.avg)}%</td><td>${r.n}</td></tr>`).join("") +
+      `</tbody></table></div><p class="hint">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋。</p>`;
+    return;
+  }
   if (paper !== "p2") { wrap.hidden = true; box.innerHTML = ""; return; }
   wrap.hidden = false;
+  if (sum) sum.textContent = "卷二課題表現（所有合計）";
   const rows = sortTopicRows(P2_TOPICS.freq || []).map(f => {
     const items = (P2_TOPICS.items || []).filter(x => x.part === f.part && x.topic === f.topic);
     const pcts = items.map(x => p2Hit(x.y, x.q)).filter(p => p != null);
@@ -1209,14 +1375,14 @@ function renderItems() {
 
 function sortWeakList(items, arrange) {
   const rows = items.slice();
-  if (arrange === "year") return rows.sort((a, b) => b.y - a.y || a.part.localeCompare(b.part) || a.q - b.q);
-  return rows.sort((a, b) => a.s - b.s || b.y - a.y || a.part.localeCompare(b.part) || a.q - b.q);
+  if (arrange === "year") return rows.sort((a, b) => b.y - a.y || a.q - b.q);
+  return rows.sort((a, b) => a.s - b.s || b.y - a.y || a.q - b.q);
 }
 function visibleWeakItems() {
   let items = weakItems();
   if (radarAxis) {
     const ax = AXES.find(a => a.id === radarAxis);
-    if (ax) items = items.filter(it => it.part === ax.part && ax.topics.includes(it.topic));
+    if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
   }
   const arrange = document.getElementById("weakArrange").value;
   const box = document.getElementById("weakBox");
@@ -1256,18 +1422,20 @@ function yearPartLines(rows) {
 function hwText() {
   const arrange = document.getElementById("weakArrange").value;
   const rows = hwRows();
+  const lab = paperLabel(weakPaperId());
   if (!rows.length) return "（沒有符合嘅題）";
   if (arrange !== "topic") {
-    return currentProfile + "　卷二\n" + yearPartLines(rows).join("\n");
+    return currentProfile + "　" + lab + "\n" + yearPartLines(rows).join("\n");
   }
   const counts = {};
   rows.forEach(r => { counts[r.topic] = (counts[r.topic] || 0) + 1; });
   const topics = Object.keys(counts).sort((a, b) => counts[b] - counts[a] || a.localeCompare(b));
   const blocks = topics.map(t => {
     const list = rows.filter(r => r.topic === t);
-    return t + "（" + list.length + "）\n" + yearPartLines(list).join("\n");
+    const full = list[0] && list[0].topics && list[0].topics !== t ? t + "（" + list[0].topics + "）" : t;
+    return full + "（" + list.length + "）\n" + yearPartLines(list).join("\n");
   });
-  return currentProfile + "　卷二　按課題\n" + blocks.join("\n\n");
+  return currentProfile + "　" + lab + "　按課題\n" + blocks.join("\n\n");
 }
 function copyHw() {
   const t = hwText();
@@ -1285,7 +1453,8 @@ function copyHw() {
 function csvHw() {
   const rows = hwRows();
   const head = "學生,卷,年,題,部分,課題,難度,命中率,錯因,筆記";
-  const body = rows.map(r => [currentProfile, "必修卷二", r.y, r.q, r.part, r.topic, bandLabel(r.pct), r.pct == null ? "" : r.pct, r.tags.map(tagName).join("、"), r.note]
+  const lab = paperLabel(weakPaperId());
+  const body = rows.map(r => [currentProfile, lab, r.y, r.q, r.part, r.topics || r.topic, bandLabel(r.pct), r.pct == null ? "" : r.pct, r.tags.map(tagName).join("、"), r.note]
     .map(v => `"${String(v).replace(/"/g, '""')}"`).join(","));
   const blob = new Blob(["\ufeff" + head + "\n" + body.join("\n")], { type: "text/csv;charset=utf-8" });
   const a = document.createElement("a");
@@ -1456,6 +1625,28 @@ document.getElementById("batchBar").addEventListener("click", e => {
   renderTracker();
 });
 document.getElementById("weakArrange").addEventListener("change", renderWeak);
+document.getElementById("weakPaper").addEventListener("change", e => {
+  prefs.weakPaper = e.target.value;
+  savePrefs();
+  radarAxis = "";
+  const box = document.getElementById("weakBox");
+  if (box) box.dataset.topic = "";
+  renderWeak();
+});
+document.getElementById("weakStatChips").addEventListener("click", e => {
+  const btn = e.target.closest("[data-stat]");
+  if (!btn) return;
+  const st = Object.assign({ 2: true, 1: true }, prefs.weakStats || {});
+  const key = btn.dataset.stat;
+  if (st[key]) {
+    const others = ["2", "1"].filter(k => k !== key && st[k]);
+    if (!others.length) return;
+    st[key] = false;
+  } else st[key] = true;
+  prefs.weakStats = st;
+  savePrefs();
+  renderWeak();
+});
 document.getElementById("weakChips").addEventListener("click", e => {
   const btn = e.target.closest("[data-band]");
   if (!btn) return;
@@ -1472,7 +1663,15 @@ document.getElementById("weakChips").addEventListener("click", e => {
 });
 document.getElementById("axisLegend").addEventListener("click", e => {
   const chip = e.target.closest("[data-jump-topic]");
-  if (chip) { jumpMcTopic(chip.dataset.jumpTopic); return; }
+  if (chip) {
+    if (weakPaperId() === "p1") {
+      document.getElementById("weakBox").dataset.topic = chip.dataset.jumpTopic;
+      renderWeak();
+      return;
+    }
+    jumpMcTopic(chip.dataset.jumpTopic);
+    return;
+  }
   const row = e.target.closest("[data-axis]");
   if (row) { radarAxis = radarAxis === row.dataset.axis ? "" : row.dataset.axis; renderWeak(); }
 });
@@ -1489,6 +1688,13 @@ document.getElementById("weakBox").addEventListener("click", e => {
   const jump = e.target.closest("[data-jump]");
   if (jump) {
     const [y, q] = jump.dataset.jump.split(":");
+    const paper = jump.dataset.jumpPaper || "p2";
+    if (paper === "p1") {
+      currentPaper = "p1";
+      showView("tracker");
+      setTimeout(() => scrollToYear(+y), 50);
+      return;
+    }
     jumpMc(y, q);
   }
 });
@@ -1714,6 +1920,12 @@ document.getElementById("mcResult").addEventListener("click", e => {
 
 document.getElementById("itemPaper").addEventListener("change", renderItems);
 document.getElementById("itemYear").addEventListener("change", () => renderItemYear());
+document.getElementById("itemP1TopicBtn").addEventListener("click", () => {
+  prefs.itemP1Topics = !prefs.itemP1Topics;
+  savePrefs();
+  renderItemTopics();
+  renderItemYear();
+});
 document.getElementById("itemMulti").addEventListener("click", e => {
   const td = e.target.closest("[data-jump-year]");
   if (!td) return;
@@ -1826,6 +2038,13 @@ document.getElementById("importFile").onchange = e => {
 
 document.getElementById("timerSound").checked = !!prefs.timerSound;
 if (!prefs.weakBands) prefs.weakBands = { hi: true, mid: false, lo: false };
+if (!prefs.weakStats) prefs.weakStats = { 2: true, 1: true };
+if (prefs.itemP1Topics == null) prefs.itemP1Topics = false;
+if (!prefs.weakPaper) prefs.weakPaper = "p1";
+{
+  const wp = document.getElementById("weakPaper");
+  if (wp && [...wp.options].some(o => o.value === prefs.weakPaper && !o.disabled)) wp.value = prefs.weakPaper;
+}
 const toTop = document.getElementById("toTop");
 const paintToTop = () => { toTop.hidden = window.scrollY < 200; };
 window.addEventListener("scroll", paintToTop, { passive: true });

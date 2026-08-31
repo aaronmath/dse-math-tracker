@@ -8,6 +8,9 @@ DSE 數學操卷神器 — 本地完整包
 資料存在呢部電腦嘅瀏覽器，可用頁面頂「匯出備份」儲 JSON。
 計時完結提示音（timer-end.wav）已包含在資料夾內。
 
+能力頁雷達可轉必修卷一／卷二（卷一按主課題分數加權）。
+全港平均頁「顯示卷一課題」預設關，避免未做先見到課題。
+
 線上版：https://aaronmath.github.io/dse-math-tracker/
 
 Powered by Chan Yiu Hei
