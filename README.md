@@ -6,8 +6,10 @@
 
 ## 下載本地完整包
 
-- 檔案列表最底：**[本地完整包.zip](./本地完整包.zip)**
-- 正式下載：[Releases · 本地完整包](https://github.com/aaronmath/dse-math-tracker/releases/latest)
+檔案名：**[dse-math-tracker.zip](./dse-math-tracker.zip)**
+
+- 檔案列表：[dse-math-tracker.zip](./dse-math-tracker.zip)
+- 正式下載（較穩）：[Releases · dse-math-tracker.zip](https://github.com/aaronmath/dse-math-tracker/releases/latest/download/dse-math-tracker.zip)
 
 1. 下載 ZIP，解壓會得到資料夾 `dse-math-tracker`
 2. 用瀏覽器打開入面嘅 `index.html`（Chrome / Safari / Edge 都得）
