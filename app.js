@@ -1831,6 +1831,10 @@ const paintToTop = () => { toTop.hidden = window.scrollY < 200; };
 window.addEventListener("scroll", paintToTop, { passive: true });
 toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 paintToTop();
+if (location.protocol === "file:") {
+  const dl = document.getElementById("dlPack");
+  if (dl) dl.hidden = true;
+}
 const hash = location.hash.replace("#", "");
 if (["tracker", "weak", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
 else showView("tracker");

@@ -16,6 +16,7 @@
           <h1>DSE 數學操卷神器</h1>
           <div class="sub">自己用／小班用 · 資料存在呢部瀏覽器 · 可匯出 JSON</div>
         </div>
+        <a class="dl-pack" id="dlPack" href="./本地完整包.zip" download="本地完整包.zip">下載本地完整包</a>
       </div>
       <nav class="tabs" id="tabs">
         <button class="tab on" data-view="tracker">進度</button>
@@ -108,7 +109,7 @@
       <h2 class="page-title">操卷進度</h2>
       <div class="year-jump" id="yearJump"></div>
       <div class="stats" id="stats"></div>
-      <p class="hint">短按格改狀態 · 長按或鉑筆寫筆記 · 分數只接受整數 · Enter 跳去下一年</p>
+      <p class="hint">短按格改狀態 · 長按或鉛筆寫筆記 · 分數只接受整數 · Enter 跳去下一年</p>
       <div id="grid"></div>
       <div class="summary" id="summary"></div>
     </section>
@@ -158,7 +159,7 @@
     </section>
     <section class="view" id="view-mc">
       <h2 class="page-title">卷二 MC 查詢</h2>
-      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撞小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
+      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撳小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
       <div id="mcResult"></div>
       <details class="freq-box" id="mcFreqBox">
         <summary>課題頻率（只列該部分曾出現過嘅課題；已隱藏舊課程）</summary>
@@ -167,7 +168,7 @@
     </section>
     <section class="view" id="view-grades">
       <h2 class="page-title">個人數學成績</h2>
-      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撞年份跳返進度該年。</p>
+      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撳年份跳返進度該年。</p>
       <div class="toolbar">
         <label class="chk"><input type="checkbox" id="showCore" checked /> 顯示必修數學</label>
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
@@ -177,7 +178,7 @@
     </section>
     <section class="view" id="view-items">
       <h2 class="page-title">全港平均表現</h2>
-      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撞格跳去該年。2026 未公布則為 -。<br>卷一課題名預設隱藏（單年只收起課題欄，短表摺埋）；要對題先開「顯示卷一課題」。</p>
+      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撳格跳去該年。2026 未公布則為 -。<br>卷一課題名預設隱藏（單年只收起課題欄，短表摺埋）；要對題先開「顯示卷一課題」。</p>
       <div class="toolbar">
         <label>試卷
           <select id="itemPaper">
@@ -254,7 +255,7 @@
   <dialog id="noteDlg">
     <div class="dlg">
       <h3 id="noteTitle" style="margin:0 0 8px">筆記／錯因</h3>
-      <div class="sub">最多撿 3 個標籤</div>
+      <div class="sub">最多揀 3 個標籤</div>
       <div class="tags" id="tagBox"></div>
       <textarea id="noteText" placeholder="可寫個人事項、重做日期…"></textarea>
       <div class="row">

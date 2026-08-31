@@ -1,0 +1,13 @@
+DSE 數學操卷神器 — 本地完整包
+
+1. 解壓呢個 ZIP
+2. 打開資料夾「dse-math-tracker」入面嘅 index.html
+   （用 Chrome、Safari 或 Edge 雙擊即可）
+3. 唔使安裝、唔使上網、唔使伺服器
+
+資料存在呢部電腦嘅瀏覽器，可用頁面頂「匯出備份」儲 JSON。
+計時完結提示音（timer-end.wav）已包含在資料夾內。
+
+線上版：https://aaronmath.github.io/dse-math-tracker/
+
+Powered by Chan Yiu Hei
