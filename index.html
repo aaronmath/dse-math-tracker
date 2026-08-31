@@ -14,9 +14,8 @@
       <div class="title-row">
         <div>
           <h1>DSE 數學操卷神器</h1>
-          <div class="sub">自己用／小班用 · 資料存在呢部瀏覽器 · 可匯出 JSON</div>
+          <div class="sub">自己用／小班用 · 資料存在呢部瀏覽器 · 可過檔 QR 或匯出 JSON</div>
         </div>
-        <a class="dl-pack" id="dlPack" href="https://github.com/aaronmath/dse-math-tracker/releases/latest/download/dse-math-tracker.zip">下載本地完整包</a>
       </div>
       <nav class="tabs" id="tabs">
         <button class="tab on" data-view="tracker">進度</button>
@@ -33,10 +32,18 @@
         <button type="button" id="addProfile">新增</button>
         <button type="button" class="ghost" id="renameProfile">改名</button>
         <button type="button" class="danger" id="delProfile">刪除</button>
-        <button type="button" class="ghost" id="exportBtn">匯出備份</button>
-        <button type="button" class="ghost" id="importBtn">匯入</button>
+        <label>過檔
+          <select id="xferMenu">
+            <option value="">選擇動作</option>
+            <option value="scan">掃入鏡頭</option>
+            <option value="show">出示 QR</option>
+            <option value="export">匯出 JSON（當前學生）</option>
+            <option value="import">匯入 JSON</option>
+          </select>
+        </label>
         <button type="button" class="ghost" id="undoBtn">復原標記／分數</button>
         <input id="importFile" type="file" accept=".json,application/json,text/json" multiple hidden />
+        <input id="xferImgFile" type="file" accept="image/*" hidden />
       </div>
       <div id="trackerTheme">
       <div class="toolbar" id="trackerBar">
@@ -115,7 +122,7 @@
     </section>
     <section class="view" id="view-weak">
       <h2 class="page-title">能力分析</h2>
-      <p class="hint">試卷次序：卷一 → 卷二 → M1 → M2。實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。</p>
+      <p class="hint">試卷次序：卷一 → 卷二 → M1 → M2。實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。</p>
       <div class="toolbar" id="weakBar">
         <label>試卷
           <select id="weakPaper">
@@ -266,7 +273,41 @@
       </div>
     </div>
   </dialog>
+  <dialog id="xferDlg">
+    <div class="dlg xfer-dlg">
+      <div id="xferShow" hidden>
+        <h3 style="margin:0 0 6px">出示進度碼</h3>
+        <p class="hint" id="xferShowMeta"></p>
+        <canvas id="xferQr" width="360" height="360"></canvas>
+        <p class="hint">用另一部裝置：過檔 → 掃入。含狀態、分數、錯因；筆記唔在碼內。</p>
+        <div class="row"><button type="button" class="ghost" id="xferShowClose">關閉</button></div>
+      </div>
+      <div id="xferScan" hidden>
+        <h3 style="margin:0 0 6px">掃入進度碼</h3>
+        <video id="xferVideo" playsinline muted autoplay></video>
+        <canvas id="xferScanCanvas" hidden></canvas>
+        <p class="hint" id="xferScanHint">對準另一部裝置嘅 QR。離線檔案或未授權鏡頭可用相簿。</p>
+        <div class="row">
+          <button type="button" class="ghost" id="xferPickImg">改用相簿圖片</button>
+          <button type="button" class="ghost" id="xferScanClose">取消</button>
+        </div>
+      </div>
+      <div id="xferMerge" hidden>
+        <h3 style="margin:0 0 6px">掃到「<span id="xferMergeName"></span>」</h3>
+        <p class="hint">會寫入狀態、分數、錯因。筆記唔會被 QR 改動。</p>
+        <p class="hint" id="xferMergeExist"></p>
+        <div class="row xfer-actions">
+          <button type="button" id="xferMergeBtn">合併（建議）</button>
+          <button type="button" class="ghost" id="xferReplaceBtn">覆蓋此學生</button>
+          <button type="button" class="ghost" id="xferNewBtn">新增學生</button>
+          <button type="button" class="ghost" id="xferMergeCancel">取消</button>
+        </div>
+      </div>
+    </div>
+  </dialog>
   <audio id="endSound" src="./timer-end.wav" preload="auto"></audio>
+  <script src="./vendor/qrcode.min.js"></script>
+  <script src="./vendor/jsqr.min.js"></script>
   <script src="./data/cutoffs.js"></script>
   <script src="./data/p2-answers.js"></script>
   <script src="./data/p2-topics.js"></script>

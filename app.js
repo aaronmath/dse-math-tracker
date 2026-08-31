@@ -136,7 +136,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: false, lo: false }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -453,6 +453,9 @@ function renderGrid() {
     const sc = getScore(currentPaper, y);
     const hitBtn = currentPaper === "p2"
       ? `<button class="ghost" data-toggle-hit="${y}">${yearHitOff[y] ? "顯示命中率" : "隱藏命中率"}</button>` : "";
+    const yQs = visQs(y, allQs(currentPaper, y));
+    const yOn = yQs.length && yQs.every(q => selected.has(y + ":" + q));
+    const pickLab = (on, name) => (on ? "取消" : "選") + name;
     html += `<div class="year-block" data-year="${y}">
       <div class="year-head">
         <b>${y}</b>
@@ -460,8 +463,11 @@ function renderGrid() {
         <div class="score-box">分數 / ${paper.full}
           <input type="number" min="0" max="${paper.full}" step="1" inputmode="numeric" data-score="${y}" value="${sc}">
         </div>
-        <button class="ghost" data-pick="year">選呢年</button>
-        ${secs.map(sec => `<button class="ghost" data-pick="sec" data-from="${sec.qs[0]}" data-to="${sec.qs[sec.qs.length - 1]}">選${sec.name}</button>`).join("")}
+        <button class="ghost${yOn ? " on-toggle" : ""}" data-pick="year">${pickLab(yOn, "呢年")}</button>
+        ${secs.map(sec => {
+          const on = sec.qs.length && sec.qs.every(q => selected.has(y + ":" + q));
+          return `<button class="ghost${on ? " on-toggle" : ""}" data-pick="sec" data-from="${sec.qs[0]}" data-to="${sec.qs[sec.qs.length - 1]}">${pickLab(on, sec.name)}</button>`;
+        }).join("")}
         ${hitBtn}
       </div>
       <div class="qrow">${secHtml}</div>
@@ -532,7 +538,7 @@ function isEasy(it) { return it.pct != null && it.pct >= 60; }
 function bandOk(pct) {
   const b = bandOf(pct);
   if (!b) return false;
-  const bands = prefs.weakBands || { hi: true, mid: false, lo: false };
+  const bands = prefs.weakBands || { hi: true, mid: true, lo: true };
   return !!bands[b];
 }
 function statOk(s) {
@@ -583,7 +589,7 @@ function itemRowHtml(it) {
   return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(topic)}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
 }
 function paintWeakChips() {
-  const bands = prefs.weakBands || { hi: true, mid: false, lo: false };
+  const bands = prefs.weakBands || { hi: true, mid: true, lo: true };
   document.querySelectorAll("#weakChips .chip").forEach(btn => {
     btn.classList.toggle("on", !!bands[btn.dataset.band]);
   });
@@ -1686,7 +1692,7 @@ document.getElementById("weakStatChips").addEventListener("click", e => {
 document.getElementById("weakChips").addEventListener("click", e => {
   const btn = e.target.closest("[data-band]");
   if (!btn) return;
-  const bands = Object.assign({ hi: true, mid: false, lo: false }, prefs.weakBands || {});
+  const bands = Object.assign({ hi: true, mid: true, lo: true }, prefs.weakBands || {});
   const key = btn.dataset.band;
   if (bands[key]) {
     const others = ["hi", "mid", "lo"].filter(k => k !== key && bands[k]);
@@ -1747,7 +1753,9 @@ document.getElementById("grid").addEventListener("click", e => {
     const qs = pick.dataset.pick === "year"
       ? visQs(y, allQs(currentPaper, y))
       : visQs(y, range(+pick.dataset.from, +pick.dataset.to));
-    qs.forEach(q => selected.add(y + ":" + q));
+    const allOn = qs.length && qs.every(q => selected.has(y + ":" + q));
+    if (allOn) qs.forEach(q => selected.delete(y + ":" + q));
+    else qs.forEach(q => selected.add(y + ":" + q));
     renderTracker();
     return;
   }
@@ -2018,19 +2026,429 @@ document.getElementById("timerReset").onclick = () => {
 };
 document.addEventListener("visibilitychange", () => { if (timerRun.start && !timerRun.paused) timerTick(); });
 
-document.getElementById("exportBtn").onclick = () => {
-  const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json;charset=utf-8" });
+const XFER_PAPERS = ["p1", "p2", "m1", "m2"];
+const XFER_PREFIX = "DSEMT:";
+let xferStream = null;
+let xferRaf = 0;
+let xferPending = null;
+
+function cellLayout() {
+  if (cellLayout._c) return cellLayout._c;
+  const slots = [];
+  XFER_PAPERS.forEach(paper => {
+    YEARS.forEach(y => {
+      allQs(paper, y).forEach(q => slots.push([paper, y, q]));
+    });
+  });
+  cellLayout._c = slots;
+  return slots;
+}
+function tagMask(tags) {
+  let m = 0;
+  (tags || []).forEach(id => {
+    const i = TAGS.findIndex(t => t[0] === id);
+    if (i >= 0) m |= 1 << i;
+  });
+  return m & 255;
+}
+function tagsFromMask(m) {
+  return TAGS.filter((_, i) => m & (1 << i)).map(t => t[0]);
+}
+function bytesToB64(bytes) {
+  let s = "";
+  for (let i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]);
+  return btoa(s);
+}
+function b64ToBytes(b64) {
+  const s = atob(b64);
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u;
+}
+function encodeQrSnap(profile) {
+  const name = String(profile.name || "學生").slice(0, 40);
+  const nameB = new TextEncoder().encode(name);
+  const slots = cellLayout();
+  const stBytes = new Uint8Array(Math.ceil(slots.length * 2 / 8));
+  const tagList = [];
+  slots.forEach(([paper, y, q], i) => {
+    const c = (profile.cells || {})[paper + ":" + y + ":" + q] || { s: 0, tags: [] };
+    const s = (c.s || 0) & 3;
+    const bit = i * 2;
+    stBytes[bit >> 3] |= s << (6 - (bit & 7));
+    const mask = tagMask(c.tags);
+    if (mask) tagList.push({ paper: XFER_PAPERS.indexOf(paper), y: y - 2012, q, mask });
+  });
+  const scoreBytes = new Uint8Array(XFER_PAPERS.length * YEARS.length);
+  let si = 0;
+  XFER_PAPERS.forEach(paper => {
+    YEARS.forEach(y => {
+      const v = (profile.scores || {})[paper + ":" + y];
+      scoreBytes[si++] = (v == null || v === "") ? 255 : Math.max(0, Math.min(254, +v));
+    });
+  });
+  const buf = new Uint8Array(5 + nameB.length + stBytes.length + scoreBytes.length + 2 + tagList.length * 4);
+  buf[0] = 68; buf[1] = 77; buf[2] = 84; buf[3] = 49;
+  buf[4] = nameB.length;
+  buf.set(nameB, 5);
+  let o = 5 + nameB.length;
+  buf.set(stBytes, o); o += stBytes.length;
+  buf.set(scoreBytes, o); o += scoreBytes.length;
+  buf[o] = tagList.length & 255;
+  buf[o + 1] = (tagList.length >> 8) & 255;
+  o += 2;
+  tagList.forEach(t => {
+    buf[o++] = t.paper; buf[o++] = t.y; buf[o++] = t.q; buf[o++] = t.mask;
+  });
+  return buf;
+}
+async function deflateBytes(bytes) {
+  if (typeof CompressionStream !== "function") return null;
+  const stream = new Blob([bytes]).stream().pipeThrough(new CompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function inflateBytes(bytes) {
+  if (typeof DecompressionStream !== "function") throw new Error("瀏覽器唔支援解壓");
+  const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"));
+  return new Uint8Array(await new Response(stream).arrayBuffer());
+}
+async function encodeQrText(profile) {
+  const buf = encodeQrSnap(profile);
+  try {
+    const z = await deflateBytes(buf);
+    if (z && z.length < buf.length) return "DSEMTZ:" + bytesToB64(z);
+  } catch {}
+  return XFER_PREFIX + bytesToB64(buf);
+}
+function decodeQrBuf(buf) {
+  if (buf.length < 8 || buf[0] !== 68 || buf[1] !== 77 || buf[2] !== 84 || buf[3] !== 49) throw new Error("進度碼版本唔啱");
+  const nameLen = buf[4];
+  let o = 5;
+  const name = new TextDecoder().decode(buf.slice(o, o + nameLen)) || "學生";
+  o += nameLen;
+  const slots = cellLayout();
+  const stLen = Math.ceil(slots.length * 2 / 8);
+  const stBytes = buf.slice(o, o + stLen);
+  o += stLen;
+  const status = slots.map((_, idx) => {
+    const bit = idx * 2;
+    return (stBytes[bit >> 3] >> (6 - (bit & 7))) & 3;
+  });
+  const scoreN = XFER_PAPERS.length * YEARS.length;
+  const scoreBytes = buf.slice(o, o + scoreN);
+  o += scoreN;
+  const scores = [];
+  let si = 0;
+  XFER_PAPERS.forEach(paper => {
+    YEARS.forEach(y => {
+      const v = scoreBytes[si++];
+      scores.push({ paper, y, v: v === 255 || v == null ? "" : v });
+    });
+  });
+  const tagN = buf[o] | (buf[o + 1] << 8);
+  o += 2;
+  const tags = {};
+  for (let t = 0; t < tagN; t++) {
+    const paper = XFER_PAPERS[buf[o]] || "p1";
+    const y = 2012 + buf[o + 1];
+    const q = buf[o + 2];
+    tags[paper + ":" + y + ":" + q] = tagsFromMask(buf[o + 3]);
+    o += 4;
+  }
+  return { name, status, scores, tags };
+}
+async function decodeQrText(text) {
+  const raw = String(text || "").trim();
+  const zAt = raw.indexOf("DSEMTZ:");
+  if (zAt >= 0) return decodeQrBuf(await inflateBytes(b64ToBytes(raw.slice(zAt + 7))));
+  const at = raw.indexOf(XFER_PREFIX);
+  if (at < 0) throw new Error("唔係操卷進度碼");
+  return decodeQrBuf(b64ToBytes(raw.slice(at + XFER_PREFIX.length)));
+}
+function uniqueProfileName(base) {
+  const root = (base || "學生").trim() || "學生";
+  if (!db.profiles[root]) return root;
+  let n = 2;
+  while (db.profiles[root + " " + n]) n++;
+  return root + " " + n;
+}
+function applyQrSnap(targetName, snap, mode) {
+  if (!db.profiles[targetName]) db.profiles[targetName] = blankProfile(targetName);
+  const p = db.profiles[targetName];
+  const slots = cellLayout();
+  if (mode === "replace") {
+    const notes = {};
+    Object.entries(p.cells || {}).forEach(([k, c]) => { if (c && c.note) notes[k] = c.note; });
+    const cells = {};
+    slots.forEach(([paper, y, q], i) => {
+      const k = paper + ":" + y + ":" + q;
+      const s = snap.status[i] || 0;
+      const tags = snap.tags[k] || [];
+      if (!s && !notes[k] && !tags.length) return;
+      cells[k] = { s, note: notes[k] || "", tags };
+    });
+    Object.keys(notes).forEach(k => {
+      if (!cells[k]) cells[k] = { s: 0, note: notes[k], tags: [] };
+    });
+    p.cells = cells;
+    p.scores = {};
+    snap.scores.forEach(({ paper, y, v }) => {
+      if (v !== "" && v != null) p.scores[paper + ":" + y] = v;
+    });
+  } else {
+    slots.forEach(([paper, y, q], i) => {
+      const k = paper + ":" + y + ":" + q;
+      const s = snap.status[i] || 0;
+      const inTags = snap.tags[k] || [];
+      if (!s && !inTags.length) return;
+      const cur = p.cells[k] || { s: 0, note: "", tags: [] };
+      const tags = [...new Set([...(cur.tags || []), ...inTags])].slice(0, 3);
+      p.cells[k] = { s: s || cur.s || 0, note: cur.note || "", tags };
+    });
+    snap.scores.forEach(({ paper, y, v }) => {
+      if (v === "" || v == null) return;
+      p.scores[paper + ":" + y] = v;
+    });
+  }
+  p.updatedAt = Date.now();
+}
+function refreshAfterProfile() {
+  save();
+  renderProfiles();
+  if (currentView === "tracker") renderTracker();
+  else if (currentView === "weak") renderWeak();
+  else if (currentView === "mc") renderMc();
+  else if (currentView === "grades") renderGrades();
+  else renderTracker();
+}
+function xferHidePanels() {
+  ["xferShow", "xferScan", "xferMerge"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.hidden = true;
+  });
+}
+function stopXferScan() {
+  if (xferRaf) cancelAnimationFrame(xferRaf);
+  xferRaf = 0;
+  if (xferStream) {
+    xferStream.getTracks().forEach(t => t.stop());
+    xferStream = null;
+  }
+  const v = document.getElementById("xferVideo");
+  if (v) v.srcObject = null;
+}
+function closeXferDlg() {
+  stopXferScan();
+  xferPending = null;
+  const dlg = document.getElementById("xferDlg");
+  if (dlg && dlg.open) dlg.close();
+}
+function roundRectPath(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function drawQrWithLogo(canvas, text) {
+  if (typeof qrcode !== "function") throw new Error("QR 元件未載入");
+  const qr = qrcode(0, "H");
+  qr.addData(text);
+  qr.make();
+  const n = qr.getModuleCount();
+  const quiet = 4;
+  const mod = Math.max(5, Math.ceil(320 / (n + quiet * 2)));
+  const size = (n + quiet * 2) * mod;
+  const ctx = canvas.getContext("2d");
+  canvas.width = size;
+  canvas.height = size;
+  ctx.fillStyle = "#fffdf8";
+  ctx.fillRect(0, 0, size, size);
+  ctx.fillStyle = "#1c1915";
+  for (let r = 0; r < n; r++) {
+    for (let c = 0; c < n; c++) {
+      if (qr.isDark(r, c)) ctx.fillRect((quiet + c) * mod, (quiet + r) * mod, mod, mod);
+    }
+  }
+  const ls = n * mod * 0.14;
+  const lx = (size - ls) / 2, ly = (size - ls) / 2;
+  ctx.fillStyle = "#fff";
+  roundRectPath(ctx, lx - mod, ly - mod, ls + mod * 2, ls + mod * 2, mod);
+  ctx.fill();
+  ctx.fillStyle = "#2f5d50";
+  roundRectPath(ctx, lx, ly, ls, ls, Math.max(4, mod));
+  ctx.fill();
+  ctx.fillStyle = "#fff";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = "700 " + Math.max(9, Math.floor(ls * 0.16)) + "px 'Noto Sans TC', sans-serif";
+  ctx.fillText("DSE", size / 2, size / 2 - ls * 0.22);
+  ctx.font = "700 " + Math.max(14, Math.floor(ls * 0.28)) + "px 'Noto Sans TC', sans-serif";
+  ctx.fillText("操卷", size / 2, size / 2 + ls * 0.04);
+  ctx.font = "500 " + Math.max(8, Math.floor(ls * 0.14)) + "px 'Noto Sans TC', sans-serif";
+  ctx.fillText("神器", size / 2, size / 2 + ls * 0.28);
+}
+async function openXferShow() {
+  const dlg = document.getElementById("xferDlg");
+  xferHidePanels();
+  document.getElementById("xferShow").hidden = false;
+  document.getElementById("xferShowMeta").textContent = "學生：" + currentProfile + "　狀態／分數／錯因";
+  try {
+    const text = await encodeQrText(prof());
+    drawQrWithLogo(document.getElementById("xferQr"), text);
+  } catch (err) {
+    alert("出示失敗：" + err.message + "。改用匯出 JSON。");
+    return;
+  }
+  dlg.showModal();
+}
+function openXferMerge(snap) {
+  stopXferScan();
+  xferPending = snap;
+  xferHidePanels();
+  document.getElementById("xferMerge").hidden = false;
+  document.getElementById("xferMergeName").textContent = snap.name;
+  const exists = !!db.profiles[snap.name];
+  document.getElementById("xferMergeExist").textContent = exists
+    ? "呢部機已有同名學生。"
+    : "呢部機未有呢個學生，可直接加入。";
+  document.getElementById("xferMergeBtn").textContent = exists ? "合併（建議）" : "加入「" + snap.name + "」";
+  document.getElementById("xferReplaceBtn").hidden = !exists;
+  document.getElementById("xferNewBtn").hidden = !exists;
+  const dlg = document.getElementById("xferDlg");
+  if (!dlg.open) dlg.showModal();
+}
+async function acceptQrText(text) {
+  try {
+    const snap = await decodeQrText(text);
+    openXferMerge(snap);
+    return true;
+  } catch {
+    return false;
+  }
+}
+function xferScanTick() {
+  const v = document.getElementById("xferVideo");
+  const c = document.getElementById("xferScanCanvas");
+  if (!v || !c || v.readyState < 2) {
+    xferRaf = requestAnimationFrame(xferScanTick);
+    return;
+  }
+  const w = v.videoWidth, h = v.videoHeight;
+  if (!w) { xferRaf = requestAnimationFrame(xferScanTick); return; }
+  c.width = w; c.height = h;
+  const ctx = c.getContext("2d");
+  ctx.drawImage(v, 0, 0);
+  const img = ctx.getImageData(0, 0, w, h);
+  let text = "";
+  if (typeof jsQR === "function") {
+    const code = jsQR(img.data, w, h);
+    if (code && code.data) text = code.data;
+  }
+  if (text) {
+    acceptQrText(text).then(ok => { if (!ok) xferRaf = requestAnimationFrame(xferScanTick); });
+    return;
+  }
+  xferRaf = requestAnimationFrame(xferScanTick);
+}
+async function openXferScan() {
+  const dlg = document.getElementById("xferDlg");
+  xferHidePanels();
+  document.getElementById("xferScan").hidden = false;
+  document.getElementById("xferScanHint").textContent = "對準另一部裝置嘅 QR。離線檔案或未授權鏡頭可用相簿。";
+  dlg.showModal();
+  stopXferScan();
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    document.getElementById("xferScanHint").textContent = "呢個瀏覽器開唔到鏡頭，請用相簿圖片。";
+    return;
+  }
+  try {
+    xferStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+    const v = document.getElementById("xferVideo");
+    v.srcObject = xferStream;
+    await v.play().catch(() => {});
+    xferRaf = requestAnimationFrame(xferScanTick);
+  } catch {
+    document.getElementById("xferScanHint").textContent = "未授權鏡頭或離線頁開唔到相機，請用相簿圖片。";
+  }
+}
+function readQrFromImageFile(file) {
+  const url = URL.createObjectURL(file);
+  const img = new Image();
+  img.onload = () => {
+    URL.revokeObjectURL(url);
+    const c = document.getElementById("xferScanCanvas");
+    const ctx = c.getContext("2d");
+    c.width = img.width; c.height = img.height;
+    ctx.drawImage(img, 0, 0);
+    const data = ctx.getImageData(0, 0, c.width, c.height);
+    const code = typeof jsQR === "function" ? jsQR(data.data, c.width, c.height) : null;
+    if (!code) { alert("認唔到進度碼，試下近啲、光啲。"); return; }
+    acceptQrText(code.data).then(ok => { if (!ok) alert("認唔到進度碼，試下近啲、光啲。"); });
+  };
+  img.onerror = () => { URL.revokeObjectURL(url); alert("圖片讀唔到"); };
+  img.src = url;
+}
+function exportCurrentJson() {
+  const p = prof();
+  const out = { currentProfile, profiles: { [currentProfile]: p } };
+  const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json;charset=utf-8" });
   const a = document.createElement("a");
   a.href = URL.createObjectURL(blob);
   a.download = "dse-math-tracker-" + currentProfile + ".json";
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-};
-document.getElementById("importBtn").onclick = () => {
+}
+function importJsonFiles() {
   const inp = document.getElementById("importFile");
   inp.value = "";
   inp.click();
+}
+
+document.getElementById("xferMenu").onchange = e => {
+  const v = e.target.value;
+  e.target.value = "";
+  if (v === "scan") openXferScan();
+  else if (v === "show") openXferShow();
+  else if (v === "export") exportCurrentJson();
+  else if (v === "import") importJsonFiles();
 };
+document.getElementById("xferShowClose").onclick = closeXferDlg;
+document.getElementById("xferScanClose").onclick = closeXferDlg;
+document.getElementById("xferMergeCancel").onclick = closeXferDlg;
+document.getElementById("xferDlg").addEventListener("close", stopXferScan);
+document.getElementById("xferPickImg").onclick = () => document.getElementById("xferImgFile").click();
+document.getElementById("xferImgFile").onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  e.target.value = "";
+  if (f) readQrFromImageFile(f);
+};
+document.getElementById("xferMergeBtn").onclick = () => {
+  if (!xferPending) return;
+  const name = xferPending.name;
+  applyQrSnap(name, xferPending, "merge");
+  currentProfile = name;
+  closeXferDlg();
+  refreshAfterProfile();
+};
+document.getElementById("xferReplaceBtn").onclick = () => {
+  if (!xferPending) return;
+  applyQrSnap(xferPending.name, xferPending, "replace");
+  currentProfile = xferPending.name;
+  closeXferDlg();
+  refreshAfterProfile();
+};
+document.getElementById("xferNewBtn").onclick = () => {
+  if (!xferPending) return;
+  const name = uniqueProfileName(xferPending.name);
+  applyQrSnap(name, xferPending, "replace");
+  currentProfile = name;
+  closeXferDlg();
+  refreshAfterProfile();
+};
+
 document.getElementById("importFile").onchange = e => {
   const files = [...(e.target.files || [])];
   e.target.value = "";
@@ -2056,19 +2474,18 @@ document.getElementById("importFile").onchange = e => {
       let last = currentProfile;
       list.forEach(({ name, text }) => { last = mergeOne(JSON.parse(text), name) || last; });
       currentProfile = db.profiles[last] ? last : currentProfile;
-      save();
-      renderProfiles();
-      if (currentView === "tracker") renderTracker();
-      else if (currentView === "weak") renderWeak();
-      else if (currentView === "mc") renderMc();
-      else if (currentView === "grades") renderGrades();
-      else renderTracker();
+      refreshAfterProfile();
     })
     .catch(err => alert("匯入失敗：" + err.message));
 };
 
 document.getElementById("timerSound").checked = !!prefs.timerSound;
-if (!prefs.weakBands) prefs.weakBands = { hi: true, mid: false, lo: false };
+if (!prefs.bands3) {
+  prefs.weakBands = { hi: true, mid: true, lo: true };
+  prefs.bands3 = true;
+  savePrefs();
+}
+if (!prefs.weakBands) prefs.weakBands = { hi: true, mid: true, lo: true };
 if (!prefs.weakStats) prefs.weakStats = { 2: true, 1: true };
 if (prefs.itemP1Topics == null) prefs.itemP1Topics = false;
 if (!prefs.weakPaper) prefs.weakPaper = "p1";
@@ -2081,10 +2498,6 @@ const paintToTop = () => { toTop.hidden = window.scrollY < 200; };
 window.addEventListener("scroll", paintToTop, { passive: true });
 toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 paintToTop();
-if (location.protocol === "file:") {
-  const dl = document.getElementById("dlPack");
-  if (dl) dl.hidden = true;
-}
 const hash = location.hash.replace("#", "");
 if (["tracker", "weak", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
 else showView("tracker");
