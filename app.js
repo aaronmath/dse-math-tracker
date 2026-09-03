@@ -120,18 +120,27 @@ function skipOldQ(y, q, topic) {
 }
 function pushUndo() {
   const pr = prof();
-  undoSnap = { id: currentProfile, cells: JSON.parse(JSON.stringify(pr.cells)), scores: JSON.parse(JSON.stringify(pr.scores)) };
+  undoSnap = {
+    id: currentProfile,
+    cells: JSON.parse(JSON.stringify(pr.cells)),
+    scores: JSON.parse(JSON.stringify(pr.scores)),
+    dates: JSON.parse(JSON.stringify(pr.dates || {})),
+    times: JSON.parse(JSON.stringify(pr.times || {}))
+  };
 }
 function doUndo() {
   if (!undoSnap || !db.profiles[undoSnap.id]) return;
   db.profiles[undoSnap.id].cells = undoSnap.cells;
   db.profiles[undoSnap.id].scores = undoSnap.scores;
+  db.profiles[undoSnap.id].dates = undoSnap.dates || {};
+  db.profiles[undoSnap.id].times = undoSnap.times || {};
   undoSnap = null;
   save();
   if (currentView === "tracker") renderTracker();
   else if (currentView === "weak") renderWeak();
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
+  else if (currentView === "timer") renderTimer();
 }
 
 
@@ -141,19 +150,29 @@ function loadPrefs() {
   catch { return d; }
 }
 function savePrefs() { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); }
-function blankProfile(name) { return { name, cells: {}, scores: {}, updatedAt: Date.now() }; }
+function blankProfile(name) { return { name, cells: {}, scores: {}, dates: {}, times: {}, updatedAt: Date.now() }; }
 function loadDb() {
   try {
     const v2 = localStorage.getItem(storeKey);
-    if (v2) return JSON.parse(v2);
+    if (v2) return migrateDb(JSON.parse(v2));
     const v1 = localStorage.getItem("dse-math-tracker-v1");
     if (v1) {
       const old = JSON.parse(v1);
       for (const p of Object.values(old.profiles || {})) p.scores = p.scores || {};
-      return old;
+      return migrateDb(old);
     }
   } catch {}
   return { currentProfile: "自己", profiles: { "自己": blankProfile("自己") } };
+}
+function migrateDb(data) {
+  data.profiles = data.profiles || {};
+  Object.values(data.profiles).forEach(p => {
+    if (!p || typeof p !== "object") return;
+    p.scores = p.scores || {};
+    p.dates = p.dates || {};
+    p.times = p.times || {};
+  });
+  return data;
 }
 function save() {
   db.currentProfile = currentProfile;
@@ -186,6 +205,42 @@ function setScore(paper, year, val) {
   else prof().scores[scoreKey(paper, year)] = v;
   save();
   return v;
+}
+function getDate(paper, year) {
+  return (prof().dates || {})[scoreKey(paper, year)] || "";
+}
+function setDate(paper, year, iso) {
+  prof().dates = prof().dates || {};
+  const v = String(iso || "").slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(v)) delete prof().dates[scoreKey(paper, year)];
+  else prof().dates[scoreKey(paper, year)] = v;
+  save();
+  return getDate(paper, year);
+}
+function getTimeSec(paper, year) {
+  const v = (prof().times || {})[scoreKey(paper, year)];
+  return v == null || v === "" ? "" : +v;
+}
+function setTimeSec(paper, year, sec) {
+  prof().times = prof().times || {};
+  const n = Math.max(0, Math.round(+sec || 0));
+  if (!n) delete prof().times[scoreKey(paper, year)];
+  else prof().times[scoreKey(paper, year)] = n;
+  save();
+  return getTimeSec(paper, year);
+}
+function fmtHm(sec) {
+  const m = Math.round(Math.max(0, +sec || 0) / 60);
+  return Math.floor(m / 60) + ":" + String(m % 60).padStart(2, "0");
+}
+function todayIso() {
+  const d = new Date();
+  const p = n => String(n).padStart(2, "0");
+  return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate());
+}
+function yearPaperDone(paper, y) {
+  const qs = allQs(paper, y);
+  return qs.length > 0 && qs.every(q => getCell(paper, y, q).s);
 }
 function hasYearScore(paper, year) {
   const v = getScore(paper, year);
@@ -342,7 +397,8 @@ function renderYearJump() {
   const el = document.getElementById("yearJump");
   el.innerHTML = yearsDesc().filter(y => visQs(y, allQs(currentPaper, y)).length).map(y => {
     const entered = hasYearScore(currentPaper, y);
-    return `<button type="button" class="year-pill${entered ? " entered" : ""}" data-jump-year="${y}">${y}</button>`;
+    const done = yearPaperDone(currentPaper, y);
+    return `<button type="button" class="year-pill${entered ? " entered" : ""}${done ? " complete" : ""}" data-jump-year="${y}" title="${done ? "格已填齊" : "尚有未做"}${entered ? " · 已填分數" : ""}">${y}</button>`;
   }).join("");
 }
 function scrollToYear(y) {
@@ -438,8 +494,24 @@ function cellHtml(y, q) {
     <button class="pencil ${hasNote(c) ? "filled" : ""}" data-note="${y}:${q}" title="筆記">✎</button>
   </div>`;
 }
+function captureQrowScroll() {
+  const m = {};
+  document.querySelectorAll("#grid .year-block").forEach(b => {
+    const row = b.querySelector(".qrow");
+    if (row) m[b.dataset.year] = row.scrollLeft;
+  });
+  return m;
+}
+function restoreQrowScroll(m) {
+  if (!m) return;
+  document.querySelectorAll("#grid .year-block").forEach(b => {
+    const row = b.querySelector(".qrow");
+    if (row && m[b.dataset.year]) row.scrollLeft = m[b.dataset.year];
+  });
+}
 function renderGrid() {
   const paper = PAPERS[currentPaper];
+  const keep = captureQrowScroll();
   let html = "";
   for (const y of YEARS.slice().reverse()) {
     const secs = paper.sectionsFor(y).map(sec => ({ name: sec.name, qs: visQs(y, sec.qs) })).filter(sec => sec.qs.length);
@@ -451,6 +523,8 @@ function renderGrid() {
         <div class="sec">${cells}</div></div>`;
     }).join("");
     const sc = getScore(currentPaper, y);
+    const dt = getDate(currentPaper, y);
+    const used = getTimeSec(currentPaper, y);
     const hitBtn = currentPaper === "p2"
       ? `<button class="ghost" data-toggle-hit="${y}">${yearHitOff[y] ? "顯示命中率" : "隱藏命中率"}</button>` : "";
     const yQs = visQs(y, allQs(currentPaper, y));
@@ -463,6 +537,11 @@ function renderGrid() {
         <div class="score-box">分數 / ${paper.full}
           <input type="number" min="0" max="${paper.full}" step="1" inputmode="numeric" data-score="${y}" value="${sc}">
         </div>
+        <div class="score-box">操卷日
+          <input type="date" data-date="${y}" value="${dt}">
+          <button type="button" class="ghost" data-date-today="${y}">今日</button>
+        </div>
+        ${used !== "" ? `<span class="used-time">用時 ${fmtHm(used)}</span>` : ""}
         <button class="ghost${yOn ? " on-toggle" : ""}" data-pick="year">${pickLab(yOn, "呢年")}</button>
         ${secs.map(sec => {
           const on = sec.qs.length && sec.qs.every(q => selected.has(y + ":" + q));
@@ -474,6 +553,7 @@ function renderGrid() {
     </div>`;
   }
   document.getElementById("grid").innerHTML = html || `<p class="hint">呢個課題喺可見年份冇題。</p>`;
+  restoreQrowScroll(keep);
 }
 function renderSummary() {
   const tagCount = {}; TAGS.forEach(([id]) => tagCount[id] = 0);
@@ -754,6 +834,83 @@ function renderRadar() {
     }).join("");
     return `<div class="axis-row${radarAxis === a.id ? " on" : ""}" data-axis="${a.id}"><b>${esc(a.name)}　${esc(currentProfile)} ${stuLab}　全港 ${hkLab}${sc.n ? " · " + sc.n + " 題" : ""}</b>${chips}</div>`;
   }).join("");
+}
+const PEP = {
+  mix: [
+    "幾何呢邊穩陣，指數嗰邊先補，唔使全面開火。",
+    "高過全港嗰幾軸可以收貨；凹入去嗰條先係今日工。",
+    "不是全面崩，係有幾題課題未補。摘錄已經排好。",
+    "強項唔使再刷，弱項刷完條雷達會靚好多。"
+  ],
+  weak: [
+    "而家睇得出洞喺邊，總好過盲目操。",
+    "未過紅線唔等於唔得，係未重做。由最上兩題開始。",
+    "標咗唔識已經係進度。下一步係拎返兩條出嚟做。",
+    "一次清唔晒好正常，揀一軸打穿先。"
+  ],
+  strong: [
+    "綠線內外都齊，剩低嗰軸先值得加時。",
+    "穩定分已經有，唔好喺識嘅題度加鐘。",
+    "呢個水平可以收，弱軸補完就係增益。"
+  ],
+  unrated: [
+    "空圈唔好當弱，再標幾格，圖先有口齒。",
+    "資料未夠，唔好嚇自己。卷一再點十題。",
+    "雷達而家係草稿，標齊先好意思講強弱。"
+  ],
+  even: [
+    "同全港差唔多，即係改凹位先有分差。",
+    "平均唔等於穩，睇下邊條軸最短。"
+  ],
+  forming: [
+    "圖開始有形。唔使完美，有方向就得。",
+    "今日呢幾格已經夠做判斷。"
+  ]
+};
+function pickPep(kind) {
+  const list = PEP[kind] || PEP.even;
+  prefs.pepTick = (prefs.pepTick || 0) + 1;
+  savePrefs();
+  return list[(prefs.pepTick - 1) % list.length];
+}
+function axisBuckets() {
+  const scores = AXES.map(axisScore);
+  const strong = [], weak = [], unrated = [];
+  scores.forEach((sc, i) => {
+    const name = AXES[i].name.replace("　", " ");
+    if (sc.L == null) { unrated.push(name); return; }
+    const vsHk = sc.hk != null ? sc.L - sc.hk : 0;
+    const hi = sc.L >= 0.6 || vsHk > 0.03;
+    const lo = sc.L <= 0.4 || vsHk < -0.03;
+    const lab = Math.round(sc.L * 100) + "%" + (sc.hk != null ? "（全港 " + Math.round(sc.hk * 100) + "%）" : "");
+    if (lo && !hi) weak.push(name + "　" + lab);
+    else if (hi) strong.push(name + "　" + lab);
+  });
+  return { strong, weak, unrated, rated: 8 - unrated.length };
+}
+function pepKind(b) {
+  if (b.unrated.length >= 5) return "unrated";
+  if (b.strong.length && b.weak.length) return "mix";
+  if (b.weak.length >= 3 && !b.strong.length) return "weak";
+  if (b.strong.length >= 3 && !b.weak.length) return "strong";
+  if (b.rated && b.rated <= 4) return "forming";
+  return "even";
+}
+function openSumDlg() {
+  if (markedPaperCount(weakPaperId()) === 0) {
+    alert("去進度標記" + paperLabel(weakPaperId()) + "先出摘要。");
+    return;
+  }
+  const b = axisBuckets();
+  document.getElementById("sumDlgWho").textContent = currentProfile;
+  document.getElementById("sumDlgPaper").textContent = paperLabel(weakPaperId());
+  const fill = (id, arr, empty) => {
+    document.getElementById(id).innerHTML = arr.length ? arr.map(x => `<li>${esc(x)}</li>`).join("") : `<li>${empty}</li>`;
+  };
+  fill("sumStrong", b.strong, "未有明顯強軸");
+  fill("sumWeak", b.weak, "未有明顯弱軸");
+  document.getElementById("sumPep").textContent = pickPep(pepKind(b));
+  document.getElementById("sumDlg").showModal();
 }
 function renderWeak() {
   paintWeakChips();
@@ -1534,22 +1691,41 @@ function timerRemain() {
   const used = timerRun.paused ? timerRun.pause - timerRun.start : now - timerRun.start;
   return Math.max(0, dur - used / 1000);
 }
+function fillTimerYears() {
+  const sel = document.getElementById("timerYear");
+  if (!sel || sel.dataset.ready) return;
+  sel.innerHTML = `<option value="">練習，唔記入</option>` + yearsDesc().map(y => `<option value="${y}">${y}</option>`).join("");
+  sel.dataset.ready = "1";
+}
+function timerUsedSec() {
+  const dur = timerDuration();
+  return Math.max(0, Math.round(dur - timerRemain()));
+}
 function paintTimer() {
+  fillTimerYears();
   const p = document.getElementById("timerPaper").value;
   const rem = timerRemain();
   const dur = timerDuration();
   const used = dur - rem;
   document.getElementById("timerClock").textContent = fmtTime(rem);
   document.getElementById("timerElapsed").textContent = "已用 " + fmtTime(used);
-  document.getElementById("timerNow").textContent = `而家：${TIMER[p].name}　${timerExtra ? "加時" : "不加時"}　${fmtTime(dur)}`;
+  const ySel = document.getElementById("timerYear");
+  const yLab = ySel && ySel.value ? ySel.value + "　" : "練習　";
+  document.getElementById("timerNow").textContent = `而家：${yLab}${TIMER[p].name}　${timerExtra ? "加時" : "不加時"}　${fmtTime(dur)}`;
   document.getElementById("timerExtra").textContent = timerExtra ? "加時" : "不加時";
   document.getElementById("timerExtra").disabled = timerLocked;
   document.getElementById("timerPaper").disabled = timerLocked;
+  if (ySel) ySel.disabled = timerLocked;
   let msg = "";
   if (timerRun.start && rem <= 0) { msg = "時間到"; timerRun.ended = true; }
   else if (timerRun.start && rem <= 5 * 60) msg = "最後 5 分鐘";
   else if (timerRun.start && rem <= 15 * 60) msg = "最後 15 分鐘";
   document.getElementById("timerAlerts").textContent = msg;
+  const saveBtn = document.getElementById("timerSave");
+  if (saveBtn) {
+    const can = (timerRun.paused || timerRun.ended) && ySel && ySel.value;
+    saveBtn.hidden = !can;
+  }
 }
 function timerTick() {
   const rem = timerRemain();
@@ -1638,6 +1814,8 @@ document.getElementById("batchBtn").onclick = () => { batch = !batch; selected.c
 document.getElementById("hitBtn").onclick = () => { showHit = !showHit; renderTracker(); };
 document.getElementById("undoBtn").onclick = doUndo;
 document.getElementById("hkRefBtn").onclick = () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); };
+document.getElementById("sumBtn").onclick = openSumDlg;
+document.getElementById("sumDlgClose").onclick = () => document.getElementById("sumDlg").close();
 document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
 document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
 document.getElementById("topicFilter").onchange = e => { topicFilter = e.target.value; renderTracker(); };
@@ -1761,7 +1939,24 @@ document.getElementById("grid").addEventListener("click", e => {
   }
   if (e.target.classList.contains("pencil")) {
     const [y, q] = e.target.dataset.note.split(":").map(Number);
+    if (batch) {
+      const key = y + ":" + q;
+      if (selected.has(key)) selected.delete(key); else selected.add(key);
+      const cell = e.target.closest(".qcell") && e.target.closest(".qcell").querySelector(".cell");
+      if (cell) paintCellEl(cell, y, q);
+      document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+      return;
+    }
     openNote(y, q); return;
+  }
+  const todayBtn = e.target.closest("[data-date-today]");
+  if (todayBtn) {
+    const y = +todayBtn.dataset.dateToday;
+    pushUndo();
+    setDate(currentPaper, y, todayIso());
+    const inp = document.querySelector(`[data-date="${y}"]`);
+    if (inp) inp.value = getDate(currentPaper, y);
+    return;
   }
   const cell = e.target.closest(".cell");
   if (!cell || cell.classList.contains("missing") || longFired) { longFired = false; return; }
@@ -1779,6 +1974,7 @@ document.getElementById("grid").addEventListener("click", e => {
   setCell(currentPaper, y, q, { s: next });
   paintCellEl(cell, y, q);
   paintYearStack(y);
+  renderYearJump();
   renderStats();
   renderSummary();
 });
@@ -1795,15 +1991,30 @@ document.getElementById("grid").addEventListener("contextmenu", e => {
   const cell = e.target.closest(".cell");
   if (!cell || cell.classList.contains("missing")) return;
   e.preventDefault();
+  if (batch) {
+    const y = +cell.dataset.y, q = +cell.dataset.q;
+    const key = y + ":" + q;
+    if (selected.has(key)) selected.delete(key); else selected.add(key);
+    paintCellEl(cell, y, q);
+    document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+    return;
+  }
   openNote(+cell.dataset.y, +cell.dataset.q);
 });
 document.getElementById("grid").addEventListener("change", e => {
-  if (!e.target.dataset.score) return;
-  const y = +e.target.dataset.score;
-  pushUndo();
-  const v = setScore(currentPaper, y, e.target.value);
-  e.target.value = v;
-  renderYearJump();
+  if (e.target.dataset.score) {
+    const y = +e.target.dataset.score;
+    pushUndo();
+    const v = setScore(currentPaper, y, e.target.value);
+    e.target.value = v;
+    renderYearJump();
+    return;
+  }
+  if (e.target.dataset.date) {
+    const y = +e.target.dataset.date;
+    pushUndo();
+    e.target.value = setDate(currentPaper, y, e.target.value);
+  }
 });
 document.getElementById("grid").addEventListener("keydown", e => {
   if (e.key !== "Enter" || !e.target.dataset.score) return;
@@ -1987,6 +2198,7 @@ document.getElementById("itemYearView").addEventListener("click", e => {
 });
 
 document.getElementById("timerPaper").onchange = () => { if (!timerLocked) paintTimer(); };
+document.getElementById("timerYear").onchange = () => { if (!timerLocked) paintTimer(); };
 document.getElementById("timerExtra").onclick = () => {
   if (timerLocked) return;
   timerExtra = !timerExtra;
@@ -2017,6 +2229,18 @@ document.getElementById("timerPause").onclick = () => {
   timerRun.pause = Date.now();
   clearInterval(timerRun.tick);
   paintTimer();
+};
+document.getElementById("timerSave").onclick = () => {
+  if (!(timerRun.paused || timerRun.ended)) return;
+  const paper = document.getElementById("timerPaper").value;
+  const y = +document.getElementById("timerYear").value;
+  if (!y) return;
+  const used = timerUsedSec();
+  const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[paper] || paper;
+  if (!confirm("將 " + fmtHm(used) + " 記入 " + y + " " + short + "進度？")) return;
+  pushUndo();
+  setTimeSec(paper, y, used);
+  if (currentView === "tracker" && currentPaper === paper) renderTracker();
 };
 document.getElementById("timerReset").onclick = () => {
   clearInterval(timerRun.tick);
@@ -2065,6 +2289,17 @@ function b64ToBytes(b64) {
   for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
   return u;
 }
+function dateToDay(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!m) return 0;
+  const t = Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  return Math.max(0, Math.round((t - Date.UTC(2012, 0, 1)) / 86400000));
+}
+function dayToDate(n) {
+  const d = new Date(Date.UTC(2012, 0, 1) + (+n || 0) * 86400000);
+  const p = x => String(x).padStart(2, "0");
+  return d.getUTCFullYear() + "-" + p(d.getUTCMonth() + 1) + "-" + p(d.getUTCDate());
+}
 function encodeQrSnap(profile) {
   const name = String(profile.name || "學生").slice(0, 40);
   const nameB = new TextEncoder().encode(name);
@@ -2087,7 +2322,19 @@ function encodeQrSnap(profile) {
       scoreBytes[si++] = (v == null || v === "") ? 255 : Math.max(0, Math.min(254, +v));
     });
   });
-  const buf = new Uint8Array(5 + nameB.length + stBytes.length + scoreBytes.length + 2 + tagList.length * 4);
+  const metas = [];
+  XFER_PAPERS.forEach((paper, pi) => {
+    YEARS.forEach(y => {
+      const k = paper + ":" + y;
+      const sec = (profile.times || {})[k];
+      const iso = (profile.dates || {})[k];
+      let flags = 0, min = 0, day = 0;
+      if (sec) { flags |= 1; min = Math.max(1, Math.min(65535, Math.round(+sec / 60))); }
+      if (iso) { flags |= 2; day = dateToDay(iso); }
+      if (flags) metas.push({ paper: pi, y: y - 2012, flags, min, day });
+    });
+  });
+  const buf = new Uint8Array(5 + nameB.length + stBytes.length + scoreBytes.length + 2 + tagList.length * 4 + 2 + metas.length * 7);
   buf[0] = 68; buf[1] = 77; buf[2] = 84; buf[3] = 49;
   buf[4] = nameB.length;
   buf.set(nameB, 5);
@@ -2099,6 +2346,14 @@ function encodeQrSnap(profile) {
   o += 2;
   tagList.forEach(t => {
     buf[o++] = t.paper; buf[o++] = t.y; buf[o++] = t.q; buf[o++] = t.mask;
+  });
+  buf[o] = metas.length & 255;
+  buf[o + 1] = (metas.length >> 8) & 255;
+  o += 2;
+  metas.forEach(t => {
+    buf[o++] = t.paper; buf[o++] = t.y; buf[o++] = t.flags;
+    buf[o++] = t.min & 255; buf[o++] = (t.min >> 8) & 255;
+    buf[o++] = t.day & 255; buf[o++] = (t.day >> 8) & 255;
   });
   return buf;
 }
@@ -2155,7 +2410,23 @@ function decodeQrBuf(buf) {
     tags[paper + ":" + y + ":" + q] = tagsFromMask(buf[o + 3]);
     o += 4;
   }
-  return { name, status, scores, tags };
+  const times = {}, dates = {};
+  if (o + 2 <= buf.length) {
+    const metaN = buf[o] | (buf[o + 1] << 8);
+    o += 2;
+    for (let t = 0; t < metaN && o + 7 <= buf.length; t++) {
+      const paper = XFER_PAPERS[buf[o]] || "p1";
+      const y = 2012 + buf[o + 1];
+      const flags = buf[o + 2];
+      const min = buf[o + 3] | (buf[o + 4] << 8);
+      const day = buf[o + 5] | (buf[o + 6] << 8);
+      const k = paper + ":" + y;
+      if (flags & 1) times[k] = min * 60;
+      if (flags & 2) dates[k] = dayToDate(day);
+      o += 7;
+    }
+  }
+  return { name, status, scores, tags, times, dates };
 }
 async function decodeQrText(text) {
   const raw = String(text || "").trim();
@@ -2195,6 +2466,8 @@ function applyQrSnap(targetName, snap, mode) {
     snap.scores.forEach(({ paper, y, v }) => {
       if (v !== "" && v != null) p.scores[paper + ":" + y] = v;
     });
+    p.times = Object.assign({}, snap.times || {});
+    p.dates = Object.assign({}, snap.dates || {});
   } else {
     slots.forEach(([paper, y, q], i) => {
       const k = paper + ":" + y + ":" + q;
@@ -2209,6 +2482,10 @@ function applyQrSnap(targetName, snap, mode) {
       if (v === "" || v == null) return;
       p.scores[paper + ":" + y] = v;
     });
+    p.times = p.times || {};
+    p.dates = p.dates || {};
+    Object.entries(snap.times || {}).forEach(([k, v]) => { if (v) p.times[k] = v; });
+    Object.entries(snap.dates || {}).forEach(([k, v]) => { if (v) p.dates[k] = v; });
   }
   p.updatedAt = Date.now();
 }
@@ -2219,6 +2496,7 @@ function refreshAfterProfile() {
   else if (currentView === "weak") renderWeak();
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
+  else if (currentView === "timer") renderTimer();
   else renderTracker();
 }
 function xferHidePanels() {
@@ -2294,7 +2572,7 @@ async function openXferShow() {
   const dlg = document.getElementById("xferDlg");
   xferHidePanels();
   document.getElementById("xferShow").hidden = false;
-  document.getElementById("xferShowMeta").textContent = "學生：" + currentProfile + "　狀態／分數／錯因";
+  document.getElementById("xferShowMeta").textContent = "學生：" + currentProfile + "　狀態／分數／錯因／用時／操卷日";
   try {
     const text = await encodeQrText(prof());
     drawQrWithLogo(document.getElementById("xferQr"), text);
@@ -2464,6 +2742,8 @@ document.getElementById("importFile").onchange = e => {
         name,
         cells: p.cells && typeof p.cells === "object" ? p.cells : {},
         scores: p.scores && typeof p.scores === "object" ? p.scores : {},
+        dates: p.dates && typeof p.dates === "object" ? p.dates : {},
+        times: p.times && typeof p.times === "object" ? p.times : {},
         updatedAt: p.updatedAt || Date.now()
       };
     }
