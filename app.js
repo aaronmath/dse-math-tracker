@@ -540,8 +540,9 @@ function renderGrid() {
         <div class="score-box">操卷日
           <input type="date" data-date="${y}" value="${dt}">
           <button type="button" class="ghost" data-date-today="${y}">今日</button>
+          <button type="button" class="ghost" data-date-clear="${y}">清除</button>
         </div>
-        ${used !== "" ? `<span class="used-time">用時 ${fmtHm(used)}</span>` : ""}
+        ${used !== "" ? `<span class="used-time">用時 ${fmtHm(used)} <button type="button" class="ghost" data-time-clear="${y}" title="刪除用時">×</button></span>` : ""}
         <button class="ghost${yOn ? " on-toggle" : ""}" data-pick="year">${pickLab(yOn, "呢年")}</button>
         ${secs.map(sec => {
           const on = sec.qs.length && sec.qs.every(q => selected.has(y + ":" + q));
@@ -612,6 +613,10 @@ function renderTracker() {
   document.getElementById("clearSel").hidden = !batch;
   document.getElementById("batchBtn").textContent = batch ? "退出批量" : "批量選擇";
   document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+  const cf = document.getElementById("clearFilters");
+  if (cf) cf.hidden = cellFilter === "all" && !topicFilter;
+  const csel = document.getElementById("cellFilter");
+  if (csel) csel.value = cellFilter;
 }
 
 function isEasy(it) { return it.pct != null && it.pct >= 60; }
@@ -835,56 +840,36 @@ function renderRadar() {
     return `<div class="axis-row${radarAxis === a.id ? " on" : ""}" data-axis="${a.id}"><b>${esc(a.name)}　${esc(currentProfile)} ${stuLab}　全港 ${hkLab}${sc.n ? " · " + sc.n + " 題" : ""}</b>${chips}</div>`;
   }).join("");
 }
-const PEP = {
-  mix: [
-    "幾何呢邊穩陣，指數嗰邊先補，唔使全面開火。",
-    "高過全港嗰幾軸可以收貨；凹入去嗰條先係今日工。",
-    "不是全面崩，係有幾題課題未補。摘錄已經排好。",
-    "強項唔使再刷，弱項刷完條雷達會靚好多。"
-  ],
-  weak: [
-    "而家睇得出洞喺邊，總好過盲目操。",
-    "未過紅線唔等於唔得，係未重做。由最上兩題開始。",
-    "標咗唔識已經係進度。下一步係拎返兩條出嚟做。",
-    "一次清唔晒好正常，揀一軸打穿先。"
-  ],
-  strong: [
-    "綠線內外都齊，剩低嗰軸先值得加時。",
-    "穩定分已經有，唔好喺識嘅題度加鐘。",
-    "呢個水平可以收，弱軸補完就係增益。"
-  ],
-  unrated: [
-    "空圈唔好當弱，再標幾格，圖先有口齒。",
-    "資料未夠，唔好嚇自己。卷一再點十題。",
-    "雷達而家係草稿，標齊先好意思講強弱。"
-  ],
-  even: [
-    "同全港差唔多，即係改凹位先有分差。",
-    "平均唔等於穩，睇下邊條軸最短。"
-  ],
-  forming: [
-    "圖開始有形。唔使完美，有方向就得。",
-    "今日呢幾格已經夠做判斷。"
-  ]
-};
-function pickPep(kind) {
-  const list = PEP[kind] || PEP.even;
-  prefs.pepTick = (prefs.pepTick || 0) + 1;
-  savePrefs();
-  return list[(prefs.pepTick - 1) % list.length];
-}
+const PEP_UNRATED = [
+  "空圈唔好當弱，再標幾格，圖先有口齒。",
+  "資料未夠，唔好嚇自己。再點十題先好判斷。",
+  "雷達而家係草稿，標齊先好意思講強弱。"
+];
+const PEP_FORMING = [
+  "圖開始有形。唔使完美，有方向就得。",
+  "今日呢幾格已經夠做判斷。"
+];
 function axisBuckets() {
   const scores = AXES.map(axisScore);
   const strong = [], weak = [], unrated = [];
   scores.forEach((sc, i) => {
-    const name = AXES[i].name.replace("　", " ");
-    if (sc.L == null) { unrated.push(name); return; }
+    const ax = AXES[i];
+    const rec = {
+      id: ax.id,
+      name: ax.name.replace("　", " "),
+      part: ax.part,
+      L: sc.L,
+      hk: sc.hk,
+      deep: ax.part === "乙",
+      hkLow: sc.hk != null && sc.hk <= 0.4
+    };
+    rec.lab = sc.L == null ? "" : Math.round(sc.L * 100) + "%" + (sc.hk != null ? "（全港 " + Math.round(sc.hk * 100) + "%）" : "");
+    if (sc.L == null) { unrated.push(rec); return; }
     const vsHk = sc.hk != null ? sc.L - sc.hk : 0;
     const hi = sc.L >= 0.6 || vsHk > 0.03;
     const lo = sc.L <= 0.4 || vsHk < -0.03;
-    const lab = Math.round(sc.L * 100) + "%" + (sc.hk != null ? "（全港 " + Math.round(sc.hk * 100) + "%）" : "");
-    if (lo && !hi) weak.push(name + "　" + lab);
-    else if (hi) strong.push(name + "　" + lab);
+    if (lo && !hi) weak.push(rec);
+    else if (hi) strong.push(rec);
   });
   return { strong, weak, unrated, rated: 8 - unrated.length };
 }
@@ -896,6 +881,58 @@ function pepKind(b) {
   if (b.rated && b.rated <= 4) return "forming";
   return "even";
 }
+function partJiaUnsteady(b) {
+  return b.weak.some(w => w.part === "甲") || b.unrated.some(u => u.part === "甲");
+}
+function pepLine(b) {
+  const kind = pepKind(b);
+  prefs.pepTick = (prefs.pepTick || 0) + 1;
+  savePrefs();
+  const pick = arr => arr[(prefs.pepTick - 1) % arr.length];
+  const S = b.strong[0] && b.strong[0].name;
+  const shallow = b.weak.filter(w => !w.deep && !w.hkLow);
+  const deferred = b.weak.filter(w => w.deep || w.hkLow);
+  const holdDeep = deferred.length && partJiaUnsteady(b) && !shallow.length;
+  const W = shallow[0] || (!holdDeep && b.weak[0]) || null;
+  const wName = W && W.name;
+  if (kind === "unrated") return pick(PEP_UNRATED);
+  if (kind === "forming") return pick(PEP_FORMING);
+  if (holdDeep) {
+    const d = deferred[0].name;
+    const extra = deferred[0].hkLow ? "——全港都緊，淺嘅先收" : "，淺嘅先收";
+    return pick([
+      "淺嘅軸未收，" + d + "可以押後" + extra + "。",
+      S ? S + "穩住就得。深嘅未補唔急。" : "深課題可以押後，淺嘅先收。"
+    ]);
+  }
+  if (kind === "mix" && S && wName) {
+    return pick([
+      S + "已經企得住，呢邊穩住就得。最短喺" + wName + "，摘錄由呢軸開始。",
+      "有軸過咗綠線，唔簡單。未過嘅" + wName + "先補，識嘅唔好丟生。",
+      S + "可以收貨；" + wName + "先係今日工。",
+      "唔使從頭嚟過，對準" + wName + "就得。"
+    ]);
+  }
+  if (kind === "weak" && wName) {
+    return pick([
+      "而家睇得出洞喺邊，總好過盲目操。今日由" + wName + "開始就夠。",
+      "標咗已經係進度。揀最短嗰軸打穿先。",
+      "未過紅線唔等於唔得，係未重做。由" + wName + "拎兩題出嚟。",
+      "一次清唔晒正常。今日兩題就夠。"
+    ]);
+  }
+  if (kind === "strong") {
+    return pick([
+      "綠線內外都齊，呢個要識收貨。剩低先加時，識嘅保持手感就得。",
+      "穩定分已經有。深嘅未補可以慢慢來，唔使同全港低分題死撐。",
+      S ? S + "呢邊收貨。偶爾睇一眼，唔好掉以輕心。" : "呢個水平可以收，識嘅保持手感就得。"
+    ]);
+  }
+  return pick([
+    "同全港差唔多，即係改凹位先有分差。",
+    wName ? "平均唔等於穩，睇下" + wName + "。" : "平均唔等於穩，睇下邊條軸最短。"
+  ]);
+}
 function openSumDlg() {
   if (markedPaperCount(weakPaperId()) === 0) {
     alert("去進度標記" + paperLabel(weakPaperId()) + "先出摘要。");
@@ -905,11 +942,11 @@ function openSumDlg() {
   document.getElementById("sumDlgWho").textContent = currentProfile;
   document.getElementById("sumDlgPaper").textContent = paperLabel(weakPaperId());
   const fill = (id, arr, empty) => {
-    document.getElementById(id).innerHTML = arr.length ? arr.map(x => `<li>${esc(x)}</li>`).join("") : `<li>${empty}</li>`;
+    document.getElementById(id).innerHTML = arr.length ? arr.map(x => `<li>${esc(x.name + (x.lab ? "　" + x.lab : ""))}</li>`).join("") : `<li>${empty}</li>`;
   };
   fill("sumStrong", b.strong, "未有明顯強軸");
   fill("sumWeak", b.weak, "未有明顯弱軸");
-  document.getElementById("sumPep").textContent = pickPep(pepKind(b));
+  document.getElementById("sumPep").textContent = pepLine(b);
   document.getElementById("sumDlg").showModal();
 }
 function renderWeak() {
@@ -1642,6 +1679,27 @@ function jumpMcTopic(topic) {
   mcPick = null;
   showView("mc");
 }
+function jumpP1Topic(topic) {
+  const prevPaper = currentPaper;
+  const prevTopic = topicFilter;
+  const prevCell = cellFilter;
+  currentPaper = "p1";
+  topicFilter = topic;
+  cellFilter = "all";
+  let yHit = 0;
+  for (const y of yearsDesc()) {
+    if (visQs(y, allQs("p1", y)).length) { yHit = y; break; }
+  }
+  if (!yHit) {
+    currentPaper = prevPaper;
+    topicFilter = prevTopic;
+    cellFilter = prevCell;
+    alert("呢個課題而家篩選下冇題。");
+    return;
+  }
+  showView("tracker");
+  requestAnimationFrame(() => scrollToYear(yHit));
+}
 function jumpMc(year, q) {
   document.getElementById("mcSeries").value = "dse";
   document.getElementById("mcMode").value = "year";
@@ -1819,6 +1877,11 @@ document.getElementById("sumDlgClose").onclick = () => document.getElementById("
 document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
 document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
 document.getElementById("topicFilter").onchange = e => { topicFilter = e.target.value; renderTracker(); };
+document.getElementById("clearFilters").onclick = () => {
+  cellFilter = "all";
+  topicFilter = "";
+  renderTracker();
+};
 document.getElementById("stats").addEventListener("click", e => {
   const bar = e.target.closest("[data-tag]");
   if (!bar) return;
@@ -1885,8 +1948,7 @@ document.getElementById("axisLegend").addEventListener("click", e => {
   const chip = e.target.closest("[data-jump-topic]");
   if (chip) {
     if (weakPaperId() === "p1") {
-      document.getElementById("weakBox").dataset.topic = chip.dataset.jumpTopic;
-      renderWeak();
+      jumpP1Topic(chip.dataset.jumpTopic);
       return;
     }
     jumpMcTopic(chip.dataset.jumpTopic);
@@ -1956,6 +2018,25 @@ document.getElementById("grid").addEventListener("click", e => {
     setDate(currentPaper, y, todayIso());
     const inp = document.querySelector(`[data-date="${y}"]`);
     if (inp) inp.value = getDate(currentPaper, y);
+    return;
+  }
+  const dateClear = e.target.closest("[data-date-clear]");
+  if (dateClear) {
+    const y = +dateClear.dataset.dateClear;
+    pushUndo();
+    setDate(currentPaper, y, "");
+    const inp = document.querySelector(`[data-date="${y}"]`);
+    if (inp) inp.value = "";
+    return;
+  }
+  const timeClear = e.target.closest("[data-time-clear]");
+  if (timeClear) {
+    const y = +timeClear.dataset.timeClear;
+    const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[currentPaper] || currentPaper;
+    if (!confirm("刪除 " + y + " " + short + "用時？")) return;
+    pushUndo();
+    setTimeSec(currentPaper, y, 0);
+    renderTracker();
     return;
   }
   const cell = e.target.closest(".cell");
