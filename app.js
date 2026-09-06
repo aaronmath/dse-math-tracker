@@ -145,7 +145,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true } };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -186,6 +186,15 @@ function setCell(paper, year, q, patch) {
   const k = cellKey(paper, year, q);
   prof().cells[k] = Object.assign({ s: 0, note: "", tags: [] }, getCell(paper, year, q), patch);
   save();
+}
+function isMing(c) { return !!(c && c.s === 3 && c.w); }
+function applyStatus(paper, year, q, next, how) {
+  const cur = getCell(paper, year, q);
+  const patch = { s: next };
+  if (next === 1) patch.w = 1;
+  else if (next === 2 && !(how === "cycle" && cur.s === 3)) patch.w = 1;
+  else if (next === 0 && how !== "cycle") patch.w = 0;
+  setCell(paper, year, q, patch);
 }
 function scoreKey(paper, year) { return paper + ":" + year; }
 function getScore(paper, year) {
@@ -357,6 +366,7 @@ function visQs(y, qs) {
 function matchFilter(c) {
   if (cellFilter === "all") return true;
   if (cellFilter === "note") return hasNote(c);
+  if (cellFilter === "ming") return isMing(c);
   if (String(cellFilter).startsWith("tag:")) return (c.tags || []).includes(cellFilter.slice(4));
   return String(c.s) === cellFilter;
 }
@@ -445,11 +455,12 @@ function paintYearStack(y) {
 function paintCellEl(cell, y, q) {
   const c = getCell(currentPaper, y, q);
   const sk = syllKind(currentPaper, y, q);
-  cell.classList.remove("s1", "s2", "s3", "sel", "syll-old", "syll-part");
+  cell.classList.remove("s1", "s2", "s3", "sel", "syll-old", "syll-part", "ming");
   if (STATE_CLASS[c.s]) cell.classList.add(STATE_CLASS[c.s]);
   if (selected.has(y + ":" + q)) cell.classList.add("sel");
   if (sk === "old") cell.classList.add("syll-old");
   if (sk === "part") cell.classList.add("syll-part");
+  if (isMing(c)) cell.classList.add("ming");
   const qcell = cell.closest(".qcell");
   if (qcell) qcell.classList.toggle("dim", !matchFilter(c));
 }
@@ -488,9 +499,12 @@ function cellHtml(y, q) {
   const qn = `<span class="qn" style="cursor:default;text-decoration:none;color:var(--muted)">${q}</span>`;
   const sk = syllKind(currentPaper, y, q);
   const syllCls = sk === "old" ? " syll-old" : sk === "part" ? " syll-part" : "";
+  const mingCls = isMing(c) ? " ming" : "";
   const syllTitle = sk === "old" ? "舊課程" : sk === "part" ? "部分舊課程" : "";
+  const mingTitle = isMing(c) ? "明返" : "";
+  const title = [syllTitle, mingTitle].filter(Boolean).join(" · ");
   return `<div class="qcell ${dim}">${qn}
-    <div class="cell ${STATE_CLASS[c.s] || ""} ${sel}${syllCls}" data-y="${y}" data-q="${q}" ${syllTitle ? `title="${syllTitle}"` : ""}>${hitHtml}</div>
+    <div class="cell ${STATE_CLASS[c.s] || ""} ${sel}${syllCls}${mingCls}" data-y="${y}" data-q="${q}" ${title ? `title="${title}"` : ""}>${hitHtml}</div>
     <button class="pencil ${hasNote(c) ? "filled" : ""}" data-note="${y}:${q}" title="筆記">✎</button>
   </div>`;
 }
@@ -540,9 +554,9 @@ function renderGrid() {
         <div class="score-box">操卷日
           <input type="date" data-date="${y}" value="${dt}">
           <button type="button" class="ghost" data-date-today="${y}">今日</button>
-          <button type="button" class="ghost" data-date-clear="${y}">清除</button>
+          ${dt ? `<button type="button" class="ghost" data-date-clear="${y}">清除日期</button>` : ""}
         </div>
-        ${used !== "" ? `<span class="used-time">用時 ${fmtHm(used)} <button type="button" class="ghost" data-time-clear="${y}" title="刪除用時">×</button></span>` : ""}
+        ${used !== "" ? `<span class="used-time">用時 ${fmtHm(used)} <button type="button" class="ghost" data-time-clear="${y}">清除用時</button></span>` : ""}
         <button class="ghost${yOn ? " on-toggle" : ""}" data-pick="year">${pickLab(yOn, "呢年")}</button>
         ${secs.map(sec => {
           const on = sec.qs.length && sec.qs.every(q => selected.has(y + ":" + q));
@@ -630,48 +644,63 @@ function statOk(s) {
   const st = prefs.weakStats || { 2: true, 1: true };
   return !!st[s];
 }
-function weakItems() {
+function paperHasTopic(paper, part, topic) {
+  const freq = paper === "p1"
+    ? ((window.P1_TOPICS && P1_TOPICS.freq) || [])
+    : ((window.P2_TOPICS && P2_TOPICS.freq) || []);
+  return freq.some(f => f.part === part && f.topic === topic && (f.total || 0) > 0);
+}
+function collectPaperItems(paper, pred) {
   const out = [];
-  const paper = weakPaperId();
   if (paper === "p1") {
     for (const y of YEARS) {
       for (const q of allQs("p1", y)) {
         const c = getCell("p1", y, q);
-        if (!(c.s === 1 || c.s === 2) || !statOk(c.s)) continue;
+        if (!pred(c)) continue;
         const topic = p1MainTopic(y, q) || "未分類";
         if (skipOldTopic(topic)) continue;
         const subs = p1Subs(y, q);
         const sec = (subs[0] && subs[0].sec) || (q <= 9 ? "甲一" : q <= 14 ? "甲二" : "乙");
         const pct = p1HitPct(y, q);
         if (!bandOk(pct)) continue;
-        out.push({ paper, y, q, s: c.s, topic, topics: p1TopicLine(y, q), tags: c.tags || [], note: c.note || "", part: sec, axisPart: p1PartOfSec(sec), pct });
+        out.push({ paper, y, q, s: c.s, topic, topics: p1TopicLine(y, q), tags: c.tags || [], note: c.note || "", part: sec, axisPart: p1PartOfSec(sec), pct, w: !!c.w });
       }
     }
   } else {
     for (const y of YEARS) {
       for (const q of allQs("p2", y)) {
         const c = getCell("p2", y, q);
-        if (!(c.s === 1 || c.s === 2) || !statOk(c.s)) continue;
+        if (!pred(c)) continue;
         const pct = p2Hit(y, q);
         const topic = topicOf(y, q) || "未分類";
-        const it = { paper: "p2", y, q, s: c.s, topic, topics: topic, tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", axisPart: q <= 30 ? "甲" : "乙", pct };
         if (isHexQ(y, q)) continue;
-        if (skipOldTopic(it.topic)) continue;
+        if (skipOldTopic(topic)) continue;
         if (!bandOk(pct)) continue;
-        out.push(it);
+        out.push({ paper: "p2", y, q, s: c.s, topic, topics: topic, tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", axisPart: q <= 30 ? "甲" : "乙", pct, w: !!c.w });
       }
     }
   }
+  return out;
+}
+function weakItems() {
+  const out = collectPaperItems(weakPaperId(), c => (c.s === 1 || c.s === 2) && statOk(c.s));
   out.sort((a, b) => a.s - b.s || b.y - a.y || a.q - b.q);
   return out;
 }
+function mingItems() {
+  const out = collectPaperItems(weakPaperId(), c => isMing(c));
+  out.sort((a, b) => b.y - a.y || a.q - b.q);
+  return out;
+}
+function excerptItems() { return prefs.weakMing ? mingItems() : weakItems(); }
 function itemRowHtml(it) {
   const lab = bandLabel(it.pct);
   const pct = it.pct == null ? "—" : it.pct + "%";
   const sh = lab ? `<span class="should ${bandOf(it.pct)}">${lab}</span>` : "";
   const sk = syllKind(it.paper || "p2", it.y, it.q);
   const topic = it.topics || it.topic;
-  return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(topic)}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
+  const ming = it.s === 3 && it.w ? "　<span class='ming-lab'>明返</span>" : "";
+  return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(topic)}${ming}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
 }
 function paintWeakChips() {
   const bands = prefs.weakBands || { hi: true, mid: true, lo: true };
@@ -679,9 +708,11 @@ function paintWeakChips() {
     btn.classList.toggle("on", !!bands[btn.dataset.band]);
   });
   const st = prefs.weakStats || { 2: true, 1: true };
-  document.querySelectorAll("#weakStatChips .chip").forEach(btn => {
+  document.querySelectorAll("#weakStatChips .chip[data-stat]").forEach(btn => {
     btn.classList.toggle("on", !!st[btn.dataset.stat]);
   });
+  const mingBtn = document.getElementById("mingChip");
+  if (mingBtn) mingBtn.classList.toggle("on", !!prefs.weakMing);
 }
 
 function markedPaperCount(paper) {
@@ -832,7 +863,8 @@ function renderRadar() {
     const sc = scores[i];
     const stuLab = sc.L == null ? "未評" : Math.round(sc.L * 100) + "%";
     const hkLab = sc.hk == null ? "—" : Math.round(sc.hk * 100) + "%";
-    const chips = a.topics.filter(t => !skipOldTopic(t)).map(t => {
+    const paper = weakPaperId();
+    const chips = a.topics.filter(t => !skipOldTopic(t) && paperHasTopic(paper, a.part, t)).map(t => {
       const ab = topicAbility(a.part, t);
       const bc = abilityBand(ab.L);
       return `<button type="button" class="tchip${bc ? " " + bc : ""}" data-jump-topic="${esc(t)}">${esc(t)}</button>`;
@@ -963,7 +995,7 @@ function renderWeak() {
   }
   renderRadar();
   const paper = weakPaperId();
-  const items0 = weakItems();
+  const items0 = excerptItems();
   const box = document.getElementById("weakBox");
   if (markedPaperCount(paper) === 0) {
     box.innerHTML = `<p class="hint">去進度標記${paperLabel(paper)}先出圖同功課。</p>`;
@@ -975,20 +1007,34 @@ function renderWeak() {
     if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
   }
   const arrange = document.getElementById("weakArrange").value;
-  if (!items.length) {
-    box.innerHTML = `<p class="hint">未有符合色掣嘅能力記錄。</p>`;
+  const emptyHint = prefs.weakMing ? "未有明返題。" : "未有符合色掣嘅能力記錄。";
+  if (!items.length && !(box.dataset.topic || "")) {
+    box.innerHTML = `<p class="hint">${emptyHint}</p>`;
     return;
   }
   items = sortWeakList(items, arrange);
   const head = `<thead><tr><th>年</th><th>題</th><th>部</th><th>課題</th><th>命中率</th><th></th><th>錯因</th></tr></thead>`;
+  const MIX_CAP = 120;
+  const showAll = box.dataset.all === "1";
+  const tableBlock = list => `<div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
+  const capNote = (shown, total) => {
+    if (total <= shown) return `<p class="hint">列出 ${shown} 題</p>`;
+    return `<p class="hint">列出 ${shown}／${total} 題　<button type="button" class="ghost" id="weakMore">顯示其餘 ${total - shown} 題</button></p>`;
+  };
+  const nextHtml = topic => topicNextHtml(paper, topic, head);
   if (arrange === "year") {
     const years = [...new Set(items.map(x => x.y))].sort((a, b) => b - a);
-    let html = "";
+    const total = items.length;
+    const vis = showAll || total <= MIX_CAP ? items : items.slice(0, MIX_CAP);
+    let html = capNote(vis.length, total);
     years.forEach(y => {
-      const list = items.filter(x => x.y === y);
-      html += `<h3 class="sec-title">${y}（${list.length}）</h3><div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
+      const list = vis.filter(x => x.y === y);
+      if (!list.length) return;
+      html += `<h3 class="sec-title">${y}（${list.length}）</h3>${tableBlock(list)}`;
     });
-    box.innerHTML = html;
+    const focus = box.dataset.topic || "";
+    if (focus) html += nextHtml(focus);
+    box.innerHTML = html || `<p class="hint">${emptyHint}</p>`;
     return;
   }
   const counts = {};
@@ -1001,9 +1047,57 @@ function renderWeak() {
     `<div class="bar-row" data-weak-topic="${esc(t)}"><span>${esc(t)}</span><div class="bar-track"><i style="width:${Math.round(n * 100 / max)}%"></i></div><b>${n}</b></div>`
   ).join("") + (rest ? `<div class="sub">其他課題 ${rest} 題</div>` : "");
   const focus = box.dataset.topic || "";
-  const list = (focus ? items.filter(x => x.topic === focus) : items).slice(0, 120);
-  box.innerHTML = `${bars}${focus ? `<p class="hint">而家睇：${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : ""}
-    <div style="overflow:auto"><table class="data-table">${head}<tbody>${list.map(itemRowHtml).join("")}</tbody></table></div>`;
+  const pool = focus ? items.filter(x => x.topic === focus) : items;
+  const vis = (focus || showAll || pool.length <= MIX_CAP) ? pool : pool.slice(0, MIX_CAP);
+  const mingLab = prefs.weakMing ? "明返　" : "";
+  box.innerHTML = `${bars}${focus ? `<p class="hint">而家睇：${mingLab}${esc(focus)}　<button class="ghost" id="weakClear">顯示全部</button></p>` : (prefs.weakMing ? `<p class="hint">而家睇明返。撳課題條出未做建議。</p>` : `<p class="hint">撳課題條先出未做建議（淺→深）。</p>`)}
+    ${capNote(vis.length, pool.length)}
+    ${tableBlock(vis)}
+    ${focus ? nextHtml(focus) : ""}`;
+}
+
+function topicNextUnseen(paper, topic, limit) {
+  const today = todayIso();
+  const out = [];
+  if (paper === "p1") {
+    for (const y of YEARS) {
+      if (getDate("p1", y) === today) continue;
+      for (const q of allQs("p1", y)) {
+        if (p1MainTopic(y, q) !== topic) continue;
+        if (skipOldQ(y, q, topic)) continue;
+        if (getCell("p1", y, q).s) continue;
+        const subs = p1Subs(y, q);
+        const sec = (subs[0] && subs[0].sec) || (q <= 9 ? "甲一" : q <= 14 ? "甲二" : "乙");
+        out.push({ paper: "p1", y, q, topic, part: sec, pct: p1HitPct(y, q) });
+      }
+    }
+  } else {
+    for (const it of (P2_TOPICS.items || [])) {
+      if (it.topic !== topic) continue;
+      if (isHexQ(it.y, it.q) || skipOldQ(it.y, it.q, it.topic)) continue;
+      if (getDate("p2", it.y) === today) continue;
+      if (getCell("p2", it.y, it.q).s) continue;
+      out.push({ paper: "p2", y: it.y, q: it.q, topic, part: it.part || (it.q <= 30 ? "甲" : "乙"), pct: p2Hit(it.y, it.q) });
+    }
+  }
+  out.sort((a, b) => {
+    const ap = a.pct == null ? -1 : a.pct, bp = b.pct == null ? -1 : b.pct;
+    if (ap !== bp) return bp - ap;
+    return b.y - a.y || a.q - b.q;
+  });
+  return out.slice(0, limit || 5);
+}
+function topicNextHtml(paper, topic, head) {
+  const list = topicNextUnseen(paper, topic, 5);
+  if (!list.length) return `<div class="next-box"><h3 class="sec-title">呢課題未做 · 建議先試</h3><p class="hint">未做題已經冇（或今日先操完嗰年已略過）。</p></div>`;
+  const rows = list.map(it => {
+    const lab = bandLabel(it.pct);
+    const pct = it.pct == null ? "—" : it.pct + "%";
+    const sh = lab ? `<span class="should ${bandOf(it.pct)}">${lab}</span>` : "";
+    return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${paper}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(it.topic)}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>未做</td></tr>`;
+  }).join("");
+  return `<div class="next-box"><h3 class="sec-title">呢課題未做 · 建議先試（淺→深）${list.length} 題</h3>
+    <div style="overflow:auto"><table class="data-table">${head}<tbody>${rows}</tbody></table></div></div>`;
 }
 
 function classify(starts, pct) {
@@ -1265,7 +1359,7 @@ function focusHtml(series, year, rec, hide) {
   const st = markOn ? getCell("p2", +year, rec.q).s : 0;
   const fade = k => st !== 0 && st !== k ? " fade" : "";
   const marks = markOn ? `<div class="mark-row">
-      <span class="sub">學生：${esc(currentProfile)}</span>
+      <span class="sub">學生：${esc(currentProfile)}${isMing(getCell("p2", +year, rec.q)) ? '<span class="ming-lab">明返</span>' : ""}</span>
       <button type="button" class="ok${fade(3)}" data-mark="3">已掌握</button>
       <button type="button" class="warn${fade(2)}" data-mark="2">一般</button>
       <button type="button" class="danger${fade(1)}" data-mark="1">唔識</button>
@@ -1587,7 +1681,7 @@ function sortWeakList(items, arrange) {
   return rows.sort((a, b) => a.s - b.s || b.y - a.y || a.q - b.q);
 }
 function visibleWeakItems() {
-  let items = weakItems();
+  let items = excerptItems();
   if (radarAxis) {
     const ax = AXES.find(a => a.id === radarAxis);
     if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
@@ -1902,7 +1996,7 @@ document.getElementById("batchBar").addEventListener("click", e => {
   pushUndo();
   selected.forEach(k => {
     const [y, q] = k.split(":").map(Number);
-    setCell(currentPaper, y, q, { s });
+    applyStatus(currentPaper, y, q, s, "set");
   });
   selected.clear();
   renderTracker();
@@ -1913,10 +2007,18 @@ document.getElementById("weakPaper").addEventListener("change", e => {
   savePrefs();
   radarAxis = "";
   const box = document.getElementById("weakBox");
-  if (box) box.dataset.topic = "";
+  if (box) { box.dataset.topic = ""; box.dataset.all = ""; }
   renderWeak();
 });
 document.getElementById("weakStatChips").addEventListener("click", e => {
+  if (e.target.id === "mingChip" || e.target.closest("#mingChip")) {
+    prefs.weakMing = !prefs.weakMing;
+    savePrefs();
+    const box = document.getElementById("weakBox");
+    if (box) box.dataset.all = "";
+    renderWeak();
+    return;
+  }
   const btn = e.target.closest("[data-stat]");
   if (!btn) return;
   const st = Object.assign({ 2: true, 1: true }, prefs.weakStats || {});
@@ -1964,9 +2066,10 @@ document.getElementById("radarBox").addEventListener("click", e => {
   renderWeak();
 });
 document.getElementById("weakBox").addEventListener("click", e => {
-  if (e.target.id === "weakClear") { document.getElementById("weakBox").dataset.topic = ""; renderWeak(); return; }
+  if (e.target.id === "weakClear") { document.getElementById("weakBox").dataset.topic = ""; document.getElementById("weakBox").dataset.all = ""; renderWeak(); return; }
+  if (e.target.id === "weakMore") { document.getElementById("weakBox").dataset.all = "1"; renderWeak(); return; }
   const row = e.target.closest("[data-weak-topic]");
-  if (row) { document.getElementById("weakBox").dataset.topic = row.dataset.weakTopic; renderWeak(); return; }
+  if (row) { document.getElementById("weakBox").dataset.topic = row.dataset.weakTopic; document.getElementById("weakBox").dataset.all = ""; renderWeak(); return; }
   const jump = e.target.closest("[data-jump]");
   if (jump) {
     const [y, q] = jump.dataset.jump.split(":");
@@ -2016,24 +2119,24 @@ document.getElementById("grid").addEventListener("click", e => {
     const y = +todayBtn.dataset.dateToday;
     pushUndo();
     setDate(currentPaper, y, todayIso());
-    const inp = document.querySelector(`[data-date="${y}"]`);
-    if (inp) inp.value = getDate(currentPaper, y);
+    renderTracker();
     return;
   }
   const dateClear = e.target.closest("[data-date-clear]");
   if (dateClear) {
     const y = +dateClear.dataset.dateClear;
+    const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[currentPaper] || currentPaper;
+    if (!confirm("清除 " + y + " " + short + "操卷日？")) return;
     pushUndo();
     setDate(currentPaper, y, "");
-    const inp = document.querySelector(`[data-date="${y}"]`);
-    if (inp) inp.value = "";
+    renderTracker();
     return;
   }
   const timeClear = e.target.closest("[data-time-clear]");
   if (timeClear) {
     const y = +timeClear.dataset.timeClear;
     const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[currentPaper] || currentPaper;
-    if (!confirm("刪除 " + y + " " + short + "用時？")) return;
+    if (!confirm("清除 " + y + " " + short + "用時？")) return;
     pushUndo();
     setTimeSec(currentPaper, y, 0);
     renderTracker();
@@ -2052,7 +2155,7 @@ document.getElementById("grid").addEventListener("click", e => {
   pushUndo();
   const cur = getCell(currentPaper, y, q).s;
   const next = { 0: 3, 3: 2, 2: 1, 1: 0 }[cur] ?? 3;
-  setCell(currentPaper, y, q, { s: next });
+  applyStatus(currentPaper, y, q, next, "cycle");
   paintCellEl(cell, y, q);
   paintYearStack(y);
   renderYearJump();
@@ -2095,6 +2198,7 @@ document.getElementById("grid").addEventListener("change", e => {
     const y = +e.target.dataset.date;
     pushUndo();
     e.target.value = setDate(currentPaper, y, e.target.value);
+    renderTracker();
   }
 });
 document.getElementById("grid").addEventListener("keydown", e => {
@@ -2227,7 +2331,7 @@ document.getElementById("mcResult").addEventListener("click", e => {
     const card = e.target.closest(".focus-card");
     if (!card) return;
     pushUndo();
-    setCell("p2", +card.dataset.fy, +card.dataset.fq, { s: +mark.dataset.mark });
+    applyStatus("p2", +card.dataset.fy, +card.dataset.fq, +mark.dataset.mark, "set");
     renderMcKeep();
     return;
   }
@@ -2537,7 +2641,9 @@ function applyQrSnap(targetName, snap, mode) {
       const s = snap.status[i] || 0;
       const tags = snap.tags[k] || [];
       if (!s && !notes[k] && !tags.length) return;
-      cells[k] = { s, note: notes[k] || "", tags };
+      const prevW = (p.cells[k] && p.cells[k].w) ? 1 : 0;
+      const w = (s === 1 || s === 2) ? 1 : (s === 3 ? prevW : 0);
+      cells[k] = { s, note: notes[k] || "", tags, w };
     });
     Object.keys(notes).forEach(k => {
       if (!cells[k]) cells[k] = { s: 0, note: notes[k], tags: [] };
@@ -2557,7 +2663,9 @@ function applyQrSnap(targetName, snap, mode) {
       if (!s && !inTags.length) return;
       const cur = p.cells[k] || { s: 0, note: "", tags: [] };
       const tags = [...new Set([...(cur.tags || []), ...inTags])].slice(0, 3);
-      p.cells[k] = { s: s || cur.s || 0, note: cur.note || "", tags };
+      const nextS = s || cur.s || 0;
+      const w = (nextS === 1 || nextS === 2) ? 1 : (cur.w ? 1 : 0);
+      p.cells[k] = { s: nextS, note: cur.note || "", tags, w };
     });
     snap.scores.forEach(({ paper, y, v }) => {
       if (v === "" || v == null) return;

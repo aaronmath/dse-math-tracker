@@ -52,6 +52,7 @@
           <select id="cellFilter">
             <option value="all">全部</option>
             <option value="3">已掌握</option>
+            <option value="ming">明返</option>
             <option value="2">一般</option>
             <option value="1">唔識</option>
             <option value="0">未做</option>
@@ -67,6 +68,7 @@
       <div class="toolbar batch-apply" id="batchBar">
         <span class="legend-inline">
           <span><i class="dot" style="background:var(--mastered)"></i>已掌握</span>
+          <span><i class="dot ming"></i>明返</span>
           <span><i class="dot" style="background:var(--ok)"></i>一般</span>
           <span><i class="dot" style="background:var(--weak)"></i>唔識</span>
           <span><i class="dot" style="background:var(--empty)"></i>未做</span>
@@ -123,7 +125,7 @@
     </section>
     <section class="view" id="view-weak">
       <h2 class="page-title">能力分析</h2>
-      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。</p>
+      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。明返預設關；撳課題條出未做建議（淺→深）。</p>
       <div class="toolbar" id="weakBar">
         <label>試卷
           <select id="weakPaper">
@@ -156,6 +158,7 @@
           <span class="chip-lab">狀態</span>
           <button type="button" class="chip s2 on" data-stat="2">一般</button>
           <button type="button" class="chip s1 on" data-stat="1">唔識</button>
+          <button type="button" class="chip ming" id="mingChip">明返</button>
         </div>
         <div class="chip-group" id="weakChips">
           <span class="chip-lab">難度</span>
