@@ -43,9 +43,13 @@
             <option value="show">出示 QR Code</option>
             <option value="export">匯出 JSON（當前學生）</option>
             <option value="import">匯入 JSON</option>
+            <option value="export-all" class="admin-xfer" hidden>匯出全部學生（一個 JSON）</option>
+            <option value="export-class" class="admin-xfer" hidden>匯出呢班（一個 JSON）</option>
+            <option value="export-class-zip" class="admin-xfer" hidden>匯出呢班 zip（每人一檔）</option>
           </select>
         </label>
         <button type="button" class="ghost" id="undoBtn">復原標記／分數</button>
+        <button type="button" class="ghost" id="classExit" hidden>退出</button>
         <input id="importFile" type="file" accept=".json,application/json,text/json" multiple hidden />
         <input id="xferImgFile" type="file" accept="image/*" hidden />
       </div>
@@ -245,7 +249,7 @@
     </section>
     <section class="view" id="view-class">
       <h2 class="page-title">班況</h2>
-      <p class="hint">一班 8 軸同強弱課題。撳軸睇該班每人；撳名去能力頁。未做唔入平均；標少過 20 題嘅人計人數但唔入軸平均。</p>
+      <p class="hint">一班 8 軸同具體弱課題。撳軸睇每人同最多人錯題；撳名去能力頁。未做唔入平均。</p>
       <div class="toolbar">
         <label>試卷
           <select id="classPaper">
@@ -255,19 +259,29 @@
         </label>
         <button type="button" class="ghost" id="classOldBtn">含舊課程　關</button>
         <button type="button" class="ghost" id="classMingBtn">明返人數　開</button>
+        <button type="button" class="ghost" id="classHkBtn">全港參照　開</button>
         <button type="button" id="classAddBtn">新增班</button>
         <button type="button" class="ghost" id="classRenameBtn">改班名</button>
         <button type="button" class="danger" id="classDelBtn">刪班</button>
         <button type="button" class="ghost" id="classCsvBtn">匯出 CSV</button>
       </div>
+      <p class="class-warn" id="classWarn" hidden></p>
       <div class="chip-row class-pills" id="classPills"></div>
       <div class="stats" id="classStats"></div>
-      <div id="classAxes" class="class-axes"></div>
+      <div class="radar-wrap">
+        <div id="classRadar" class="radar-box"></div>
+        <div id="classAxes" class="class-axes"></div>
+      </div>
       <div id="classTopics"></div>
       <div id="classDrill"></div>
-      <h3 class="sec-title">班對照</h3>
-      <div style="overflow:auto" id="classMatrix"></div>
-      <h3 class="sec-title">分數（最新年）</h3>
+      <details id="classMatrixBox">
+        <summary class="sec-title">班對照</summary>
+        <div style="overflow:auto" id="classMatrix"></div>
+      </details>
+      <div class="toolbar">
+        <h3 class="sec-title" style="margin:0">分數</h3>
+        <label>年份 <select id="classYear"></select></label>
+      </div>
       <div style="overflow:auto" id="classScores"></div>
     </section>
     <section class="view" id="view-timer">
