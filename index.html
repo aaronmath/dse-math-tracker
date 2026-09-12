@@ -24,10 +24,14 @@
         <button class="tab" data-view="grades">成績</button>
         <button class="tab" data-view="items">全港平均</button>
         <button class="tab" data-view="cutoffs">Cut-off</button>
+        <button class="tab" data-view="class" id="classTab" hidden>班況</button>
         <button class="tab" data-view="timer">計時</button>
       </nav>
       <div class="toolbar" id="peopleBar">
         <label>學生 <select id="profile"></select></label>
+        <label id="profileClassWrap" hidden>班
+          <select id="profileClass"></select>
+        </label>
         <input id="newProfile" type="text" placeholder="新增名稱" />
         <button type="button" id="addProfile">新增</button>
         <button type="button" class="ghost" id="renameProfile">改名</button>
@@ -182,7 +186,7 @@
     </section>
     <section class="view" id="view-grades">
       <h2 class="page-title">個人數學成績</h2>
-      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。撳年份跳返進度該年。</p>
+      <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。<br>必修須齊卷一、卷二成績先顯示等級。有 5／5*／5** 線即可暫估（缺 3／4 會註明）。撳年份跳返進度該年。</p>
       <div class="toolbar">
         <label class="chk"><input type="checkbox" id="showCore" checked /> 顯示必修數學</label>
         <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
@@ -238,6 +242,33 @@
       <div style="overflow:auto" id="cutM1"></div>
       <h3 class="sec-title">M2</h3>
       <div style="overflow:auto" id="cutM2"></div>
+    </section>
+    <section class="view" id="view-class">
+      <h2 class="page-title">班況</h2>
+      <p class="hint">一班 8 軸同強弱課題。撳軸睇該班每人；撳名去能力頁。未做唔入平均；標少過 20 題嘅人計人數但唔入軸平均。</p>
+      <div class="toolbar">
+        <label>試卷
+          <select id="classPaper">
+            <option value="p1">必修數學卷一</option>
+            <option value="p2">必修數學卷二</option>
+          </select>
+        </label>
+        <button type="button" class="ghost" id="classOldBtn">含舊課程　關</button>
+        <button type="button" class="ghost" id="classMingBtn">明返人數　開</button>
+        <button type="button" id="classAddBtn">新增班</button>
+        <button type="button" class="ghost" id="classRenameBtn">改班名</button>
+        <button type="button" class="danger" id="classDelBtn">刪班</button>
+        <button type="button" class="ghost" id="classCsvBtn">匯出 CSV</button>
+      </div>
+      <div class="chip-row class-pills" id="classPills"></div>
+      <div class="stats" id="classStats"></div>
+      <div id="classAxes" class="class-axes"></div>
+      <div id="classTopics"></div>
+      <div id="classDrill"></div>
+      <h3 class="sec-title">班對照</h3>
+      <div style="overflow:auto" id="classMatrix"></div>
+      <h3 class="sec-title">分數（最新年）</h3>
+      <div style="overflow:auto" id="classScores"></div>
     </section>
     <section class="view" id="view-timer">
       <h2 class="page-title">計時</h2>
@@ -326,6 +357,15 @@
       </div>
       <p class="pep" id="sumPep"></p>
       <div class="row"><button type="button" class="ghost" id="sumDlgClose">關閉</button></div>
+    </div>
+  </dialog>
+  <dialog id="classGate">
+    <div class="dlg">
+      <input id="classPass" type="password" autocomplete="off" />
+      <div class="row">
+        <button type="button" class="ghost" id="classGateCancel">取消</button>
+        <button type="button" id="classGateOk">確定</button>
+      </div>
     </div>
   </dialog>
   <audio id="endSound" src="./timer-end.wav" preload="auto"></audio>

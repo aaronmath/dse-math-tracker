@@ -8,7 +8,7 @@ const TAGS = [
 ];
 const LV_COLS = ["U", "1", "2", "3", "4", "5", "5*", "5**"];
 const CUT_COLS = ["5**", "5*", "5", "4", "3", "2"];
-const CUT_COLORS = { "5**": "#1c1915", "5*": "#3d6e8c", "5": "#2f5d50", "4": "#6a8f3d", "3": "#c4a35a", "2": "#a35a4a", stu: "#3d6e8c" };
+const CUT_COLORS = { "5**": "#1c1915", "5*": "#3d6e8c", "5": "#2f5d50", "4": "#6a8f3d", "3": "#c4a35a", "2": "#a35a4a", stu: "#e23d6a" };
 const PREF_KEY = "dse-math-tracker-prefs";
 const TIMER = {
   p1: { name: "必修卷一", normal: 2 * 3600 + 15 * 60, extra: 2 * 3600 + 48 * 60 + 45 },
@@ -65,6 +65,10 @@ let mcPick = null;
 let mcHideAns = false;
 let mcUnseen = false;
 let radarAxis = "";
+let radarDrawn = "";
+let yearDonePrev = {};
+const CLASS_MIN = 20;
+const CLASS_GATE_KEY = "dse-math-tracker-class-ok";
 const AXES = [
   { id: "a-alg", name: "甲　數與代數", part: "甲", topics: ["指數","主項變換","因式分解","代數分式","不等式","百分數","恆等式","聯立方程","函數","二次方程","數列","率與比","二次函數圖像","多項式","變分"] },
   { id: "a-meas", name: "甲　度量圖形", part: "甲", topics: ["量度與誤差","面積與體積","扇形","直線圖形：角度","直線圖形：長度與面積","多邊形","對稱","面積比","三角函數","三角學（甲部）","圓的性質","全等與相似三角形"] },
@@ -141,16 +145,17 @@ function doUndo() {
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
   else if (currentView === "timer") renderTimer();
+  else if (currentView === "class") renderClassPage();
 }
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "" };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
 function savePrefs() { localStorage.setItem(PREF_KEY, JSON.stringify(prefs)); }
-function blankProfile(name) { return { name, cells: {}, scores: {}, dates: {}, times: {}, updatedAt: Date.now() }; }
+function blankProfile(name) { return { name, className: "", cells: {}, scores: {}, dates: {}, times: {}, updatedAt: Date.now() }; }
 function loadDb() {
   try {
     const v2 = localStorage.getItem(storeKey);
@@ -166,11 +171,13 @@ function loadDb() {
 }
 function migrateDb(data) {
   data.profiles = data.profiles || {};
+  data.classes = Array.isArray(data.classes) ? data.classes.filter(x => typeof x === "string" && x.trim()) : [];
   Object.values(data.profiles).forEach(p => {
     if (!p || typeof p !== "object") return;
     p.scores = p.scores || {};
     p.dates = p.dates || {};
     p.times = p.times || {};
+    if (typeof p.className !== "string") p.className = "";
   });
   return data;
 }
@@ -181,7 +188,11 @@ function save() {
 }
 function prof() { return db.profiles[currentProfile]; }
 function cellKey(paper, year, q) { return paper + ":" + year + ":" + q; }
-function getCell(paper, year, q) { return prof().cells[cellKey(paper, year, q)] || { s: 0, note: "", tags: [] }; }
+function getCellOf(pr, paper, year, q) {
+  if (!pr || !pr.cells) return { s: 0, note: "", tags: [] };
+  return pr.cells[cellKey(paper, year, q)] || { s: 0, note: "", tags: [] };
+}
+function getCell(paper, year, q) { return getCellOf(prof(), paper, year, q); }
 function setCell(paper, year, q, patch) {
   const k = cellKey(paper, year, q);
   prof().cells[k] = Object.assign({ s: 0, note: "", tags: [] }, getCell(paper, year, q), patch);
@@ -195,6 +206,15 @@ function applyStatus(paper, year, q, next, how) {
   else if (next === 2 && !(how === "cycle" && cur.s === 3)) patch.w = 1;
   else if (next === 0 && how !== "cycle") patch.w = 0;
   setCell(paper, year, q, patch);
+  const now = getCell(paper, year, q);
+  if (isMing(now) && !isMing(cur) && currentPaper === paper) {
+    const el = document.querySelector(`#grid .cell[data-y="${year}"][data-q="${q}"]`);
+    if (el) {
+      el.classList.remove("ming-pop");
+      void el.offsetWidth;
+      el.classList.add("ming-pop");
+    }
+  }
 }
 function scoreKey(paper, year) { return paper + ":" + year; }
 function getScore(paper, year) {
@@ -390,6 +410,8 @@ function renderProfiles() {
   document.getElementById("profile").innerHTML = Object.keys(db.profiles).map(n =>
     `<option ${n === currentProfile ? "selected" : ""}>${esc(n)}</option>`
   ).join("");
+  renderProfileClass();
+  paintClassTab();
 }
 function renderPaperSelect() {
   document.getElementById("paper").innerHTML = Object.entries(PAPERS).map(([id, p]) =>
@@ -408,7 +430,9 @@ function renderYearJump() {
   el.innerHTML = yearsDesc().filter(y => visQs(y, allQs(currentPaper, y)).length).map(y => {
     const entered = hasYearScore(currentPaper, y);
     const done = yearPaperDone(currentPaper, y);
-    return `<button type="button" class="year-pill${entered ? " entered" : ""}${done ? " complete" : ""}" data-jump-year="${y}" title="${done ? "格已填齊" : "尚有未做"}${entered ? " · 已填分數" : ""}">${y}</button>`;
+    const pop = done && !yearDonePrev[currentPaper + ":" + y];
+    yearDonePrev[currentPaper + ":" + y] = done;
+    return `<button type="button" class="year-pill${entered ? " entered" : ""}${done ? " complete" : ""}${pop ? " pop" : ""}" data-jump-year="${y}" title="${done ? "格已填齊" : "尚有未做"}${entered ? " · 已填分數" : ""}">${y}</button>`;
   }).join("");
 }
 function scrollToYear(y) {
@@ -854,9 +878,12 @@ function renderRadar() {
   }
   const empty = markedPaperCount(weakPaperId()) === 0;
   const emptyHint = `去進度標記${paperLabel(weakPaperId())}先出圖。`;
+  const drawKey = currentProfile + ":" + weakPaperId();
+  const first = radarDrawn !== drawKey;
+  if (!empty) radarDrawn = drawKey;
   document.getElementById("radarBox").innerHTML = empty
     ? `<p class="hint">${emptyHint}</p>`
-    : `<svg viewBox="0 0 340 340">${rings}${spokes}${hk}${stu}${labels}
+    : `<svg viewBox="0 0 340 340" class="${first ? "radar-draw" : ""}">${rings}${spokes}${hk}${stu}${labels}
       <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅標記平均　虛線＝全港命中率</text>
       <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　卷一按分數加權</text></svg>`;
   document.getElementById("axisLegend").innerHTML = AXES.map((a, i) => {
@@ -1121,9 +1148,13 @@ function corePct(year, p1, p2) {
 }
 function estimateShort(kind, year, pct) {
   const pack = window.CUTOFFS[kind][String(year)];
-  if (!pack || pack.incomplete) return "資料未齊";
+  if (!pack) return "資料未齊";
+  const m = startMap(pack);
+  const can = m["5"] != null && m["5*"] != null && m["5**"] != null;
+  if (!can) return "資料未齊";
   const r = classify(pack.starts, pct);
-  return fmtLv(r.level);
+  const lv = fmtLv(r.level);
+  return pack.incomplete ? "暫估 " + lv : lv;
 }
 function nextGap(starts, pct) {
   const s = starts.filter(x => LV_COLS.includes(x[0])).sort((a, b) => a[1] - b[1]);
@@ -1173,26 +1204,27 @@ function renderGrades() {
     const coreCell = ready ? Math.round(cp) + "%" : "-";
     let coreLv = "-";
     if (ready) {
-      coreLv = pack.incomplete ? "資料未齊" : estimateShort("core", y, cp);
+      coreLv = estimateShort("core", y, cp);
     }
+    const coreEst = ready && pack && coreLv !== "資料未齊" && coreLv !== "-";
     rows += `<tr>
       <td class="clickable" data-go-year="${y}">${y}</td>`;
     if (showCore) {
       rows += `<td><input type="number" min="0" max="105" step="1" inputmode="numeric" data-gs="p1:${y}" value="${p1}"></td>
       <td><input type="number" min="0" max="45" step="1" inputmode="numeric" data-gs="p2:${y}" value="${p2}"></td>
       <td>${coreCell}</td>
-      ${ready && pack && !pack.incomplete ? lvCellHtml(coreLv, pack.starts, cp, true) : `<td class="lv">${coreLv}</td>`}`;
+      ${coreEst ? lvCellHtml(coreLv, pack.starts, cp, true) : `<td class="lv">${coreLv}</td>`}`;
     }
     if (showM1) {
       const packM1 = window.CUTOFFS.m1[String(y)];
-      let lv = m1 === "" ? "-" : (packM1.incomplete ? "資料未齊" : estimateShort("m1", y, Number(m1)));
-      const m1Ready = m1 !== "" && packM1 && !packM1.incomplete;
+      let lv = m1 === "" ? "-" : estimateShort("m1", y, Number(m1));
+      const m1Ready = m1 !== "" && packM1 && lv !== "資料未齊";
       rows += `<td><input type="number" min="0" max="100" step="1" inputmode="numeric" data-gs="m1:${y}" value="${m1}"></td>${m1Ready ? lvCellHtml(lv, packM1.starts, Number(m1), true) : `<td>${lv}</td>`}`;
     }
     if (showM2) {
       const packM2 = window.CUTOFFS.m2[String(y)];
-      let lv = m2 === "" ? "-" : (packM2.incomplete ? "資料未齊" : estimateShort("m2", y, Number(m2)));
-      const m2Ready = m2 !== "" && packM2 && !packM2.incomplete;
+      let lv = m2 === "" ? "-" : estimateShort("m2", y, Number(m2));
+      const m2Ready = m2 !== "" && packM2 && lv !== "資料未齊";
       rows += `<td><input type="number" min="0" max="100" step="1" inputmode="numeric" data-gs="m2:${y}" value="${m2}"></td>${m2Ready ? lvCellHtml(lv, packM2.starts, Number(m2), true) : `<td>${lv}</td>`}`;
     }
     rows += `</tr>`;
@@ -1248,6 +1280,7 @@ function renderCutChart() {
   }).join("");
   const xlabels = YEARS.map((y, i) => `<text x="${xOf(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="9" fill="#6b645b">${String(y).slice(2)}</text>`).join("");
   let lines = "";
+  const hits = [];
   CUT_COLS.forEach(lv => {
     if (!lvOn[lv]) return;
     const vals = YEARS.map(y => {
@@ -1258,6 +1291,10 @@ function renderCutChart() {
     cutPolyline(vals, xOf, yOf).forEach(seg => {
       lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" points="${seg.join(" ")}" />`;
     });
+    vals.forEach((v, i) => {
+      if (v == null) return;
+      hits.push({ i, v, lv, kind: "lv" });
+    });
   });
   if (prefs.cutStu !== false) {
     const vals = YEARS.map(y => stuCutPct(kind, y));
@@ -1267,11 +1304,44 @@ function renderCutChart() {
     YEARS.forEach((y, i) => {
       const v = stuCutPct(kind, y);
       if (v == null) return;
-      lines += `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="3" fill="${CUT_COLORS.stu}" />`;
+      lines += `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="3.4" fill="${CUT_COLORS.stu}" />`;
+      hits.push({ i, v, lv: "stu", kind: "stu" });
     });
   }
+  const hitSvg = hits.map((h, n) =>
+    `<circle class="cut-hit" data-hi="${n}" cx="${xOf(h.i).toFixed(1)}" cy="${yOf(h.v).toFixed(1)}" r="9" fill="transparent" stroke="none" style="cursor:pointer" />`
+  ).join("");
   document.getElementById("cutChart").innerHTML =
-    `<svg viewBox="0 0 ${W} ${H}" class="cut-svg">${grid}${lines}${xlabels}</svg>`;
+    `<div class="cut-chart-inner"><svg viewBox="0 0 ${W} ${H}" class="cut-svg">${grid}${lines}${xlabels}${hitSvg}</svg><div class="cut-tip" id="cutTip" hidden></div></div>`;
+  const tip = document.getElementById("cutTip");
+  const svg = document.querySelector("#cutChart .cut-svg");
+  const showHitTip = (n, clientX, clientY) => {
+    const h = hits[n];
+    if (!h || !tip) return;
+    const y = YEARS[h.i];
+    const unit = kind === "core" ? "%" : "";
+    const lab = h.lv === "stu" ? "你" : h.lv;
+    const num = kind === "core" ? (Math.round(h.v * 10) / 10) : Math.round(h.v);
+    tip.hidden = false;
+    tip.textContent = y + "　" + lab + "　" + num + unit;
+    const box = document.getElementById("cutChart").getBoundingClientRect();
+    tip.style.left = Math.min(box.width - 8, Math.max(8, clientX - box.left + 10)) + "px";
+    tip.style.top = Math.max(8, clientY - box.top - 28) + "px";
+  };
+  const hideTip = () => { if (tip) tip.hidden = true; };
+  if (svg) {
+    svg.addEventListener("pointermove", e => {
+      const el = e.target.closest(".cut-hit");
+      if (!el) { hideTip(); return; }
+      showHitTip(+el.dataset.hi, e.clientX, e.clientY);
+    });
+    svg.addEventListener("pointerleave", hideTip);
+    svg.addEventListener("click", e => {
+      const el = e.target.closest(".cut-hit");
+      if (!el) { hideTip(); return; }
+      showHitTip(+el.dataset.hi, e.clientX, e.clientY);
+    });
+  }
 }
 
 function startMap(pack) {
@@ -1860,6 +1930,7 @@ function paintTimer() {
   const dur = timerDuration();
   const used = dur - rem;
   document.getElementById("timerClock").textContent = fmtTime(rem);
+  document.getElementById("timerClock").classList.toggle("warn5", !!(timerRun.start && rem > 0 && rem <= 5 * 60));
   document.getElementById("timerElapsed").textContent = "已用 " + fmtTime(used);
   const ySel = document.getElementById("timerYear");
   const yLab = ySel && ySel.value ? ySel.value + "　" : "練習　";
@@ -1895,11 +1966,306 @@ function timerTick() {
 }
 function renderTimer() { paintTimer(); }
 
+function classUnlocked() { return sessionStorage.getItem(CLASS_GATE_KEY) === "1"; }
+function setClassUnlocked() { sessionStorage.setItem(CLASS_GATE_KEY, "1"); }
+function classNames() {
+  db.classes = Array.isArray(db.classes) ? db.classes : [];
+  return db.classes;
+}
+function ensureClassName(name) {
+  const n = String(name || "").trim();
+  if (!n) return "";
+  if (!classNames().includes(n)) db.classes.push(n);
+  return n;
+}
+function peopleOfClass(cls) {
+  return Object.keys(db.profiles).filter(n => {
+    const c = db.profiles[n].className || "";
+    return cls === "" ? !c : c === cls;
+  });
+}
+function markedCountOf(pr, paper) {
+  if (!pr) return 0;
+  let n = 0;
+  for (const y of YEARS) for (const q of allQs(paper, y)) if (getCellOf(pr, paper, y, q).s) n++;
+  return n;
+}
+function axisScoreOf(pr, axis, paper) {
+  if (paper === "p1") {
+    const items = p1Items().filter(x => p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic));
+    let sum = 0, wsum = 0;
+    const seenQ = new Set();
+    items.forEach(x => {
+      const c = getCellOf(pr, "p1", x.y, x.q);
+      if (!c.s) return;
+      const w = c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
+      const m = x.marks || 0;
+      sum += w * m;
+      wsum += m;
+      seenQ.add(x.y + ":" + x.q);
+    });
+    if (seenQ.size < 4) return { n: seenQ.size, L: null };
+    return { n: seenQ.size, L: wsum ? sum / wsum : null };
+  }
+  const items = (P2_TOPICS.items || []).filter(x => x.part === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic));
+  let sum = 0, n = 0;
+  items.forEach(x => {
+    const c = getCellOf(pr, "p2", x.y, x.q);
+    if (!c.s) return;
+    sum += c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
+    n++;
+  });
+  if (n < 4) return { n, L: null };
+  return { n, L: sum / n };
+}
+function topicAbilityOf(pr, part, topic, paper) {
+  if (paper === "p1") {
+    const items = p1Items().filter(x => p1PartOfSec(x.sec) === part && x.topic === topic);
+    let sum = 0, w = 0;
+    items.forEach(x => {
+      const c = getCellOf(pr, "p1", x.y, x.q);
+      if (!c.s) return;
+      const m = x.marks || 0;
+      sum += (c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0) * m;
+      w += m;
+    });
+    if (!w) return { n: 0, L: null };
+    return { n: items.filter(x => getCellOf(pr, "p1", x.y, x.q).s).length, L: sum / w };
+  }
+  const items = (P2_TOPICS.items || []).filter(x => x.part === part && x.topic === topic);
+  let sum = 0, n = 0;
+  items.forEach(x => {
+    const c = getCellOf(pr, "p2", x.y, x.q);
+    if (!c.s) return;
+    sum += c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
+    n++;
+  });
+  if (!n) return { n: 0, L: null };
+  return { n, L: sum / n };
+}
+function classPaperId() { return prefs.classPaper === "p2" ? "p2" : "p1"; }
+function classEligible(pr, paper) { return markedCountOf(pr, paper) >= CLASS_MIN; }
+function classAxisAvg(names, axis, paper) {
+  const Ls = names.map(n => db.profiles[n]).filter(pr => classEligible(pr, paper)).map(pr => axisScoreOf(pr, axis, paper).L).filter(v => v != null);
+  if (!Ls.length) return { L: null, n: 0 };
+  return { L: Ls.reduce((a, b) => a + b, 0) / Ls.length, n: Ls.length };
+}
+function classTopicAvg(names, part, topic, paper) {
+  const Ls = names.map(n => db.profiles[n]).filter(pr => classEligible(pr, paper)).map(pr => topicAbilityOf(pr, part, topic, paper).L).filter(v => v != null);
+  if (Ls.length < 2) return { L: null, n: Ls.length };
+  return { L: Ls.reduce((a, b) => a + b, 0) / Ls.length, n: Ls.length };
+}
+function classStats(names, paper) {
+  const marked = names.map(n => markedCountOf(db.profiles[n], paper)).sort((a, b) => a - b);
+  const mid = marked.length ? marked[Math.floor((marked.length - 1) / 2)] : 0;
+  let mastered = 0, filled = 0, mingPeople = 0;
+  names.forEach(n => {
+    const pr = db.profiles[n];
+    let hasMing = false;
+    for (const y of YEARS) for (const q of allQs(paper, y)) {
+      const c = getCellOf(pr, paper, y, q);
+      if (!c.s) continue;
+      filled++;
+      if (c.s === 3) mastered++;
+      if (isMing(c)) hasMing = true;
+    }
+    if (hasMing) mingPeople++;
+  });
+  return {
+    n: names.length,
+    mid,
+    masteredPct: filled ? Math.round(mastered * 100 / filled) : null,
+    mingPeople
+  };
+}
+function paintClassTab() {
+  const tab = document.getElementById("classTab");
+  if (tab) tab.hidden = !classUnlocked();
+  const wrap = document.getElementById("profileClassWrap");
+  if (wrap) wrap.hidden = !classUnlocked();
+}
+function renderProfileClass() {
+  const sel = document.getElementById("profileClass");
+  if (!sel) return;
+  const cur = (prof() && prof().className) || "";
+  sel.innerHTML = `<option value="">未分班</option>` + classNames().map(n =>
+    `<option value="${esc(n)}"${n === cur ? " selected" : ""}>${esc(n)}</option>`
+  ).join("");
+}
+function renderClassPage() {
+  if (!classUnlocked()) return;
+  const paper = classPaperId();
+  const paperSel = document.getElementById("classPaper");
+  if (paperSel) paperSel.value = paper;
+  const mingBtn = document.getElementById("classMingBtn");
+  if (mingBtn) {
+    mingBtn.textContent = prefs.classMing !== false ? "明返人數　開" : "明返人數　關";
+    mingBtn.classList.toggle("on-toggle", prefs.classMing !== false);
+  }
+  const oldBtn = document.getElementById("classOldBtn");
+  if (oldBtn) {
+    oldBtn.textContent = prefs.includeOld ? "含舊課程　開" : "含舊課程　關";
+    oldBtn.classList.toggle("on-toggle", !!prefs.includeOld);
+  }
+  const names = classNames();
+  if (!prefs.classSel || (prefs.classSel !== "" && !names.includes(prefs.classSel) && prefs.classSel !== "__none")) {
+    prefs.classSel = names[0] || "__none";
+  }
+  const pills = document.getElementById("classPills");
+  if (pills) {
+    pills.innerHTML = names.map(n =>
+      `<button type="button" class="chip${prefs.classSel === n ? " on" : ""}" data-class="${esc(n)}">${esc(n)}</button>`
+    ).join("") + `<button type="button" class="chip${prefs.classSel === "__none" ? " on" : ""}" data-class="__none">未分班</button>`;
+  }
+  const cls = prefs.classSel === "__none" ? "" : prefs.classSel;
+  const people = peopleOfClass(cls);
+  const st = classStats(people, paper);
+  const eligible = people.filter(n => classEligible(db.profiles[n], paper));
+  document.getElementById("classStats").innerHTML = `
+    <div class="stat"><b>${st.n}</b><span>班人數</span></div>
+    <div class="stat"><b>${st.mid}</b><span>已標題中位</span></div>
+    <div class="stat"><b>${st.masteredPct == null ? "—" : st.masteredPct + "%"}</b><span>已掌握％</span></div>
+    ${prefs.classMing !== false ? `<div class="stat"><b>${st.mingPeople}</b><span>明返人數</span></div>` : ""}`;
+  const axes = AXES.map(ax => {
+    const a = classAxisAvg(people, ax, paper);
+    return { ax, L: a.L, n: a.n };
+  });
+  document.getElementById("classAxes").innerHTML = axes.map((row, i) => {
+    const pct = row.L == null ? 0 : Math.round(row.L * 100);
+    const lab = row.L == null ? "未評" : pct + "%";
+    const on = prefs.classAxis === row.ax.id ? " on" : "";
+    return `<button type="button" class="class-axis${on}" data-axis="${row.ax.id}" style="--d:${i * 35}ms">
+      <span>${esc(row.ax.name)}</span>
+      <i class="bar-track"><b class="class-bar" style="width:${pct}%"></b></i>
+      <em>${lab}${row.n ? " · " + row.n + " 人" : ""}</em></button>`;
+  }).join("");
+  const topicRows = [];
+  AXES.forEach(ax => {
+    ax.topics.filter(t => !skipOldTopic(t) && paperHasTopic(paper, ax.part, t)).forEach(t => {
+      const a = classTopicAvg(people, ax.part, t, paper);
+      if (a.L == null) return;
+      topicRows.push({ part: ax.part, topic: t, L: a.L, n: a.n });
+    });
+  });
+  const ranked = topicRows.slice().sort((a, b) => b.L - a.L);
+  const strong = ranked.slice(0, 3);
+  const weak = ranked.slice().reverse().filter(x => !strong.includes(x)).slice(0, 3);
+  const labTopic = x => `${x.part}　${esc(x.topic)}　${Math.round(x.L * 100)}%`;
+  document.getElementById("classTopics").innerHTML =
+    `<div class="class-sw"><div><b>強</b><ul>${strong.length ? strong.map(x => `<li>${labTopic(x)}</li>`).join("") : "<li>標記未夠</li>"}</ul></div>
+     <div><b>弱</b><ul>${weak.length ? weak.map(x => `<li>${labTopic(x)}</li>`).join("") : "<li>標記未夠</li>"}</ul></div></div>
+     <p class="hint">軸平均只計已標 ≥${CLASS_MIN} 題嘅人（入圍 ${eligible.length}／${people.length}）。未做唔入平均。</p>`;
+  const axis = AXES.find(a => a.id === prefs.classAxis);
+  const drill = document.getElementById("classDrill");
+  if (!axis) drill.innerHTML = "";
+  else {
+    const rows = people.map(n => {
+      const pr = db.profiles[n];
+      const sc = axisScoreOf(pr, axis, paper);
+      const ok = classEligible(pr, paper);
+      return { n, L: sc.L, ok, marked: markedCountOf(pr, paper) };
+    }).sort((a, b) => (a.L == null ? 1 : 0) - (b.L == null ? 1 : 0) || (a.L || 0) - (b.L || 0));
+    drill.innerHTML = `<h3 class="sec-title">${esc(axis.name)}　${esc(cls || "未分班")}</h3>
+      <p class="hint">弱 → 強。撳名去該學生能力頁。</p>
+      <div class="class-people">${rows.map(r =>
+        `<button type="button" class="class-person${r.ok ? "" : " dim"}" data-go-stu="${esc(r.n)}"><b>${esc(r.n)}</b><span>${r.L == null ? "未評" : Math.round(r.L * 100) + "%"}　標 ${r.marked}</span></button>`
+      ).join("")}</div>`;
+  }
+  const allCls = classNames();
+  const tableEl = document.getElementById("classMatrix");
+  if (!allCls.length) tableEl.innerHTML = "<p class='hint'>未有班。上面新增班名，再喺學生列分班。</p>";
+  else {
+    let html = `<table class="data-table"><thead><tr><th>軸</th>${allCls.map(c => `<th>${esc(c)}</th>`).join("")}</tr></thead><tbody>`;
+    AXES.forEach(ax => {
+      html += `<tr><td>${esc(ax.name)}</td>`;
+      allCls.forEach(c => {
+        const a = classAxisAvg(peopleOfClass(c), ax, paper);
+        html += `<td>${a.L == null ? "—" : Math.round(a.L * 100) + "%"}</td>`;
+      });
+      html += `</tr>`;
+    });
+    tableEl.innerHTML = html + "</tbody></table>";
+  }
+  const scoreEl = document.getElementById("classScores");
+  const year = YEARS[YEARS.length - 1];
+  scoreEl.innerHTML = `<p class="hint">M1／M2 無課題軸，只列 ${year} 已填分數。</p>
+    <table class="data-table"><thead><tr><th>學生</th><th>必修綜合</th><th>暫估</th><th>M1</th><th>M2</th></tr></thead><tbody>${
+      people.map(n => {
+        const keep = currentProfile;
+        currentProfile = n;
+        const p1 = getScore("p1", year), p2 = getScore("p2", year);
+        const cp = corePct(year, p1, p2);
+        const lv = cp == null ? "—" : estimateShort("core", year, cp);
+        const m1 = getScore("m1", year), m2 = getScore("m2", year);
+        currentProfile = keep;
+        return `<tr><td>${esc(n)}</td><td>${cp == null ? "—" : Math.round(cp) + "%"}</td><td>${lv}</td><td>${m1 === "" ? "—" : m1}</td><td>${m2 === "" ? "—" : m2}</td></tr>`;
+      }).join("")
+    }</tbody></table>`;
+}
+
+function exportClassCsv() {
+  const paper = classPaperId();
+  const lines = ["班,試卷,軸,平均％,入圍人數,班人數"];
+  classNames().concat([""]).forEach(c => {
+    const people = peopleOfClass(c);
+    AXES.forEach(ax => {
+      const a = classAxisAvg(people, ax, paper);
+      lines.push([c || "未分班", paper, ax.name.replace("　", " "), a.L == null ? "" : (Math.round(a.L * 1000) / 10), a.n, people.length].join(","));
+    });
+  });
+  lines.push("");
+  lines.push("班,試卷,部分,課題,平均％,入圍人數");
+  classNames().forEach(c => {
+    const people = peopleOfClass(c);
+    AXES.forEach(ax => {
+      ax.topics.filter(t => !skipOldTopic(t) && paperHasTopic(paper, ax.part, t)).forEach(t => {
+        const a = classTopicAvg(people, ax.part, t, paper);
+        if (a.L == null) return;
+        lines.push([c, paper, ax.part, t, Math.round(a.L * 1000) / 10, a.n].join(","));
+      });
+    });
+  });
+  const blob = new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = "dse-math-class.csv";
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function openClassGate() {
+  const dlg = document.getElementById("classGate");
+  const inp = document.getElementById("classPass");
+  inp.value = "";
+  inp.classList.remove("shake");
+  dlg.showModal();
+  setTimeout(() => inp.focus(), 50);
+}
+function tryClassPass() {
+  const inp = document.getElementById("classPass");
+  if (inp.value === "teacher") {
+    setClassUnlocked();
+    document.getElementById("classGate").close();
+    paintClassTab();
+    renderProfileClass();
+    showView("class");
+    return;
+  }
+  inp.classList.remove("shake");
+  void inp.offsetWidth;
+  inp.classList.add("shake");
+  inp.value = "";
+}
+
 function showView(id) {
+  if (id === "class" && !classUnlocked()) {
+    openClassGate();
+    return;
+  }
   currentView = id;
+  document.body.classList.toggle("paper-bg", ["weak", "grades", "cutoffs", "class"].includes(id));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + id));
   document.querySelectorAll(".tabs .tab").forEach(t => t.classList.toggle("on", t.dataset.view === id));
-  const people = id === "tracker" || id === "weak" || id === "grades" || id === "mc";
+  const people = id === "tracker" || id === "weak" || id === "grades" || id === "mc" || id === "class";
   document.getElementById("peopleBar").style.display = people ? "flex" : "none";
   document.getElementById("trackerTheme").hidden = id !== "tracker";
   document.getElementById("mcBar").hidden = id !== "mc";
@@ -1911,6 +2277,7 @@ function showView(id) {
   if (id === "items") renderItems();
   if (id === "cutoffs") renderCutoffs();
   if (id === "timer") renderTimer();
+  if (id === "class") { renderProfiles(); renderProfileClass(); renderClassPage(); }
   location.hash = id;
 }
 function openNote(y, q, paper) {
@@ -1934,6 +2301,7 @@ document.getElementById("profile").onchange = e => {
   if (currentView === "grades") renderGrades();
   if (currentView === "weak") renderWeak();
   if (currentView === "mc") renderMc();
+  if (currentView === "class") renderClassPage();
 };
 document.getElementById("addProfile").onclick = () => {
   const name = document.getElementById("newProfile").value.trim();
@@ -2686,6 +3054,7 @@ function refreshAfterProfile() {
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
   else if (currentView === "timer") renderTimer();
+  else if (currentView === "class") renderClassPage();
   else renderTracker();
 }
 function xferHidePanels() {
@@ -2929,13 +3298,16 @@ document.getElementById("importFile").onchange = e => {
       if (!p || typeof p !== "object") continue;
       db.profiles[name] = {
         name,
+        className: typeof p.className === "string" ? p.className : "",
         cells: p.cells && typeof p.cells === "object" ? p.cells : {},
         scores: p.scores && typeof p.scores === "object" ? p.scores : {},
         dates: p.dates && typeof p.dates === "object" ? p.dates : {},
         times: p.times && typeof p.times === "object" ? p.times : {},
         updatedAt: p.updatedAt || Date.now()
       };
+      if (p.className) ensureClassName(p.className);
     }
+    if (Array.isArray(incoming.classes)) incoming.classes.forEach(ensureClassName);
     return incoming.currentProfile && db.profiles[incoming.currentProfile] ? incoming.currentProfile : Object.keys(src)[0];
   };
   Promise.all(files.map(f => f.text().then(t => ({ name: f.name, text: String(t || "").replace(/^\uFEFF/, "") }))))
@@ -2968,5 +3340,99 @@ window.addEventListener("scroll", paintToTop, { passive: true });
 toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
 paintToTop();
 const hash = location.hash.replace("#", "");
-if (["tracker", "weak", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
+paintClassTab();
+if (hash === "class") {
+  if (classUnlocked()) showView("class");
+  else { showView("tracker"); openClassGate(); }
+} else if (["tracker", "weak", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
 else showView("tracker");
+
+document.querySelector("h1").addEventListener("dblclick", () => {
+  if (classUnlocked()) showView("class");
+  else openClassGate();
+});
+document.getElementById("classGateOk").onclick = tryClassPass;
+document.getElementById("classGateCancel").onclick = () => document.getElementById("classGate").close();
+document.getElementById("classPass").addEventListener("keydown", e => {
+  if (e.key === "Enter") { e.preventDefault(); tryClassPass(); }
+});
+document.getElementById("profileClass").onchange = e => {
+  if (!prof()) return;
+  prof().className = e.target.value;
+  save();
+  if (currentView === "class") renderClassPage();
+};
+document.getElementById("classPills").addEventListener("click", e => {
+  const btn = e.target.closest("[data-class]");
+  if (!btn) return;
+  prefs.classSel = btn.dataset.class;
+  prefs.classAxis = "";
+  savePrefs();
+  renderClassPage();
+});
+document.getElementById("classPaper").onchange = e => {
+  prefs.classPaper = e.target.value === "p2" ? "p2" : "p1";
+  savePrefs();
+  renderClassPage();
+};
+document.getElementById("classMingBtn").onclick = () => {
+  prefs.classMing = prefs.classMing === false;
+  savePrefs();
+  renderClassPage();
+};
+document.getElementById("classOldBtn").onclick = () => {
+  prefs.includeOld = !prefs.includeOld;
+  savePrefs();
+  if (currentView === "weak") renderWeak();
+  renderClassPage();
+};
+document.getElementById("classAddBtn").onclick = () => {
+  const name = prompt("班名");
+  if (!name || !name.trim()) return;
+  ensureClassName(name.trim());
+  prefs.classSel = name.trim();
+  save(); savePrefs();
+  renderProfileClass();
+  renderClassPage();
+};
+document.getElementById("classRenameBtn").onclick = () => {
+  if (!prefs.classSel || prefs.classSel === "__none") return;
+  const name = prompt("新班名", prefs.classSel);
+  if (!name || !name.trim() || name.trim() === prefs.classSel) return;
+  const old = prefs.classSel, neu = name.trim();
+  if (classNames().includes(neu)) { alert("已有呢個班名"); return; }
+  db.classes = classNames().map(n => n === old ? neu : n);
+  Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = neu; });
+  prefs.classSel = neu;
+  save(); savePrefs();
+  renderProfileClass();
+  renderClassPage();
+};
+document.getElementById("classDelBtn").onclick = () => {
+  if (!prefs.classSel || prefs.classSel === "__none") return;
+  if (!confirm("刪班「" + prefs.classSel + "」？學生改為未分班，進度保留。")) return;
+  const old = prefs.classSel;
+  db.classes = classNames().filter(n => n !== old);
+  Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = ""; });
+  prefs.classSel = classNames()[0] || "__none";
+  save(); savePrefs();
+  renderProfileClass();
+  renderClassPage();
+};
+document.getElementById("classCsvBtn").onclick = exportClassCsv;
+document.getElementById("classAxes").addEventListener("click", e => {
+  const btn = e.target.closest("[data-axis]");
+  if (!btn) return;
+  prefs.classAxis = prefs.classAxis === btn.dataset.axis ? "" : btn.dataset.axis;
+  savePrefs();
+  renderClassPage();
+});
+document.getElementById("classDrill").addEventListener("click", e => {
+  const btn = e.target.closest("[data-go-stu]");
+  if (!btn) return;
+  const n = btn.dataset.goStu;
+  if (!db.profiles[n]) return;
+  currentProfile = n;
+  save();
+  showView("weak");
+});
