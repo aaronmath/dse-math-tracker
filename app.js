@@ -1155,7 +1155,7 @@ function estimateShort(kind, year, pct) {
   const r = classify(pack.starts, pct);
   const lv = fmtLv(r.level);
   const y = String(year);
-  if (kind === "core" && y === "2026") return (lv === "2" || lv === "3" || lv === "4") ? "暫估 " + lv : lv;
+  if (kind === "core" && y === "2026") return (lv === "3" || lv === "4") ? "暫估 " + lv : lv;
   return pack.incomplete ? "暫估 " + lv : lv;
 }
 function nextGap(starts, pct) {
@@ -1291,7 +1291,7 @@ function renderCutChart() {
       return m[lv] == null ? null : m[lv];
     });
     const y2026 = YEARS.indexOf(2026);
-    const soft = kind === "core" && ["2", "3", "4"].includes(lv);
+    const soft = kind === "core" && ["3", "4"].includes(lv);
     const solid = vals.map((v, i) => (soft && i === y2026 ? null : v));
     cutPolyline(solid, xOf, yOf).forEach(seg => {
       lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" points="${seg.join(" ")}" />`;
@@ -3730,6 +3730,21 @@ document.querySelector("h1").addEventListener("dblclick", () => {
   if (classUnlocked()) showView("class");
   else openClassGate();
 });
+{
+  const h1 = document.querySelector("h1");
+  let hold = 0;
+  const go = () => { if (classUnlocked()) showView("class"); else openClassGate(); };
+  const clear = () => { if (hold) { clearTimeout(hold); hold = 0; } };
+  h1.addEventListener("pointerdown", e => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+    clear();
+    hold = setTimeout(() => { hold = 0; go(); }, 1000);
+  });
+  h1.addEventListener("pointerup", clear);
+  h1.addEventListener("pointercancel", clear);
+  h1.addEventListener("pointerleave", clear);
+  h1.addEventListener("contextmenu", e => e.preventDefault());
+}
 document.getElementById("classGateOk").onclick = tryClassPass;
 document.getElementById("classGateCancel").onclick = () => document.getElementById("classGate").close();
 document.getElementById("classPass").addEventListener("keydown", e => {

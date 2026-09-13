@@ -34,7 +34,7 @@ header {
 a.dl-pack {
   display: none;
 }
-h1 { font-size: 19px; margin: 0 0 2px; }
+h1 { font-size: 19px; margin: 0 0 2px; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .page-title { font-size: 16px; margin: 8px 0 10px; }
 .sub { color: var(--muted); font-size: 12px; }
 .tabs { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
