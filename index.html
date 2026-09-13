@@ -42,7 +42,7 @@
             <option value="scan">掃入鏡頭</option>
             <option value="show">出示 QR Code</option>
             <option value="export">匯出 JSON（當前學生）</option>
-            <option value="import">匯入 JSON</option>
+            <option value="import">匯入 JSON 或 zip</option>
             <option value="export-all" class="admin-xfer" hidden>匯出全部學生（一個 JSON）</option>
             <option value="export-class" class="admin-xfer" hidden>匯出呢班（一個 JSON）</option>
             <option value="export-class-zip" class="admin-xfer" hidden>匯出呢班 zip（每人一檔）</option>
@@ -50,7 +50,8 @@
         </label>
         <button type="button" class="ghost" id="undoBtn">復原標記／分數</button>
         <button type="button" class="ghost" id="classExit" hidden>退出</button>
-        <input id="importFile" type="file" accept=".json,application/json,text/json" multiple hidden />
+        <span class="sub admin-xfer" id="adminXferHint" hidden>換機先匯出全部或呢班 JSON</span>
+        <input id="importFile" type="file" accept=".json,application/json,text/json,.zip,application/zip" multiple hidden />
         <input id="xferImgFile" type="file" accept="image/*" hidden />
       </div>
       <div id="trackerTheme">
@@ -133,7 +134,7 @@
     </section>
     <section class="view" id="view-weak">
       <h2 class="page-title">能力分析</h2>
-      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。明返預設關；撳課題條出未做建議（淺→深）。</p>
+      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。未做唔入摘錄。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。明返預設關；撳課題條出未做建議（淺→深）。</p>
       <div class="toolbar" id="weakBar">
         <label>試卷
           <select id="weakPaper">
@@ -281,8 +282,10 @@
       <div class="toolbar">
         <h3 class="sec-title" style="margin:0">分數</h3>
         <label>年份 <select id="classYear"></select></label>
+        <button type="button" class="ghost" id="classScoreCsv">匯出成績 CSV</button>
       </div>
       <div style="overflow:auto" id="classScores"></div>
+      <div id="classRoster"></div>
     </section>
     <section class="view" id="view-timer">
       <h2 class="page-title">計時</h2>

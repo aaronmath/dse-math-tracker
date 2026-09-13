@@ -150,7 +150,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026 };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026, classCmp: "", classTopic: "", classPart: "", classLow: false };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -1155,7 +1155,7 @@ function estimateShort(kind, year, pct) {
   const r = classify(pack.starts, pct);
   const lv = fmtLv(r.level);
   const y = String(year);
-  if (kind === "core" && y === "2026") return (lv === "3" || lv === "4") ? "暫估 " + lv : lv;
+  if (kind === "core" && y === "2026") return (lv === "2" || lv === "3" || lv === "4") ? "暫估 " + lv : lv;
   return pack.incomplete ? "暫估 " + lv : lv;
 }
 function nextGap(starts, pct) {
@@ -1290,9 +1290,19 @@ function renderCutChart() {
       const m = startMap(pack || {});
       return m[lv] == null ? null : m[lv];
     });
-    cutPolyline(vals, xOf, yOf).forEach(seg => {
+    const y2026 = YEARS.indexOf(2026);
+    const soft = kind === "core" && ["2", "3", "4"].includes(lv);
+    const solid = vals.map((v, i) => (soft && i === y2026 ? null : v));
+    cutPolyline(solid, xOf, yOf).forEach(seg => {
       lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" points="${seg.join(" ")}" />`;
     });
+    if (soft && y2026 >= 0 && vals[y2026] != null) {
+      const x = xOf(y2026).toFixed(1), y = yOf(vals[y2026]).toFixed(1);
+      if (y2026 > 0 && vals[y2026 - 1] != null) {
+        lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" stroke-dasharray="4 3" points="${xOf(y2026 - 1).toFixed(1)},${yOf(vals[y2026 - 1]).toFixed(1)} ${x},${y}" />`;
+      }
+      lines += `<circle cx="${x}" cy="${y}" r="3.6" fill="#fffdf8" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" />`;
+    }
     vals.forEach((v, i) => {
       if (v == null) return;
       hits.push({ i, v, lv, kind: "lv" });
@@ -2088,6 +2098,8 @@ function paintClassTab() {
   if (wrap) wrap.hidden = !on;
   const ex = document.getElementById("classExit");
   if (ex) ex.hidden = !on;
+  const hint = document.getElementById("adminXferHint");
+  if (hint) hint.hidden = !on;
   document.querySelectorAll(".admin-xfer").forEach(o => { o.hidden = !on; });
 }
 function itemsForAxis(axis, paper) {
@@ -2164,9 +2176,10 @@ function axisHk(axis, paper) {
 function qJumpHtml(it) {
   return `<button type="button" class="ghost q-mini" data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper}">${it.y} Q${it.q}　${it.wrong}／${it.marked} 唔識</button>`;
 }
-function classRadarHtml(people, paper) {
+function classRadarHtml(people, paper, cmpPeople) {
   const cx = 170, cy = 170, r = 112, N = AXES.length;
   const L = AXES.map(ax => classAxisAvg(people, ax, paper).L);
+  const C = cmpPeople ? AXES.map(ax => classAxisAvg(cmpPeople, ax, paper).L) : [];
   const H = AXES.map(ax => axisHk(ax, paper));
   let rings = "";
   [0.25, 0.5, 0.75, 1].forEach(k => {
@@ -2197,10 +2210,17 @@ function classRadarHtml(people, paper) {
     if (ratedH.length >= 4) hk = `<polygon points="${ratedH.join(" ")}" fill="none" stroke="#8a8178" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     else hk = radarSpokes(H, cx, cy, r, "#8a8178", "5 4").replace(/fill="#8a8178"/g, 'fill="none" stroke="#8a8178"');
   }
+  let cmp = "";
+  if (cmpPeople && cmpPeople.length) {
+    const ratedC = radarPolyRated(C, cx, cy, r);
+    if (ratedC.length >= 4) cmp = `<polygon points="${ratedC.join(" ")}" fill="rgba(226,61,106,.16)" stroke="#e23d6a" stroke-width="2" stroke-dasharray="5 4"/>`;
+    else cmp = radarSpokes(C, cx, cy, r, "#e23d6a", "5 4");
+  }
   const empty = people.filter(n => classEligible(db.profiles[n], paper)).length === 0;
   if (empty) return `<p class="hint">入圍 0 人，標滿 ${CLASS_MIN} 題先出班雷達。</p>`;
-  return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${hk}${stu}${labels}
-    <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝班平均　虛線＝全港命中率</text></svg>`;
+  const cap = cmpPeople && cmpPeople.length ? "藍＝呢班　玫紅虛線＝疊班　灰虛線＝全港" : "實色＝班平均　虛線＝全港命中率";
+  return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${hk}${cmp}${stu}${labels}
+    <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">${cap}</text></svg>`;
 }
 function renderClassPage() {
   if (!classUnlocked()) return;
@@ -2226,11 +2246,14 @@ function renderClassPage() {
   if (!prefs.classSel || (prefs.classSel !== "" && !names.includes(prefs.classSel) && prefs.classSel !== "__none")) {
     prefs.classSel = names[0] || "__none";
   }
+  if (prefs.classCmp && prefs.classCmp === prefs.classSel) prefs.classCmp = "";
   const pills = document.getElementById("classPills");
   if (pills) {
     pills.innerHTML = names.map(n =>
-      `<button type="button" class="chip${prefs.classSel === n ? " on" : ""}" data-class="${esc(n)}">${esc(n)}</button>`
-    ).join("") + `<button type="button" class="chip${prefs.classSel === "__none" ? " on" : ""}" data-class="__none">未分班</button>`;
+      `<span class="class-pill-wrap"><button type="button" class="chip${prefs.classSel === n ? " on" : ""}" data-class="${esc(n)}">${esc(n)}</button>${
+        n !== prefs.classSel ? `<button type="button" class="ghost cmp-btn${prefs.classCmp === n ? " on-toggle" : ""}" data-cmp="${esc(n)}">疊</button>` : ""
+      }</span>`
+    ).join("") + `<span class="class-pill-wrap"><button type="button" class="chip${prefs.classSel === "__none" ? " on" : ""}" data-class="__none">未分班</button></span>`;
   }
   const noneN = peopleOfClass("").length;
   const warn = document.getElementById("classWarn");
@@ -2240,14 +2263,16 @@ function renderClassPage() {
   }
   const cls = prefs.classSel === "__none" ? "" : prefs.classSel;
   const people = peopleOfClass(cls);
+  const cmpPeople = prefs.classCmp ? peopleOfClass(prefs.classCmp === "__none" ? "" : prefs.classCmp) : [];
   const st = classStats(people, paper);
   const eligible = people.filter(n => classEligible(db.profiles[n], paper));
+  const low = people.filter(n => !classEligible(db.profiles[n], paper));
   document.getElementById("classStats").innerHTML = `
-    <div class="stat"><b>${eligible.length}／${st.n}</b><span>入圍／全班</span></div>
+    <button type="button" class="stat${prefs.classLow ? " on" : ""}" data-class-low="1"><b>${eligible.length}／${st.n}</b><span>入圍／全班</span></button>
     <div class="stat"><b>${st.mid}</b><span>已標題中位</span></div>
     <div class="stat"><b>${st.masteredPct == null ? "—" : st.masteredPct + "%"}</b><span>已掌握％</span></div>
     ${prefs.classMing !== false ? `<div class="stat"><b>${st.mingPeople}</b><span>明返人數</span></div>` : ""}`;
-  document.getElementById("classRadar").innerHTML = classRadarHtml(people, paper);
+  document.getElementById("classRadar").innerHTML = classRadarHtml(people, paper, cmpPeople);
   const axes = AXES.map(ax => {
     const a = classAxisAvg(people, ax, paper);
     return { ax, L: a.L, n: a.n };
@@ -2277,7 +2302,7 @@ function renderClassPage() {
   const strong = topicRows.slice().sort((a, b) => b.L - a.L).slice(0, 3);
   const weakTable = weak.length
     ? `<div style="overflow:auto"><table class="data-table"><thead><tr><th>課題</th><th>班掌握</th><th>全港命中</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>${
-      weak.map(x => `<tr>
+      weak.map(x => `<tr class="clickable${prefs.classTopic === x.topic && prefs.classPart === x.part ? " on-row" : ""}" data-class-topic="${esc(x.topic)}" data-class-part="${x.part}">
         <td>${x.part}　${esc(x.topic)}</td>
         <td>${Math.round(x.L * 100)}%</td>
         <td>${x.hk == null ? "—" : Math.round(x.hk * 100) + "%"}</td>
@@ -2288,10 +2313,26 @@ function renderClassPage() {
   document.getElementById("classTopics").innerHTML =
     `<div class="class-sw"><div><b>強</b><ul>${strong.length ? strong.map(x => `<li>${x.part}　${esc(x.topic)}　${Math.round(x.L * 100)}%</li>`).join("") : "<li>標記未夠</li>"}</ul></div>
      <div><b>弱課題</b>${weakTable}</div></div>
-     <p class="hint">入圍＝已標 ≥${CLASS_MIN} 題（${eligible.length}／${people.length}）。未做唔入平均。</p>`;
+     <p class="hint">入圍＝已標 ≥${CLASS_MIN} 題（${eligible.length}／${people.length}）。未做唔入平均。錯題只計唔識。</p>`;
   const axis = AXES.find(a => a.id === prefs.classAxis);
   const drill = document.getElementById("classDrill");
-  if (!axis) drill.innerHTML = "";
+  if (prefs.classLow) {
+    drill.innerHTML = `<h3 class="sec-title">標少過 ${CLASS_MIN} 題　${esc(cls || "未分班")}</h3>
+      <p class="hint">計人數、唔入軸平均。撳名去能力頁。</p>
+      <div class="class-people">${low.length ? low.map(n =>
+        `<button type="button" class="class-person dim" data-go-stu="${esc(n)}"><b>${esc(n)}</b><span>標 ${markedCountOf(db.profiles[n], paper)}</span></button>`
+      ).join("") : "<p class='hint'>全員已入圍。</p>"}</div>`;
+  } else if (prefs.classTopic && prefs.classPart) {
+    const rows = people.map(n => {
+      const ab = topicAbilityOf(db.profiles[n], prefs.classPart, prefs.classTopic, paper);
+      return { n, L: ab.L, marked: ab.n };
+    }).sort((a, b) => (a.L == null ? 1 : 0) - (b.L == null ? 1 : 0) || (a.L || 0) - (b.L || 0));
+    drill.innerHTML = `<h3 class="sec-title">${esc(prefs.classPart)}　${esc(prefs.classTopic)}</h3>
+      <p class="hint">弱 → 強。未做唔評。撳名去能力頁。</p>
+      <div class="class-people">${rows.map(r =>
+        `<button type="button" class="class-person${r.L == null ? " dim" : ""}" data-go-stu="${esc(r.n)}"><b>${esc(r.n)}</b><span>${r.L == null ? "未評" : Math.round(r.L * 100) + "%"}　標 ${r.marked}</span></button>`
+      ).join("")}</div>`;
+  } else if (!axis) drill.innerHTML = "";
   else {
     const rows = people.map(n => {
       const pr = db.profiles[n];
@@ -2345,6 +2386,35 @@ function renderClassPage() {
         return `<tr><td>${esc(n)}</td><td>${cp == null ? "—" : Math.round(cp) + "%"}</td><td>${lv}</td><td>${m1 === "" ? "—" : m1}</td><td>${m2 === "" ? "—" : m2}</td></tr>`;
       }).join("")
     }</tbody></table>`;
+  const roster = document.getElementById("classRoster");
+  if (roster) {
+    const all = Object.keys(db.profiles);
+    const clsOpts = `<option value="">未分班</option>` + classNames().map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("");
+    roster.innerHTML = `<h3 class="sec-title">學生</h3>
+      <div class="toolbar">
+        <label>調去 <select id="classMoveTo">${clsOpts}</select></label>
+        <button type="button" class="ghost" id="classMoveBtn">套用已剔</button>
+      </div>
+      <div style="overflow:auto"><table class="data-table"><thead><tr><th></th><th>學生</th><th>班</th><th>已標</th><th>掌握％</th></tr></thead><tbody>${
+        all.map(n => {
+          const pr = db.profiles[n];
+          const mk = markedCountOf(pr, paper);
+          let filled = 0, m3 = 0;
+          for (const y of YEARS) for (const q of allQs(paper, y)) {
+            const s = getCellOf(pr, paper, y, q).s;
+            if (!s) continue;
+            filled++;
+            if (s === 3) m3++;
+          }
+          return `<tr>
+            <td><input type="checkbox" class="roster-pick" data-name="${esc(n)}"></td>
+            <td class="clickable" data-go-stu="${esc(n)}">${esc(n)}</td>
+            <td>${esc(pr.className || "未分班")}</td>
+            <td>${mk}</td>
+            <td>${filled ? Math.round(m3 * 100 / filled) + "%" : "—"}</td></tr>`;
+        }).join("")
+      }</tbody></table></div>`;
+  }
 }
 
 function renderProfileClass() {
@@ -2383,6 +2453,23 @@ function exportClassCsv() {
   a.download = "dse-math-class.csv";
   a.click();
   setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function exportScoreCsv() {
+  const year = +prefs.classYear || YEARS[YEARS.length - 1];
+  const cls = prefs.classSel === "__none" ? "" : prefs.classSel;
+  const people = peopleOfClass(cls);
+  const lines = ["學生,班,卷一,卷二,綜合％,等級,M1,M2"];
+  const keep = currentProfile;
+  people.forEach(n => {
+    currentProfile = n;
+    const p1 = getScore("p1", year), p2 = getScore("p2", year);
+    const cp = corePct(year, p1, p2);
+    const lv = cp == null ? "" : estimateShort("core", year, cp);
+    const m1 = getScore("m1", year), m2 = getScore("m2", year);
+    lines.push([n, cls || "未分班", p1, p2, cp == null ? "" : Math.round(cp * 10) / 10, lv, m1, m2].join(","));
+  });
+  currentProfile = keep;
+  downloadBlob(new Blob(["\ufeff" + lines.join("\n")], { type: "text/csv;charset=utf-8" }), "dse-math-scores-" + year + ".csv");
 }
 function downloadBlob(blob, filename) {
   const a = document.createElement("a");
@@ -2450,6 +2537,39 @@ function exportClassZip(names, zipName) {
     text: JSON.stringify({ currentProfile: n, profiles: { [n]: db.profiles[n] } }, null, 2)
   }));
   downloadBlob(new Blob([zipStore(files)], { type: "application/zip" }), zipName);
+}
+async function unzipJsons(buf) {
+  const u8 = new Uint8Array(buf);
+  const dv = new DataView(buf);
+  let eocd = u8.length - 22;
+  while (eocd >= 0 && dv.getUint32(eocd, true) !== 0x06054b50) eocd--;
+  if (eocd < 0) throw new Error("唔係 zip");
+  const n = dv.getUint16(eocd + 10, true);
+  let off = dv.getUint32(eocd + 16, true);
+  const files = [];
+  for (let i = 0; i < n; i++) {
+    if (dv.getUint32(off, true) !== 0x02014b50) break;
+    const method = dv.getUint16(off + 10, true);
+    const comp = dv.getUint32(off + 20, true);
+    const nameLen = dv.getUint16(off + 28, true);
+    const extra = dv.getUint16(off + 30, true);
+    const comm = dv.getUint16(off + 32, true);
+    const localOff = dv.getUint32(off + 42, true);
+    const name = new TextDecoder().decode(u8.slice(off + 46, off + 46 + nameLen));
+    const ln = dv.getUint16(localOff + 26, true);
+    const le = dv.getUint16(localOff + 28, true);
+    const data = u8.slice(localOff + 30 + ln + le, localOff + 30 + ln + le + comp);
+    let raw = data;
+    if (method === 8) {
+      const ds = new DecompressionStream("deflate-raw");
+      raw = new Uint8Array(await new Response(new Blob([data]).stream().pipeThrough(ds)).arrayBuffer());
+    } else if (method !== 0) { off += 46 + nameLen + extra + comm; continue; }
+    const base = name.split("/").pop();
+    if (/\.json$/i.test(base) && !name.includes("__MACOSX")) files.push({ name: base, text: new TextDecoder().decode(raw) });
+    off += 46 + nameLen + extra + comm;
+  }
+  if (!files.length) throw new Error("zip 入面無 JSON");
+  return files;
 }
 function selectedClassNames() {
   const cls = prefs.classSel === "__none" ? "" : prefs.classSel;
@@ -3547,8 +3667,15 @@ document.getElementById("importFile").onchange = e => {
     if (Array.isArray(incoming.classes)) incoming.classes.forEach(ensureClassName);
     return incoming.currentProfile && db.profiles[incoming.currentProfile] ? incoming.currentProfile : Object.keys(src)[0];
   };
-  Promise.all(files.map(f => f.text().then(t => ({ name: f.name, text: String(t || "").replace(/^\uFEFF/, "") }))))
-    .then(list => {
+  Promise.all(files.map(async f => {
+    if (/\.zip$/i.test(f.name) || (f.type && f.type.includes("zip"))) {
+      return unzipJsons(await f.arrayBuffer());
+    }
+    const t = String(await f.text() || "").replace(/^\uFEFF/, "");
+    return [{ name: f.name, text: t }];
+  }))
+    .then(chunks => {
+      const list = chunks.flat();
       const incomingNames = [];
       const parsed = list.map(({ name, text }) => {
         const incoming = JSON.parse(text);
@@ -3615,10 +3742,20 @@ document.getElementById("profileClass").onchange = e => {
   if (currentView === "class") renderClassPage();
 };
 document.getElementById("classPills").addEventListener("click", e => {
+  const cmp = e.target.closest("[data-cmp]");
+  if (cmp) {
+    const n = cmp.dataset.cmp;
+    prefs.classCmp = prefs.classCmp === n ? "" : n;
+    savePrefs();
+    renderClassPage();
+    return;
+  }
   const btn = e.target.closest("[data-class]");
   if (!btn) return;
   prefs.classSel = btn.dataset.class;
   prefs.classAxis = "";
+  prefs.classTopic = "";
+  prefs.classLow = false;
   savePrefs();
   renderClassPage();
 });
@@ -3688,10 +3825,20 @@ document.getElementById("classDelBtn").onclick = () => {
   renderClassPage();
 };
 document.getElementById("classCsvBtn").onclick = exportClassCsv;
+document.getElementById("classScoreCsv").onclick = exportScoreCsv;
+document.getElementById("classStats").addEventListener("click", e => {
+  if (!e.target.closest("[data-class-low]")) return;
+  prefs.classLow = !prefs.classLow;
+  if (prefs.classLow) { prefs.classAxis = ""; prefs.classTopic = ""; }
+  savePrefs();
+  renderClassPage();
+});
 document.getElementById("classAxes").addEventListener("click", e => {
   const btn = e.target.closest("[data-axis]");
   if (!btn) return;
   prefs.classAxis = prefs.classAxis === btn.dataset.axis ? "" : btn.dataset.axis;
+  prefs.classTopic = "";
+  prefs.classLow = false;
   savePrefs();
   renderClassPage();
 });
@@ -3699,6 +3846,8 @@ document.getElementById("classRadar").addEventListener("click", e => {
   const t = e.target.closest("[data-axis]");
   if (!t) return;
   prefs.classAxis = prefs.classAxis === t.dataset.axis ? "" : t.dataset.axis;
+  prefs.classTopic = "";
+  prefs.classLow = false;
   savePrefs();
   renderClassPage();
 });
@@ -3721,4 +3870,35 @@ document.getElementById("classDrill").addEventListener("click", e => {
   save();
   showView("weak");
 });
-document.getElementById("classTopics").addEventListener("click", classJumpQ);
+document.getElementById("classTopics").addEventListener("click", e => {
+  if (classJumpQ(e)) return;
+  const row = e.target.closest("[data-class-topic]");
+  if (!row) return;
+  const t = row.dataset.classTopic, p = row.dataset.classPart;
+  if (prefs.classTopic === t && prefs.classPart === p) { prefs.classTopic = ""; prefs.classPart = ""; }
+  else { prefs.classTopic = t; prefs.classPart = p; prefs.classAxis = ""; prefs.classLow = false; }
+  savePrefs();
+  renderClassPage();
+});
+document.getElementById("classRoster").addEventListener("click", e => {
+  if (e.target.id === "classMoveBtn") {
+    const to = document.getElementById("classMoveTo").value;
+    const picks = [...document.querySelectorAll(".roster-pick:checked")].map(x => x.dataset.name);
+    if (!picks.length) return;
+    picks.forEach(n => {
+      if (db.profiles[n]) db.profiles[n].className = to;
+      if (to) ensureClassName(to);
+    });
+    save();
+    renderProfileClass();
+    renderClassPage();
+    return;
+  }
+  const stu = e.target.closest("[data-go-stu]");
+  if (!stu) return;
+  const n = stu.dataset.goStu;
+  if (!db.profiles[n]) return;
+  currentProfile = n;
+  save();
+  showView("weak");
+});
