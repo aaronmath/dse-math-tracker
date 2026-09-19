@@ -399,6 +399,18 @@ function esc(s) {
     .replace(/"/g, "\u0026quot;")
     .replace(/'/g, "&#39;");
 }
+function onId(id, type, fn, opts) {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener(type, fn, opts);
+}
+function setClick(id, fn) {
+  const el = document.getElementById(id);
+  if (el) el.onclick = fn;
+}
+function setChange(id, fn) {
+  const el = document.getElementById(id);
+  if (el) el.onchange = fn;
+}
 function fmt1(n) { return (Math.round(n * 10) / 10).toFixed(1); }
 function fmtTime(sec) {
   sec = Math.max(0, Math.floor(sec));
@@ -2657,24 +2669,43 @@ function showView(id) {
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + id));
   document.querySelectorAll(".tabs .tab").forEach(t => t.classList.toggle("on", t.dataset.view === id));
   const people = id === "tracker" || id === "ability" || id === "grades" || id === "mc" || id === "class";
-  document.getElementById("peopleBar").style.display = people ? "flex" : "none";
-  document.getElementById("trackerTheme").hidden = id !== "tracker";
-  document.getElementById("mcBar").hidden = id !== "mc";
+  const pb = document.getElementById("peopleBar");
+  if (pb) pb.style.display = people ? "flex" : "none";
+  const th = document.getElementById("trackerTheme");
+  if (th) th.hidden = id !== "tracker";
+  const mc = document.getElementById("mcBar");
+  if (mc) mc.hidden = id !== "mc";
   if (id !== "tracker") {
     document.body.classList.remove("has-batch-dock");
     const dock = document.getElementById("batchDock");
     if (dock) dock.hidden = true;
   }
   window.scrollTo(0, 0);
-  if (id === "tracker") renderTracker();
-  if (id === "ability") { renderProfiles(); renderWeak(); }
-  if (id === "grades") { renderProfiles(); renderGrades(); }
-  if (id === "mc") { renderProfiles(); renderMc(); }
-  if (id === "items") renderItems();
-  if (id === "cutoffs") renderCutoffs();
-  if (id === "timer") renderTimer();
-  if (id === "class") { renderProfiles(); renderProfileClass(); renderClassPage(); }
+  try {
+    if (id === "tracker") renderTracker();
+    if (id === "ability") { renderProfiles(); renderWeak(); }
+    if (id === "grades") { renderProfiles(); renderGrades(); }
+    if (id === "mc") { renderProfiles(); renderMc(); }
+    if (id === "items") renderItems();
+    if (id === "cutoffs") renderCutoffs();
+    if (id === "timer") renderTimer();
+    if (id === "class") { renderProfiles(); renderProfileClass(); renderClassPage(); }
+  } catch (e) {}
   location.hash = id;
+}
+function bootView() {
+  try { paintClassTab(); } catch (e) {}
+  const hash = String(location.hash || "").replace("#", "");
+  try {
+    if (hash === "class") {
+      if (classUnlocked()) showView("class");
+      else { showView("tracker"); openClassGate(); }
+    } else if (hash === "weak" || hash === "ability") showView("ability");
+    else if (["tracker", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
+    else showView("tracker");
+  } catch (e) {
+    try { showView("tracker"); } catch (e2) {}
+  }
 }
 function openNote(y, q, paper) {
   noteTarget = { y, q, paper: paper || currentPaper };
@@ -2687,10 +2718,11 @@ function openNote(y, q, paper) {
   document.getElementById("noteDlg").showModal();
 }
 
-document.getElementById("tabs").addEventListener("click", e => {
+onId("tabs", "click", e => {
   const btn = e.target.closest(".tab");
   if (btn) showView(btn.dataset.view);
 });
+bootView();
 document.getElementById("profile").onchange = e => {
   currentProfile = e.target.value; save();
   if (currentView === "tracker") renderTracker();
@@ -2725,22 +2757,22 @@ document.getElementById("delProfile").onclick = () => {
   save();
   if (currentView === "tracker") renderTracker(); else renderProfiles();
 };
-document.getElementById("paper").onchange = e => { currentPaper = e.target.value; selected.clear(); topicFilter = ""; renderTracker(); };
-document.getElementById("batchBtn").onclick = () => { batch = !batch; selected.clear(); renderTracker(); };
-document.getElementById("hitBtn").onclick = () => { showHit = !showHit; renderTracker(); };
-document.getElementById("undoBtn").onclick = doUndo;
-document.getElementById("hkRefBtn").onclick = () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); };
-document.getElementById("sumBtn").onclick = openSumDlg;
-document.getElementById("sumDlgClose").onclick = () => document.getElementById("sumDlg").close();
-document.getElementById("oldSyllBtn").onclick = () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); };
-document.getElementById("cellFilter").onchange = e => { cellFilter = e.target.value; renderTracker(); };
-document.getElementById("topicFilter").onchange = e => { topicFilter = e.target.value; renderTracker(); };
+setChange("paper", e => { currentPaper = e.target.value; selected.clear(); topicFilter = ""; renderTracker(); });
+setClick("batchBtn", () => { batch = !batch; selected.clear(); renderTracker(); });
+setClick("hitBtn", () => { showHit = !showHit; renderTracker(); });
+setClick("undoBtn", doUndo);
+setClick("hkRefBtn", () => { prefs.hkRef = !prefs.hkRef; savePrefs(); renderWeak(); });
+setClick("sumBtn", openSumDlg);
+setClick("sumDlgClose", () => document.getElementById("sumDlg").close());
+setClick("oldSyllBtn", () => { prefs.includeOld = !prefs.includeOld; savePrefs(); renderWeak(); });
+setChange("cellFilter", e => { cellFilter = e.target.value; renderTracker(); });
+setChange("topicFilter", e => { topicFilter = e.target.value; renderTracker(); });
 document.getElementById("clearFilters").onclick = () => {
   cellFilter = "all";
   topicFilter = "";
   renderTracker();
 };
-document.getElementById("stats").addEventListener("click", e => {
+onId("stats", "click", e => {
   const bar = e.target.closest("[data-tag]");
   if (bar) {
     const tag = bar.dataset.tag;
@@ -2761,10 +2793,10 @@ document.getElementById("stats").addEventListener("click", e => {
   renderStats();
   renderNoteList();
 });
-document.getElementById("clearSel").onclick = () => { selected.clear(); renderTracker(); };
-document.getElementById("copyHw").onclick = copyHw;
-document.getElementById("csvHw").onclick = csvHw;
-document.getElementById("batchDock").addEventListener("click", e => {
+setClick("clearSel", () => { selected.clear(); renderTracker(); });
+setClick("copyHw", copyHw);
+setClick("csvHw", csvHw);
+onId("batchDock", "click", e => {
   const btn = e.target.closest("[data-apply]");
   if (!btn) return;
   const s = +btn.dataset.apply;
@@ -2777,14 +2809,14 @@ document.getElementById("batchDock").addEventListener("click", e => {
   selected.clear();
   renderTracker();
 });
-document.getElementById("noteList").addEventListener("click", e => {
+onId("noteList", "click", e => {
   const jump = e.target.closest("[data-jump]");
   if (!jump) return;
   const [y, q] = jump.dataset.jump.split(":");
   jumpToTrackerCell(jump.dataset.jumpPaper || currentPaper, y, q);
 });
-document.getElementById("weakArrange").addEventListener("change", renderWeak);
-document.getElementById("weakPaper").addEventListener("change", e => {
+onId("weakArrange", "change", renderWeak);
+onId("weakPaper", "change", e => {
   prefs.weakPaper = e.target.value;
   savePrefs();
   radarAxis = "";
@@ -2792,7 +2824,7 @@ document.getElementById("weakPaper").addEventListener("change", e => {
   if (box) { box.dataset.topic = ""; box.dataset.all = ""; }
   renderWeak();
 });
-document.getElementById("weakStatChips").addEventListener("click", e => {
+onId("weakStatChips", "click", e => {
   if (e.target.id === "mingChip" || e.target.closest("#mingChip")) {
     prefs.weakMing = !prefs.weakMing;
     savePrefs();
@@ -2814,7 +2846,7 @@ document.getElementById("weakStatChips").addEventListener("click", e => {
   savePrefs();
   renderWeak();
 });
-document.getElementById("weakChips").addEventListener("click", e => {
+onId("weakChips", "click", e => {
   const btn = e.target.closest("[data-band]");
   if (!btn) return;
   const bands = Object.assign({ hi: true, mid: true, lo: true }, prefs.weakBands || {});
@@ -2828,7 +2860,7 @@ document.getElementById("weakChips").addEventListener("click", e => {
   savePrefs();
   renderWeak();
 });
-document.getElementById("axisLegend").addEventListener("click", e => {
+onId("axisLegend", "click", e => {
   const chip = e.target.closest("[data-jump-topic]");
   if (chip) {
     if (weakPaperId() === "p1") {
@@ -2841,13 +2873,13 @@ document.getElementById("axisLegend").addEventListener("click", e => {
   const row = e.target.closest("[data-axis]");
   if (row) { radarAxis = radarAxis === row.dataset.axis ? "" : row.dataset.axis; renderWeak(); }
 });
-document.getElementById("radarBox").addEventListener("click", e => {
+onId("radarBox", "click", e => {
   const t = e.target.closest("[data-axis]");
   if (!t) return;
   radarAxis = radarAxis === t.dataset.axis ? "" : t.dataset.axis;
   renderWeak();
 });
-document.getElementById("weakBox").addEventListener("click", e => {
+onId("weakBox", "click", e => {
   if (e.target.id === "weakClear") { document.getElementById("weakBox").dataset.topic = ""; document.getElementById("weakBox").dataset.all = ""; renderWeak(); return; }
   if (e.target.id === "weakMore") { document.getElementById("weakBox").dataset.all = "1"; renderWeak(); return; }
   const row = e.target.closest("[data-weak-topic]");
@@ -2861,7 +2893,7 @@ document.getElementById("weakBox").addEventListener("click", e => {
   }
 });
 
-document.getElementById("grid").addEventListener("click", e => {
+onId("grid", "click", e => {
   const jump = e.target.closest("[data-jump]");
   if (jump) {
     const [y, q] = jump.dataset.jump.split(":");
@@ -2945,16 +2977,16 @@ document.getElementById("grid").addEventListener("click", e => {
   renderSummary();
   renderNoteList();
 });
-document.getElementById("grid").addEventListener("pointerdown", e => {
+onId("grid", "pointerdown", e => {
   const cell = e.target.closest(".cell");
   if (!cell || cell.classList.contains("missing") || batch) return;
   longFired = false;
   longTimer = setTimeout(() => { longFired = true; openNote(+cell.dataset.y, +cell.dataset.q); }, 550);
 });
 ["pointerup", "pointercancel", "pointerleave"].forEach(ev => {
-  document.getElementById("grid").addEventListener(ev, () => { clearTimeout(longTimer); });
+  onId("grid", ev, () => { clearTimeout(longTimer); });
 });
-document.getElementById("grid").addEventListener("contextmenu", e => {
+onId("grid", "contextmenu", e => {
   const cell = e.target.closest(".cell");
   if (!cell || cell.classList.contains("missing")) return;
   e.preventDefault();
@@ -2968,7 +3000,7 @@ document.getElementById("grid").addEventListener("contextmenu", e => {
   }
   openNote(+cell.dataset.y, +cell.dataset.q);
 });
-document.getElementById("grid").addEventListener("change", e => {
+onId("grid", "change", e => {
   if (e.target.dataset.score) {
     const y = +e.target.dataset.score;
     pushUndo();
@@ -2984,7 +3016,7 @@ document.getElementById("grid").addEventListener("change", e => {
     renderTracker();
   }
 });
-document.getElementById("grid").addEventListener("keydown", e => {
+onId("grid", "keydown", e => {
   if (e.key !== "Enter" || !e.target.dataset.score) return;
   e.preventDefault();
   const y = +e.target.dataset.score;
@@ -2997,16 +3029,16 @@ document.getElementById("grid").addEventListener("keydown", e => {
   const next = document.querySelector(`[data-score="${ys[idx + 1]}"]`);
   if (next) { next.focus(); next.select(); }
 });
-document.getElementById("yearJump").addEventListener("click", e => {
+onId("yearJump", "click", e => {
   const btn = e.target.closest("[data-jump-year]");
   if (!btn) return;
   scrollToYear(+btn.dataset.jumpYear);
 });
-document.getElementById("tagBox").addEventListener("change", () => {
+onId("tagBox", "change", () => {
   const boxes = [...document.querySelectorAll("#tagBox input:checked")];
   if (boxes.length > 3) { boxes[boxes.length - 1].checked = false; alert("每題最多 3 個錯因標籤"); }
 });
-document.getElementById("noteCancel").onclick = () => document.getElementById("noteDlg").close();
+setClick("noteCancel", () => document.getElementById("noteDlg").close());
 document.getElementById("noteSave").onclick = () => {
   const tags = [...document.querySelectorAll("#tagBox input:checked")].map(x => x.value).slice(0, 3);
   pushUndo();
@@ -3016,7 +3048,7 @@ document.getElementById("noteSave").onclick = () => {
   else if (currentView === "tracker") renderTracker();
   else renderTracker();
 };
-document.getElementById("gradeTable").addEventListener("change", e => {
+onId("gradeTable", "change", e => {
   const gs = e.target.dataset.gs;
   if (!gs) return;
   const [paper, year] = gs.split(":");
@@ -3025,7 +3057,7 @@ document.getElementById("gradeTable").addEventListener("change", e => {
   e.target.value = v;
   renderGrades();
 });
-document.getElementById("gradeTable").addEventListener("keydown", e => {
+onId("gradeTable", "keydown", e => {
   if (e.key !== "Enter" || !e.target.dataset.gs) return;
   e.preventDefault();
   const [paper, year] = e.target.dataset.gs.split(":");
@@ -3039,13 +3071,13 @@ document.getElementById("gradeTable").addEventListener("keydown", e => {
   }
   renderGrades();
 });
-document.getElementById("gradeTable").addEventListener("click", e => {
+onId("gradeTable", "click", e => {
   const td = e.target.closest("[data-go-year]");
   if (!td) return;
   showView("tracker");
   setTimeout(() => scrollToYear(+td.dataset.goYear), 40);
 });
-document.getElementById("gradeKindChips").addEventListener("click", e => {
+onId("gradeKindChips", "click", e => {
   const btn = e.target.closest("[data-gk]");
   if (!btn) return;
   const k = btn.dataset.gk;
@@ -3071,7 +3103,7 @@ document.getElementById("cutStuBtn").onclick = () => {
   if (prefs.cutStu !== false && !lvOn) return;
   prefs.cutStu = prefs.cutStu === false; savePrefs(); renderCutChart();
 };
-document.getElementById("cutLvChips").addEventListener("click", e => {
+onId("cutLvChips", "click", e => {
   const btn = e.target.closest("[data-cut-lv]");
   if (!btn) return;
   if (!prefs.cutLv) prefs.cutLv = { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true };
@@ -3084,7 +3116,7 @@ document.getElementById("cutLvChips").addEventListener("click", e => {
   renderCutChart();
 });
 
-document.getElementById("mcSeries").addEventListener("change", () => {
+onId("mcSeries", "change", () => {
   mcYearFilled[document.getElementById("mcSeries").value] = false;
   fillMcYears(document.getElementById("mcSeries").value);
   renderMc();
@@ -3092,8 +3124,8 @@ document.getElementById("mcSeries").addEventListener("change", () => {
 ["mcMode", "mcYear", "mcQ", "mcTopic", "mcOrder"].forEach(id => {
   document.getElementById(id).addEventListener("change", renderMc);
 });
-document.getElementById("mcHideAnsBtn").onclick = () => { mcHideAns = !mcHideAns; renderMc(); };
-document.getElementById("mcUnseenBtn").onclick = () => { mcUnseen = !mcUnseen; renderMc(); };
+setClick("mcHideAnsBtn", () => { mcHideAns = !mcHideAns; renderMc(); });
+setClick("mcUnseenBtn", () => { mcUnseen = !mcUnseen; renderMc(); });
 document.getElementById("mcOldBtn").onclick = () => {
   prefs.mcIncludeOld = prefs.mcIncludeOld === false;
   savePrefs();
@@ -3114,7 +3146,7 @@ document.getElementById("mcReset").onclick = () => {
   mcPick = null;
   renderMc();
 };
-document.getElementById("mcResult").addEventListener("click", e => {
+onId("mcResult", "click", e => {
   const mark = e.target.closest("[data-mark]");
   if (mark) {
     const card = e.target.closest(".focus-card");
@@ -3142,15 +3174,15 @@ document.getElementById("mcResult").addEventListener("click", e => {
   renderMc();
 });
 
-document.getElementById("itemPaper").addEventListener("change", renderItems);
-document.getElementById("itemYear").addEventListener("change", () => renderItemYear());
-document.getElementById("itemP1TopicBtn").addEventListener("click", () => {
+onId("itemPaper", "change", renderItems);
+onId("itemYear", "change", () => renderItemYear());
+onId("itemP1TopicBtn", "click", () => {
   prefs.itemP1Topics = !prefs.itemP1Topics;
   savePrefs();
   renderItemTopics();
   renderItemYear();
 });
-document.getElementById("itemMulti").addEventListener("click", e => {
+onId("itemMulti", "click", e => {
   const td = e.target.closest("[data-jump-year]");
   if (!td) return;
   document.getElementById("itemYear").value = td.dataset.jumpYear;
@@ -3163,7 +3195,7 @@ document.getElementById("itemMulti").addEventListener("click", e => {
   }
   renderItemYear(td.dataset.jumpSec);
 });
-document.getElementById("itemYearView").addEventListener("click", e => {
+onId("itemYearView", "click", e => {
   if (e.target.id === "jumpMcYear") {
     jumpMc(document.getElementById("itemYear").value, 1);
     document.getElementById("mcQ").value = "all";
@@ -3171,14 +3203,14 @@ document.getElementById("itemYearView").addEventListener("click", e => {
   }
 });
 
-document.getElementById("timerPaper").onchange = () => { if (!timerLocked) paintTimer(); };
-document.getElementById("timerYear").onchange = () => { if (!timerLocked) paintTimer(); };
+setChange("timerPaper", () => { if (!timerLocked) paintTimer(); });
+setChange("timerYear", () => { if (!timerLocked) paintTimer(); });
 document.getElementById("timerExtra").onclick = () => {
   if (timerLocked) return;
   timerExtra = !timerExtra;
   paintTimer();
 };
-document.getElementById("timerSound").onchange = e => { prefs.timerSound = e.target.checked; savePrefs(); };
+setChange("timerSound", e => { prefs.timerSound = e.target.checked; savePrefs(); });
 document.getElementById("timerStart").onclick = () => {
   if (timerRun.ended) return;
   if (!timerRun.start) {
@@ -3686,11 +3718,11 @@ document.getElementById("xferMenu").onchange = e => {
     exportClassZip(ns, "dse-math-tracker-class-" + safeFilePart(tag) + ".zip");
   }
 };
-document.getElementById("xferShowClose").onclick = closeXferDlg;
-document.getElementById("xferScanClose").onclick = closeXferDlg;
-document.getElementById("xferMergeCancel").onclick = closeXferDlg;
-document.getElementById("xferDlg").addEventListener("close", stopXferScan);
-document.getElementById("xferPickImg").onclick = () => document.getElementById("xferImgFile").click();
+setClick("xferShowClose", closeXferDlg);
+setClick("xferScanClose", closeXferDlg);
+setClick("xferMergeCancel", closeXferDlg);
+onId("xferDlg", "close", stopXferScan);
+setClick("xferPickImg", () => document.getElementById("xferImgFile").click());
 document.getElementById("xferImgFile").onchange = e => {
   const f = e.target.files && e.target.files[0];
   e.target.value = "";
@@ -3777,7 +3809,7 @@ document.getElementById("importFile").onchange = e => {
     .catch(err => alert("匯入失敗：" + err.message));
 };
 
-document.getElementById("timerSound").checked = !!prefs.timerSound;
+const _ts = document.getElementById("timerSound"); if (_ts) _ts.checked = !!prefs.timerSound;
 if (!prefs.bands3) {
   prefs.weakBands = { hi: true, mid: true, lo: true };
   prefs.bands3 = true;
@@ -3792,41 +3824,38 @@ if (!prefs.weakPaper) prefs.weakPaper = "p1";
   if (wp && [...wp.options].some(o => o.value === prefs.weakPaper && !o.disabled)) wp.value = prefs.weakPaper;
 }
 const toTop = document.getElementById("toTop");
-const paintToTop = () => { toTop.hidden = window.scrollY < 200; };
-window.addEventListener("scroll", paintToTop, { passive: true });
-toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
-paintToTop();
-const hash = location.hash.replace("#", "");
-paintClassTab();
-if (hash === "class") {
-  if (classUnlocked()) showView("class");
-  else { showView("tracker"); openClassGate(); }
-} else if (hash === "weak" || hash === "ability") showView("ability");
-else if (["tracker", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
-else showView("tracker");
+if (toTop) {
+  const paintToTop = () => { toTop.hidden = window.scrollY < 200; };
+  window.addEventListener("scroll", paintToTop, { passive: true });
+  toTop.onclick = () => window.scrollTo({ top: 0, behavior: "smooth" });
+  paintToTop();
+}
+bootView();
 
-document.querySelector("h1").addEventListener("dblclick", () => {
-  if (classUnlocked()) showView("class");
-  else openClassGate();
-});
 {
   const h1 = document.querySelector("h1");
-  let hold = 0;
-  const go = () => { if (classUnlocked()) showView("class"); else openClassGate(); };
-  const clear = () => { if (hold) { clearTimeout(hold); hold = 0; } };
-  h1.addEventListener("pointerdown", e => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    clear();
-    hold = setTimeout(() => { hold = 0; go(); }, 1000);
-  });
-  h1.addEventListener("pointerup", clear);
-  h1.addEventListener("pointercancel", clear);
-  h1.addEventListener("pointerleave", clear);
-  h1.addEventListener("contextmenu", e => e.preventDefault());
+  if (h1) {
+    h1.addEventListener("dblclick", () => {
+      if (classUnlocked()) showView("class");
+      else openClassGate();
+    });
+    let hold = 0;
+    const go = () => { if (classUnlocked()) showView("class"); else openClassGate(); };
+    const clear = () => { if (hold) { clearTimeout(hold); hold = 0; } };
+    h1.addEventListener("pointerdown", e => {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      clear();
+      hold = setTimeout(() => { hold = 0; go(); }, 1000);
+    });
+    h1.addEventListener("pointerup", clear);
+    h1.addEventListener("pointercancel", clear);
+    h1.addEventListener("pointerleave", clear);
+    h1.addEventListener("contextmenu", e => e.preventDefault());
+  }
 }
-document.getElementById("classGateOk").onclick = tryClassPass;
-document.getElementById("classGateCancel").onclick = () => document.getElementById("classGate").close();
-document.getElementById("classPass").addEventListener("keydown", e => {
+setClick("classGateOk", tryClassPass);
+setClick("classGateCancel", () => document.getElementById("classGate").close());
+onId("classPass", "keydown", e => {
   if (e.key === "Enter") { e.preventDefault(); tryClassPass(); }
 });
 document.getElementById("profileClass").onchange = e => {
@@ -3835,7 +3864,7 @@ document.getElementById("profileClass").onchange = e => {
   save();
   if (currentView === "class") renderClassPage();
 };
-document.getElementById("classPills").addEventListener("click", e => {
+onId("classPills", "click", e => {
   const cmp = e.target.closest("[data-cmp]");
   if (cmp) {
     const n = cmp.dataset.cmp;
@@ -3918,16 +3947,16 @@ document.getElementById("classDelBtn").onclick = () => {
   renderProfileClass();
   renderClassPage();
 };
-document.getElementById("classCsvBtn").onclick = exportClassCsv;
-document.getElementById("classScoreCsv").onclick = exportScoreCsv;
-document.getElementById("classStats").addEventListener("click", e => {
+setClick("classCsvBtn", exportClassCsv);
+setClick("classScoreCsv", exportScoreCsv);
+onId("classStats", "click", e => {
   if (!e.target.closest("[data-class-low]")) return;
   prefs.classLow = !prefs.classLow;
   if (prefs.classLow) { prefs.classAxis = ""; prefs.classTopic = ""; }
   savePrefs();
   renderClassPage();
 });
-document.getElementById("classAxes").addEventListener("click", e => {
+onId("classAxes", "click", e => {
   const btn = e.target.closest("[data-axis]");
   if (!btn) return;
   prefs.classAxis = prefs.classAxis === btn.dataset.axis ? "" : btn.dataset.axis;
@@ -3936,7 +3965,7 @@ document.getElementById("classAxes").addEventListener("click", e => {
   savePrefs();
   renderClassPage();
 });
-document.getElementById("classRadar").addEventListener("click", e => {
+onId("classRadar", "click", e => {
   const t = e.target.closest("[data-axis]");
   if (!t) return;
   prefs.classAxis = prefs.classAxis === t.dataset.axis ? "" : t.dataset.axis;
@@ -3954,7 +3983,7 @@ function classJumpQ(e) {
   else jumpMc(y, q);
   return true;
 }
-document.getElementById("classDrill").addEventListener("click", e => {
+onId("classDrill", "click", e => {
   if (classJumpQ(e)) return;
   const btn = e.target.closest("[data-go-stu]");
   if (!btn) return;
@@ -3964,7 +3993,7 @@ document.getElementById("classDrill").addEventListener("click", e => {
   save();
   showView("ability");
 });
-document.getElementById("classTopics").addEventListener("click", e => {
+onId("classTopics", "click", e => {
   if (classJumpQ(e)) return;
   const row = e.target.closest("[data-class-topic]");
   if (!row) return;
@@ -3974,7 +4003,7 @@ document.getElementById("classTopics").addEventListener("click", e => {
   savePrefs();
   renderClassPage();
 });
-document.getElementById("classRoster").addEventListener("click", e => {
+onId("classRoster", "click", e => {
   if (e.target.id === "classMoveBtn") {
     const to = document.getElementById("classMoveTo").value;
     const picks = [...document.querySelectorAll(".roster-pick:checked")].map(x => x.dataset.name);
