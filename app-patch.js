@@ -107,20 +107,20 @@
       }
     }
     var done = total - counts[0];
-    var lab = ring.querySelector(".ring-lab");
     var spans = ring.querySelectorAll("span");
-    if (!lab && spans[0]) {
-      lab = spans[0];
+    var lab = ring.querySelector(".ring-lab") || spans[0];
+    if (lab) {
       lab.classList.add("ring-lab");
+      lab.textContent = "已標記　" + done + "/" + total;
     }
-    if (lab) lab.textContent = "已標記　" + done + "/" + total;
-    var undo = ring.querySelector(".ring-undo");
-    if (!undo) {
-      undo = document.createElement("span");
-      undo.className = "ring-undo";
-      ring.appendChild(undo);
+    var undo = ring.querySelector(".ring-undo") || ring.querySelector("span.sub") || spans[1];
+    if (undo) {
+      undo.classList.add("ring-undo");
+      undo.textContent = "未做 " + counts[0];
     }
-    undo.textContent = "未做 " + counts[0];
+    ring.querySelectorAll("span").forEach(function (sp) {
+      if (sp !== lab && sp !== undo) sp.remove();
+    });
   };
 
   const _paintTimer = window.paintTimer;
@@ -141,11 +141,13 @@
 
   const paperEl = document.getElementById("paper");
   if (paperEl) {
-    paperEl.addEventListener("change", function () {
+    const prev = paperEl.onchange;
+    paperEl.onchange = function (e) {
       noteTopic = "";
       notePart = "";
       noteTag = "";
-    });
+      if (typeof prev === "function") prev.call(this, e);
+    };
   }
 
   const noteList = document.getElementById("noteList");
