@@ -141,7 +141,7 @@ function doUndo() {
   undoSnap = null;
   save();
   if (currentView === "tracker") renderTracker();
-  else if (currentView === "weak") renderWeak();
+  else if (currentView === "ability") renderWeak();
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
   else if (currentView === "timer") renderTimer();
@@ -497,7 +497,9 @@ function renderStats() {
   const pct = total ? Math.round(done * 100 / total) : 0;
   const filled = counts[1] + counts[2] + counts[3];
   const mix = filled
-    ? `<div class="ystack ystack-lg" title="已掌握 ${counts[3]} · 一般 ${counts[2]} · 唔識 ${counts[1]}">${[3, 2, 1].map(s => `<i class="ys${s}" style="flex:${counts[s]}"></i>`).join("")}</div>
+    ? `<div class="ystack ystack-lg">${[3, 2, 1].map(s =>
+        `<i class="ys${s}${String(cellFilter) === String(s) ? " on" : ""}" data-stat-filter="${s}" style="flex:${counts[s] || 0}" title="${STATE_LABEL[s]} ${counts[s]}"></i>`
+      ).join("")}</div>
        <span>已填 ${filled}　掌握 ${counts[3]} · 一般 ${counts[2]} · 唔識 ${counts[1]}</span>`
     : `<b>—</b><span>已填 0</span>`;
   const top = tagStats().slice(0, 3);
@@ -508,9 +510,8 @@ function renderStats() {
   ).join("");
   const hero = top[0];
   document.getElementById("stats").innerHTML = `
-    <div class="stat ring-stat">${ringSvg(pct)}<span>已標記　${done}/${total}</span></div>
+    <button type="button" class="stat ring-stat${cellFilter === "0" ? " on" : ""}" data-stat-filter="0">${ringSvg(pct)}<span>已標記　${done}/${total}</span><span class="sub">未做 ${counts[0]}</span></button>
     <div class="stat mix-stat">${mix}</div>
-    <div class="stat"><b>${counts[0]}</b><span>未做</span></div>
     <div class="stat tag-stat${hero && onTag === hero[0] ? " on" : ""}">${hero ? `<b>${esc(hero[1])}</b><span>最常錯　${hero[2]}</span><div class="mini-bars">${bars}</div>` : `<b>—</b><span>最常錯</span>`}</div>`;
 }
 function cellHtml(y, q) {
@@ -614,6 +615,44 @@ function renderSummary() {
   document.getElementById("summary").innerHTML =
     `甲部未穩 ${aWeak} · 其餘未穩 ${bWeak} · 有筆記／標籤 ${notes} 題`;
 }
+function cellTopicBits(paper, y, q) {
+  if (paper === "p1") {
+    const subs = p1Subs(y, q);
+    return { part: subs.length ? p1PartOfSec(subs[0].sec) : "", topic: p1MainTopic(y, q) };
+  }
+  if (paper === "p2") {
+    const hit = (window.P2_TOPICS && P2_TOPICS.items || []).find(x => x.y === y && x.q === q);
+    return { part: hit ? hit.part : "", topic: hit ? hit.topic : "" };
+  }
+  return { part: "", topic: "" };
+}
+function notePreview(c) {
+  const t = String(c.note || "").trim().split("\n")[0];
+  if (t) return t.length > 48 ? t.slice(0, 48) + "…" : t;
+  return (c.tags || []).map(tagName).join("、");
+}
+function renderNoteList() {
+  const box = document.getElementById("noteList");
+  const body = document.getElementById("noteListBody");
+  if (!box || !body) return;
+  const wasOpen = box.open;
+  const rows = [];
+  for (const y of yearsDesc()) {
+    for (const q of visQs(y, allQs(currentPaper, y))) {
+      const c = getCell(currentPaper, y, q);
+      if (!hasNote(c) || !matchFilter(c)) continue;
+      const bits = cellTopicBits(currentPaper, y, q);
+      const topic = [bits.part, bits.topic].filter(Boolean).join("　");
+      rows.push(`<button type="button" class="note-row" data-jump="${y}:${q}" data-jump-paper="${currentPaper}">
+        <b>${y} Q${q}${topic ? "　" + esc(topic) : ""}</b>
+        <span>${esc(notePreview(c))}</span></button>`);
+    }
+  }
+  box.hidden = !rows.length;
+  box.querySelector("summary").textContent = "筆記一覽　" + rows.length;
+  body.innerHTML = rows.join("");
+  box.open = wasOpen;
+}
 function fillTopicFilter() {
   const lab = document.getElementById("topicFilterLab");
   const sel = document.getElementById("topicFilter");
@@ -636,6 +675,14 @@ function fillTopicFilter() {
   if ([...sel.options].some(o => o.value === keep)) sel.value = keep;
   else { sel.value = ""; topicFilter = ""; }
 }
+function paintBatchDock() {
+  const dock = document.getElementById("batchDock");
+  const show = !!batch && selected.size > 0;
+  if (dock) dock.hidden = !show;
+  document.body.classList.toggle("has-batch-dock", show);
+  const sc = document.getElementById("selCount");
+  if (sc) sc.textContent = "已選 " + selected.size + " 格";
+}
 function renderTracker() {
   renderProfiles();
   renderPaperSelect();
@@ -644,13 +691,12 @@ function renderTracker() {
   renderStats();
   renderGrid();
   renderSummary();
+  renderNoteList();
   document.getElementById("batchBar").hidden = false;
   document.getElementById("trackerTheme").hidden = false;
   document.getElementById("trackerTheme").classList.toggle("is-batch", !!batch);
-  document.getElementById("batchApply").hidden = !batch;
-  document.getElementById("clearSel").hidden = !batch;
+  paintBatchDock();
   document.getElementById("batchBtn").textContent = batch ? "退出批量" : "批量選擇";
-  document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
   const cf = document.getElementById("clearFilters");
   if (cf) cf.hidden = cellFilter === "all" && !topicFilter;
   const csel = document.getElementById("cellFilter");
@@ -1187,9 +1233,10 @@ function lvCellHtml(lvText, starts, pct, ready) {
 }
 function renderGrades() {
   if (prefs.showCore !== false) prefs.showCore = true;
-  document.getElementById("showCore").checked = prefs.showCore !== false;
-  document.getElementById("showM1").checked = !!prefs.showM1;
-  document.getElementById("showM2").checked = !!prefs.showM2;
+  document.querySelectorAll("#gradeKindChips [data-gk]").forEach(btn => {
+    const on = btn.dataset.gk === "core" ? prefs.showCore !== false : !!prefs[btn.dataset.gk === "m1" ? "showM1" : "showM2"];
+    btn.classList.toggle("on", on);
+  });
   const showCore = prefs.showCore !== false, showM1 = prefs.showM1, showM2 = prefs.showM2;
   let head = `<tr><th>年份</th>`;
   if (showCore) head += `<th>卷一 /105</th><th>卷二 /45</th><th>綜合％</th><th>估計等級</th>`;
@@ -2600,21 +2647,27 @@ function tryClassPass() {
 }
 
 function showView(id) {
+  if (id === "weak") id = "ability";
   if (id === "class" && !classUnlocked()) {
     openClassGate();
     return;
   }
   currentView = id;
-  document.body.classList.toggle("paper-bg", ["weak", "grades", "cutoffs", "class"].includes(id));
+  document.body.classList.toggle("paper-bg", ["ability", "grades", "cutoffs", "class"].includes(id));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + id));
   document.querySelectorAll(".tabs .tab").forEach(t => t.classList.toggle("on", t.dataset.view === id));
-  const people = id === "tracker" || id === "weak" || id === "grades" || id === "mc" || id === "class";
+  const people = id === "tracker" || id === "ability" || id === "grades" || id === "mc" || id === "class";
   document.getElementById("peopleBar").style.display = people ? "flex" : "none";
   document.getElementById("trackerTheme").hidden = id !== "tracker";
   document.getElementById("mcBar").hidden = id !== "mc";
+  if (id !== "tracker") {
+    document.body.classList.remove("has-batch-dock");
+    const dock = document.getElementById("batchDock");
+    if (dock) dock.hidden = true;
+  }
   window.scrollTo(0, 0);
   if (id === "tracker") renderTracker();
-  if (id === "weak") { renderProfiles(); renderWeak(); }
+  if (id === "ability") { renderProfiles(); renderWeak(); }
   if (id === "grades") { renderProfiles(); renderGrades(); }
   if (id === "mc") { renderProfiles(); renderMc(); }
   if (id === "items") renderItems();
@@ -2642,7 +2695,7 @@ document.getElementById("profile").onchange = e => {
   currentProfile = e.target.value; save();
   if (currentView === "tracker") renderTracker();
   if (currentView === "grades") renderGrades();
-  if (currentView === "weak") renderWeak();
+  if (currentView === "ability") renderWeak();
   if (currentView === "mc") renderMc();
   if (currentView === "class") renderClassPage();
 };
@@ -2689,17 +2742,29 @@ document.getElementById("clearFilters").onclick = () => {
 };
 document.getElementById("stats").addEventListener("click", e => {
   const bar = e.target.closest("[data-tag]");
-  if (!bar) return;
-  const tag = bar.dataset.tag;
-  cellFilter = cellFilter === "tag:" + tag ? "all" : "tag:" + tag;
-  document.getElementById("cellFilter").value = "all";
+  if (bar) {
+    const tag = bar.dataset.tag;
+    cellFilter = cellFilter === "tag:" + tag ? "all" : "tag:" + tag;
+    document.getElementById("cellFilter").value = "all";
+    document.querySelectorAll("#grid .cell[data-y]").forEach(el => paintCellEl(el, +el.dataset.y, +el.dataset.q));
+    renderStats();
+    renderNoteList();
+    return;
+  }
+  const st = e.target.closest("[data-stat-filter]");
+  if (!st) return;
+  const v = st.dataset.statFilter;
+  cellFilter = cellFilter === v ? "all" : v;
+  const csel = document.getElementById("cellFilter");
+  if (csel) csel.value = ["0", "1", "2", "3"].includes(cellFilter) ? cellFilter : "all";
   document.querySelectorAll("#grid .cell[data-y]").forEach(el => paintCellEl(el, +el.dataset.y, +el.dataset.q));
   renderStats();
+  renderNoteList();
 });
 document.getElementById("clearSel").onclick = () => { selected.clear(); renderTracker(); };
 document.getElementById("copyHw").onclick = copyHw;
 document.getElementById("csvHw").onclick = csvHw;
-document.getElementById("batchBar").addEventListener("click", e => {
+document.getElementById("batchDock").addEventListener("click", e => {
   const btn = e.target.closest("[data-apply]");
   if (!btn) return;
   const s = +btn.dataset.apply;
@@ -2711,6 +2776,12 @@ document.getElementById("batchBar").addEventListener("click", e => {
   });
   selected.clear();
   renderTracker();
+});
+document.getElementById("noteList").addEventListener("click", e => {
+  const jump = e.target.closest("[data-jump]");
+  if (!jump) return;
+  const [y, q] = jump.dataset.jump.split(":");
+  jumpToTrackerCell(jump.dataset.jumpPaper || currentPaper, y, q);
 });
 document.getElementById("weakArrange").addEventListener("change", renderWeak);
 document.getElementById("weakPaper").addEventListener("change", e => {
@@ -2820,7 +2891,7 @@ document.getElementById("grid").addEventListener("click", e => {
       if (selected.has(key)) selected.delete(key); else selected.add(key);
       const cell = e.target.closest(".qcell") && e.target.closest(".qcell").querySelector(".cell");
       if (cell) paintCellEl(cell, y, q);
-      document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+      paintBatchDock();
       return;
     }
     openNote(y, q); return;
@@ -2860,7 +2931,7 @@ document.getElementById("grid").addEventListener("click", e => {
   if (batch) {
     if (selected.has(key)) selected.delete(key); else selected.add(key);
     paintCellEl(cell, y, q);
-    document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+    paintBatchDock();
     return;
   }
   pushUndo();
@@ -2872,6 +2943,7 @@ document.getElementById("grid").addEventListener("click", e => {
   renderYearJump();
   renderStats();
   renderSummary();
+  renderNoteList();
 });
 document.getElementById("grid").addEventListener("pointerdown", e => {
   const cell = e.target.closest(".cell");
@@ -2891,7 +2963,7 @@ document.getElementById("grid").addEventListener("contextmenu", e => {
     const key = y + ":" + q;
     if (selected.has(key)) selected.delete(key); else selected.add(key);
     paintCellEl(cell, y, q);
-    document.getElementById("selCount").textContent = "已選 " + selected.size + " 格";
+    paintBatchDock();
     return;
   }
   openNote(+cell.dataset.y, +cell.dataset.q);
@@ -2973,18 +3045,24 @@ document.getElementById("gradeTable").addEventListener("click", e => {
   showView("tracker");
   setTimeout(() => scrollToYear(+td.dataset.goYear), 40);
 });
-document.getElementById("showCore").onchange = e => {
-  if (!e.target.checked && !prefs.showM1 && !prefs.showM2) { e.target.checked = true; return; }
-  prefs.showCore = e.target.checked; savePrefs(); renderGrades();
-};
-document.getElementById("showM1").onchange = e => {
-  if (!e.target.checked && prefs.showCore === false && !prefs.showM2) { e.target.checked = true; return; }
-  prefs.showM1 = e.target.checked; savePrefs(); renderGrades();
-};
-document.getElementById("showM2").onchange = e => {
-  if (!e.target.checked && prefs.showCore === false && !prefs.showM1) { e.target.checked = true; return; }
-  prefs.showM2 = e.target.checked; savePrefs(); renderGrades();
-};
+document.getElementById("gradeKindChips").addEventListener("click", e => {
+  const btn = e.target.closest("[data-gk]");
+  if (!btn) return;
+  const k = btn.dataset.gk;
+  const core = prefs.showCore !== false, m1 = !!prefs.showM1, m2 = !!prefs.showM2;
+  if (k === "core") {
+    if (core && !m1 && !m2) return;
+    prefs.showCore = !core;
+  } else if (k === "m1") {
+    if (m1 && !core && !m2) return;
+    prefs.showM1 = !m1;
+  } else {
+    if (m2 && !core && !m1) return;
+    prefs.showM2 = !m2;
+  }
+  savePrefs();
+  renderGrades();
+});
 document.getElementById("cutChartKind").onchange = e => {
   prefs.cutKind = e.target.value; savePrefs(); renderCutChart();
 };
@@ -3393,7 +3471,7 @@ function refreshAfterProfile() {
   save();
   renderProfiles();
   if (currentView === "tracker") renderTracker();
-  else if (currentView === "weak") renderWeak();
+  else if (currentView === "ability") renderWeak();
   else if (currentView === "mc") renderMc();
   else if (currentView === "grades") renderGrades();
   else if (currentView === "timer") renderTimer();
@@ -3723,7 +3801,8 @@ paintClassTab();
 if (hash === "class") {
   if (classUnlocked()) showView("class");
   else { showView("tracker"); openClassGate(); }
-} else if (["tracker", "weak", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
+} else if (hash === "weak" || hash === "ability") showView("ability");
+else if (["tracker", "grades", "mc", "items", "cutoffs", "timer"].includes(hash)) showView(hash);
 else showView("tracker");
 
 document.querySelector("h1").addEventListener("dblclick", () => {
@@ -3787,13 +3866,13 @@ document.getElementById("classMingBtn").onclick = () => {
 document.getElementById("classOldBtn").onclick = () => {
   prefs.includeOld = !prefs.includeOld;
   savePrefs();
-  if (currentView === "weak") renderWeak();
+  if (currentView === "ability") renderWeak();
   renderClassPage();
 };
 document.getElementById("classHkBtn").onclick = () => {
   prefs.hkRef = !prefs.hkRef;
   savePrefs();
-  if (currentView === "weak") renderWeak();
+  if (currentView === "ability") renderWeak();
   renderClassPage();
 };
 document.getElementById("classYear").onchange = e => {
@@ -3883,7 +3962,7 @@ document.getElementById("classDrill").addEventListener("click", e => {
   if (!db.profiles[n]) return;
   currentProfile = n;
   save();
-  showView("weak");
+  showView("ability");
 });
 document.getElementById("classTopics").addEventListener("click", e => {
   if (classJumpQ(e)) return;
@@ -3915,5 +3994,5 @@ document.getElementById("classRoster").addEventListener("click", e => {
   if (!db.profiles[n]) return;
   currentProfile = n;
   save();
-  showView("weak");
+  showView("ability");
 });

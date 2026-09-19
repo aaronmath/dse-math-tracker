@@ -2,7 +2,7 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>DSE 數學操卷神器</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
@@ -19,7 +19,7 @@
       </div>
       <nav class="tabs" id="tabs">
         <button class="tab on" data-view="tracker">進度</button>
-        <button class="tab" data-view="weak">能力</button>
+        <button class="tab" data-view="ability">能力</button>
         <button class="tab" data-view="mc">MC</button>
         <button class="tab" data-view="grades">成績</button>
         <button class="tab" data-view="items">全港平均</button>
@@ -82,15 +82,7 @@
           <span><i class="dot" style="background:var(--weak)"></i>唔識</span>
           <span><i class="dot" style="background:var(--empty)"></i>未做</span>
         </span>
-        <span id="batchApply" hidden>
-          <button type="button" class="ok" data-apply="3">已掌握</button>
-          <button type="button" class="warn" data-apply="2">一般</button>
-          <button type="button" class="danger" data-apply="1">唔識</button>
-          <button type="button" class="ghost" data-apply="0">未做</button>
-          <span class="sub" id="selCount">已選 0 格</span>
-        </span>
         <button type="button" class="ghost" id="batchBtn">批量選擇</button>
-        <button type="button" class="ghost" id="clearSel" hidden>取消選擇</button>
       </div>
       </div>
       <div class="toolbar" id="mcBar" hidden>
@@ -131,8 +123,12 @@
       <p class="hint">短按格改狀態 · 長按或鉛筆寫筆記（批量時唔開） · 分數同操卷日人手填 · 用時由計時批准寫入 · Enter 跳去下一年</p>
       <div id="grid"></div>
       <div class="summary" id="summary"></div>
+      <details class="note-list" id="noteList" hidden>
+        <summary>筆記一覽</summary>
+        <div id="noteListBody"></div>
+      </details>
     </section>
-    <section class="view" id="view-weak">
+    <section class="view" id="view-ability">
       <h2 class="page-title">能力分析</h2>
       <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。未做唔入摘錄。<br>撳摘錄列：卷一去進度（方格閃爍），卷二去 MC。明返預設關；撳課題條出未做建議（淺→深）。</p>
       <div class="toolbar" id="weakBar">
@@ -192,10 +188,10 @@
     <section class="view" id="view-grades">
       <h2 class="page-title">個人數學成績</h2>
       <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。</p>
-      <div class="toolbar">
-        <label class="chk"><input type="checkbox" id="showCore" checked /> 顯示必修數學</label>
-        <label class="chk"><input type="checkbox" id="showM1" /> 顯示 M1</label>
-        <label class="chk"><input type="checkbox" id="showM2" /> 顯示 M2</label>
+      <div class="chip-row" id="gradeKindChips">
+        <button type="button" class="chip" data-gk="core">必修</button>
+        <button type="button" class="chip" data-gk="m1">M1</button>
+        <button type="button" class="chip" data-gk="m2">M2</button>
       </div>
       <div style="overflow:auto"><table class="grade-table" id="gradeTable"></table></div>
     </section>
@@ -385,6 +381,14 @@
       </div>
     </div>
   </dialog>
+  <div id="batchDock" hidden>
+    <span class="sub" id="selCount">已選 0 格</span>
+    <button type="button" class="ok" data-apply="3">已掌握</button>
+    <button type="button" class="warn" data-apply="2">一般</button>
+    <button type="button" class="danger" data-apply="1">唔識</button>
+    <button type="button" class="ghost" data-apply="0">未做</button>
+    <button type="button" class="ghost" id="clearSel">取消選擇</button>
+  </div>
   <audio id="endSound" src="./timer-end.wav" preload="auto"></audio>
   <script src="./vendor/qrcode.min.js"></script>
   <script src="./vendor/jsqr.min.js"></script>
