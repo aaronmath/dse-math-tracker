@@ -6,7 +6,7 @@
   <title>DSE 數學操卷神器</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260920" />
+  <link rel="stylesheet" href="./styles.css?v=20260920b" />
 </head>
 <body>
   <header>
@@ -189,9 +189,9 @@
       <h2 class="page-title">個人數學成績</h2>
       <p class="hint">等級由過往考生表現資料估計，僅供操卷參考，並非官方評級。</p>
       <div class="chip-row" id="gradeKindChips">
-        <button type="button" class="chip" data-gk="core">必修</button>
-        <button type="button" class="chip" data-gk="m1">M1</button>
-        <button type="button" class="chip" data-gk="m2">M2</button>
+        <button type="button" class="chip gk-core" data-gk="core">必修數學</button>
+        <button type="button" class="chip gk-m1" data-gk="m1">M1</button>
+        <button type="button" class="chip gk-m2" data-gk="m2">M2</button>
       </div>
       <div style="overflow:auto"><table class="grade-table" id="gradeTable"></table></div>
     </section>
@@ -397,6 +397,6 @@
   <script src="./data/p2-topics.js"></script>
   <script src="./data/p1-topics.js"></script>
   <script src="./data/item-stats.js"></script>
-  <script src="./app.js?v=20260920"></script>
+  <script src="./app.js?v=20260920b"></script>
 </body>
 </html>
