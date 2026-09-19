@@ -1,0 +1,181 @@
+(function () {
+  if (typeof noteTopic === "undefined") {
+    window.noteTopic = "";
+    window.notePart = "";
+    window.noteTag = "";
+  }
+
+  window.collectNotes = function collectNotes() {
+    const items = [];
+    for (const y of yearsDesc()) {
+      for (const q of allQs(currentPaper, y)) {
+        if (PAPERS[currentPaper].missing(y).includes(q)) continue;
+        const c = getCell(currentPaper, y, q);
+        if (!hasNote(c)) continue;
+        const bits = cellTopicBits(currentPaper, y, q);
+        items.push({ y: y, q: q, c: c, part: bits.part || "", topic: bits.topic || "", tags: c.tags || [] });
+      }
+    }
+    return items;
+  };
+
+  window.noteMatch = function noteMatch(it) {
+    if (notePart && it.part !== notePart) return false;
+    if (noteTopic && it.topic !== noteTopic) return false;
+    if (noteTag && !(it.tags || []).includes(noteTag)) return false;
+    return true;
+  };
+
+  window.renderNoteList = function renderNoteList() {
+    const box = document.getElementById("noteList");
+    const body = document.getElementById("noteListBody");
+    const filt = document.getElementById("noteFilters");
+    if (!box || !body) return;
+    const wasOpen = box.open;
+    const all = collectNotes();
+    box.hidden = !all.length;
+    if (!all.length) { body.innerHTML = ""; if (filt) filt.innerHTML = ""; return; }
+    const topics = [];
+    const seenT = new Set();
+    all.forEach(function (it) {
+      if (!it.topic || seenT.has(it.topic)) return;
+      seenT.add(it.topic);
+      topics.push({ topic: it.topic, part: it.part, old: OLD_TOPICS.has(it.topic) });
+    });
+    topics.sort(function (a, b) { return (a.part || "").localeCompare(b.part || "") || a.topic.localeCompare(b.topic); });
+    if (noteTopic && !seenT.has(noteTopic)) noteTopic = "";
+    const parts = [];
+    all.forEach(function (it) { if (it.part && parts.indexOf(it.part) < 0) parts.push(it.part); });
+    if (notePart && parts.indexOf(notePart) < 0) notePart = "";
+    const tags = TAGS.filter(function (pair) { return all.some(function (it) { return it.tags.indexOf(pair[0]) >= 0; }); });
+    if (noteTag && !tags.some(function (pair) { return pair[0] === noteTag; })) noteTag = "";
+    const shown = all.filter(noteMatch);
+    if (filt) {
+      const hasTopic = currentPaper === "p1" || currentPaper === "p2";
+      var topicSel = "";
+      if (hasTopic) {
+        topicSel = "<label>課題 <select id=\"noteTopicSel\"><option value=\"\">全部課題</option>";
+        topics.forEach(function (x) {
+          topicSel += "<option value=\"" + esc(x.topic) + "\"" + (noteTopic === x.topic ? " selected" : "") + ">" + esc(x.part ? x.part + "　" : "") + esc(x.topic) + (x.old ? "（舊課程）" : "") + "</option>";
+        });
+        topicSel += "</select></label>";
+      }
+      var partBtns = "";
+      if (hasTopic && parts.length) {
+        partBtns = "<span class=\"seg mini\" id=\"notePartSeg\">";
+        ["", "甲", "乙"].forEach(function (p) {
+          if (p && parts.indexOf(p) < 0) return;
+          partBtns += "<button type=\"button\" data-note-part=\"" + p + "\" class=\"" + (notePart === p ? "on" : "") + "\">" + (p || "全部") + "</button>";
+        });
+        partBtns += "</span>";
+      }
+      var tagSel = "";
+      if (tags.length) {
+        tagSel = "<label>標籤 <select id=\"noteTagSel\"><option value=\"\">全部標籤</option>";
+        tags.forEach(function (pair) {
+          tagSel += "<option value=\"" + pair[0] + "\"" + (noteTag === pair[0] ? " selected" : "") + ">" + esc(pair[1]) + "</option>";
+        });
+        tagSel += "</select></label>";
+      }
+      filt.innerHTML = "<div class=\"note-filter-row\">" + topicSel + partBtns + tagSel + "</div>";
+    }
+    box.querySelector("summary").textContent = "筆記一覽　" + shown.length + (shown.length !== all.length ? "／" + all.length : "");
+    if (!shown.length) {
+      body.innerHTML = "<p class=\"hint\">呢個篩冇筆記。</p>";
+    } else {
+      body.innerHTML = shown.map(function (it) {
+        const topic = [it.part, it.topic].filter(Boolean).join("　");
+        return "<button type=\"button\" class=\"note-row\" data-jump=\"" + it.y + ":" + it.q + "\" data-jump-paper=\"" + currentPaper + "\"><b>" + it.y + " Q" + it.q + (topic ? "　" + esc(topic) : "") + "</b><span>" + esc(notePreview(it.c)) + "</span></button>";
+      }).join("");
+    }
+    box.open = wasOpen;
+  };
+
+  const _renderStats = window.renderStats;
+  window.renderStats = function renderStats() {
+    if (typeof _renderStats === "function") _renderStats();
+    const box = document.getElementById("stats");
+    const ring = box && box.querySelector(".ring-stat");
+    if (!ring) return;
+    var total = 0, counts = [0, 0, 0, 0];
+    for (var yi = 0; yi < YEARS.length; yi++) {
+      var y = YEARS[yi];
+      var qs = visQs(y, allQs(currentPaper, y));
+      for (var qi = 0; qi < qs.length; qi++) {
+        total++;
+        counts[getCell(currentPaper, y, qs[qi]).s]++;
+      }
+    }
+    var done = total - counts[0];
+    var lab = ring.querySelector(".ring-lab");
+    var spans = ring.querySelectorAll("span");
+    if (!lab && spans[0]) {
+      lab = spans[0];
+      lab.classList.add("ring-lab");
+    }
+    if (lab) lab.textContent = "已標記　" + done + "/" + total;
+    var undo = ring.querySelector(".ring-undo");
+    if (!undo) {
+      undo = document.createElement("span");
+      undo.className = "ring-undo";
+      ring.appendChild(undo);
+    }
+    undo.textContent = "未做 " + counts[0];
+  };
+
+  const _paintTimer = window.paintTimer;
+  window.paintTimer = function paintTimer() {
+    if (typeof _paintTimer === "function") _paintTimer();
+    const extraSeg = document.getElementById("timerExtraSeg");
+    const extraBtn = document.getElementById("timerExtra");
+    if (extraSeg) {
+      extraSeg.hidden = false;
+      extraSeg.classList.toggle("is-running", !!timerLocked);
+      extraSeg.querySelectorAll("[data-extra]").forEach(function (b) {
+        b.classList.toggle("on", (b.dataset.extra === "1") === !!timerExtra);
+        b.disabled = !!timerLocked;
+      });
+    }
+    if (extraBtn) extraBtn.hidden = !!extraSeg;
+  };
+
+  const paperEl = document.getElementById("paper");
+  if (paperEl) {
+    paperEl.addEventListener("change", function () {
+      noteTopic = "";
+      notePart = "";
+      noteTag = "";
+    });
+  }
+
+  const noteList = document.getElementById("noteList");
+  if (noteList && !noteList.dataset.patchBound) {
+    noteList.dataset.patchBound = "1";
+    noteList.addEventListener("click", function (e) {
+      const part = e.target.closest("[data-note-part]");
+      if (part) {
+        notePart = part.dataset.notePart || "";
+        renderNoteList();
+        e.stopPropagation();
+      }
+    });
+    noteList.addEventListener("change", function (e) {
+      if (e.target.id === "noteTopicSel") { noteTopic = e.target.value; renderNoteList(); }
+      if (e.target.id === "noteTagSel") { noteTag = e.target.value; renderNoteList(); }
+    });
+  }
+
+  const seg = document.getElementById("timerExtraSeg");
+  if (seg && !seg.dataset.patchBound) {
+    seg.dataset.patchBound = "1";
+    seg.addEventListener("click", function (e) {
+      const b = e.target.closest("[data-extra]");
+      if (!b || timerLocked) return;
+      timerExtra = b.dataset.extra === "1";
+      paintTimer();
+    });
+  }
+
+  try { if (currentView === "tracker") { renderStats(); renderNoteList(); } } catch (e) {}
+  try { if (currentView === "timer") paintTimer(); } catch (e) {}
+})();
