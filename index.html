@@ -27,3 +27,29 @@
         <button class="tab" data-view="class" id="classTab" hidden>班況</button>
         <button class="tab" data-view="timer">計時</button>
       </nav>
+      <div class="toolbar" id="peopleBar">
+        <label>學生 <select id="profile"></select></label>
+      </div>
+    </div>
+  </header>
+  <main class="wrap">
+    <section class="view on" id="view-tracker">
+      <h2 class="page-title">操卷進度</h2>
+      <div class="year-jump" id="yearJump"></div>
+      <div class="stats" id="stats"></div>
+      <div id="grid"></div>
+      <details class="note-list" id="noteList" hidden>
+        <summary>筆記一覽</summary>
+        <div class="note-filters" id="noteFilters"></div>
+        <div id="noteListBody"></div>
+      </details>
+    </section>
+  </main>
+  <script src="./data/cutoffs.js"></script>
+  <script src="./data/p2-answers.js"></script>
+  <script src="./data/p2-topics.js"></script>
+  <script src="./data/p1-topics.js"></script>
+  <script src="./data/item-stats.js"></script>
+  <script src="./app.js?v=20260920b"></script>
+</body>
+</html>
