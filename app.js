@@ -1197,6 +1197,19 @@ function classify(starts, pct) {
   if (idx > 0 && Math.abs(pct - cur[1]) < 1 && pct < cur[1]) near = [prev[0], cur[0]];
   return { level: cur[0], near };
 }
+function levelGap(starts, pct) {
+  const order = ["U", "1", "2", "3", "4", "5", "5*", "5**"];
+  const s = starts.slice().sort((a, b) => a[1] - b[1]);
+  if (!s.length) return true;
+  let idx = 0;
+  for (let i = 0; i < s.length; i++) if (pct + 1e-9 >= s[i][1]) idx = i;
+  const cur = s[idx][0];
+  const nxt = s[idx + 1] ? s[idx + 1][0] : null;
+  const ci = order.indexOf(cur);
+  const ni = nxt ? order.indexOf(nxt) : order.length;
+  if (ni <= ci + 1) return false;
+  return pct > s[idx][1] + 1e-9;
+}
 function fmtLv(lv) { return lv === "U" ? "U" : lv; }
 function corePct(year, p1, p2) {
   const c = window.CUTOFFS.core[String(year)];
@@ -1210,11 +1223,15 @@ function estimateShort(kind, year, pct) {
   const m = startMap(pack);
   const can = m["5"] != null && m["5*"] != null && m["5**"] != null;
   if (!can) return "資料未齊";
+  if (levelGap(pack.starts, pct)) return "資料未齊";
   const r = classify(pack.starts, pct);
   const lv = fmtLv(r.level);
   const y = String(year);
-  if (kind === "core" && y === "2026") return (lv === "3" || lv === "4") ? "暫估 " + lv : lv;
-  return pack.incomplete ? "暫估 " + lv : lv;
+  const conf = ((window.CUT_CONFIRMED || {})[kind] || {})[y] || [];
+  if (lv === "U" || lv === "1") return lv;
+  if (conf.includes(lv) || conf.includes(r.level)) return lv;
+  if (pack.incomplete) return "暫估 " + lv;
+  return lv;
 }
 function nextGap(starts, pct) {
   const s = starts.filter(x => LV_COLS.includes(x[0])).sort((a, b) => a[1] - b[1]);
@@ -1350,7 +1367,8 @@ function renderCutChart() {
       return m[lv] == null ? null : m[lv];
     });
     const y2026 = YEARS.indexOf(2026);
-    const soft = kind === "core" && ["3", "4"].includes(lv);
+    const confirmed = ((window.CUT_CONFIRMED || {})[kind] || {})["2026"] || [];
+    const soft = !confirmed.includes(lv);
     const solid = vals.map((v, i) => (soft && i === y2026 ? null : v));
     cutPolyline(solid, xOf, yOf).forEach(seg => {
       lines += `<polyline fill="none" stroke="${CUT_COLORS[lv]}" stroke-width="1.8" points="${seg.join(" ")}" />`;
