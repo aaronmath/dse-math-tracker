@@ -29,7 +29,7 @@ function renderWeak() {
     if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
   }
   const arrange = document.getElementById("weakArrange").value;
-  const emptyHint = prefs.weakMing ? "未有明返題。" : "未有符合色揪嘅能力記錄。";
+  const emptyHint = prefs.weakMing ? "未有明返題。" : "未有符合色提嘅能力記錄。";
   if (!items.length && !(box.dataset.topic || "")) {
     box.innerHTML = "<p class=\"hint\">" + emptyHint + "</p>";
     return;
@@ -66,13 +66,13 @@ function renderWeak() {
   const rest = ranked.slice(8).reduce((n, x) => n + x[1], 0);
   const max = top[0] ? top[0][1] : 1;
   const bars = top.map(([t, n]) =>
-    "<div class=\"bar-row\" data-weak-topic=\"" + esc(t) + "\"><span>" + esc(t) + "</span><div class=\"bar-track\"><i style=\"width:" + Math.round(n * 100 / max) + "%\"></i></div><b>" + n + "</b></div>"
+    "<div class=\"bar-row\" data-weak-topic=\"" + esc(t) + "\"><span>" + esc(topicLabel(t)) + "</span><div class=\"bar-track\"><i style=\"width:" + Math.round(n * 100 / max) + "%\"></i></div><b>" + n + "</b></div>"
   ).join("") + (rest ? "<div class=\"sub\">其他課題 " + rest + " 題</div>" : "");
   const focus = box.dataset.topic || "";
   const pool = focus ? items.filter(x => x.topic === focus) : items;
   const vis = (focus || showAll || pool.length <= MIX_CAP) ? pool : pool.slice(0, MIX_CAP);
   const mingLab = prefs.weakMing ? "明返　" : "";
-  box.innerHTML = bars + (focus ? "<p class=\"hint\">而家睇：" + mingLab + esc(focus) + "　<button class=\"ghost\" id=\"weakClear\">顯示全部</button></p>" : (prefs.weakMing ? "<p class=\"hint\">而家睇明返。撓課題條出未做建議。</p>" : "<p class=\"hint\">撓課題條先出未做建議（淺→深）。</p>")) +
+  box.innerHTML = bars + (focus ? "<p class=\"hint\">而家睇：" + mingLab + esc(topicLabel(focus)) + "　<button class=\"ghost\" id=\"weakClear\">顯示全部</button></p>" : (prefs.weakMing ? "<p class=\"hint\">而家睇明返。撐課題條出未做建議。</p>" : "<p class=\"hint\">撐課題條先出未做建議（淺→深）。</p>")) +
     capNote(vis.length, pool.length) +
     tableBlock(vis) +
     (focus ? nextHtml(focus) : "");
@@ -143,7 +143,7 @@ function renderItemTopics() {
       return { part: f.part, topic: f.topic, avg: hk / m * 100, n: n, old: OLD_TOPICS.has(f.topic) };
     }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
     box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
-      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(r.topic) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
       "</tbody></table></div><p class=\"hint\">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋，可隨時打開（唔使開「顯示卷一課題」）。</p>";
     return;
   }
@@ -162,7 +162,7 @@ function renderItemTopics() {
       return { part: ax ? ax.name : "", topic: f.topic, avg: hk / m * 100, n: n };
     }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.topic.localeCompare(b.topic));
     box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>軸</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
-      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + esc(r.part) + "</td><td>" + esc(r.topic) + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + esc(r.part) + "</td><td>" + esc(topicLabel(r.topic)) + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
       "</tbody></table></div><p class=\"hint\">2012–2025 DSE，按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。樣本／練習唔入。</p>";
     return;
   }
@@ -177,7 +177,7 @@ function renderItemTopics() {
     return { part: f.part, topic: f.topic, avg: avg, n: pcts.length, old: OLD_TOPICS.has(f.topic) };
   }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
   box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>" +
-    rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(r.topic) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+    rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
     "</tbody></table></div><p class=\"hint\">按全港命中率由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>";
 }
 
