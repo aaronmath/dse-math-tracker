@@ -152,25 +152,3 @@
   try { if (currentView === "tracker") { renderStats(); renderNoteList(); } } catch (e) {}
   try { if (currentView === "timer") paintTimer(); } catch (e) {}
 })();
-(function loadM2Overlay() {
-  const files = ["./data/p1-q5-fix.js?v=20260920i","./app-m2a.js?v=20260920i","./app-m2b.js?v=20260920i","./app-m2c.js?v=20260920i","./app-m2-fix.js?v=20260920i"];
-  function next(i) {
-    if (i >= files.length) {
-      try {
-        window.classEligible = function (pr, paper) { return markedCountOf(pr, paper) >= classMinFor(paper); };
-        if (typeof renderPaperSelect === "function") renderPaperSelect();
-        if (typeof fillTopicFilter === "function") fillTopicFilter();
-        if (typeof currentView !== "undefined" && currentView === "tracker" && typeof renderGrid === "function") renderGrid();
-        if (typeof currentView !== "undefined" && currentView === "ability" && typeof renderRadar === "function") renderRadar();
-        if (typeof currentView !== "undefined" && currentView === "items" && typeof renderItemTopics === "function") renderItemTopics();
-      } catch (e) {}
-      return;
-    }
-    const s = document.createElement("script");
-    s.src = files[i];
-    s.onload = function () { next(i + 1); };
-    s.onerror = function () { next(i + 1); };
-    document.body.appendChild(s);
-  }
-  next(0);
-})();
