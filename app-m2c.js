@@ -29,7 +29,7 @@ function renderWeak() {
     if (ax) items = items.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
   }
   const arrange = document.getElementById("weakArrange").value;
-  const emptyHint = prefs.weakMing ? "未有明返題。" : "未有符合色提嘅能力記錄。";
+  const emptyHint = prefs.weakMing ? "未有明返題。" : "未有符合色插嘅能力記錄。";
   if (!items.length && !(box.dataset.topic || "")) {
     box.innerHTML = "<p class=\"hint\">" + emptyHint + "</p>";
     return;
@@ -72,7 +72,7 @@ function renderWeak() {
   const pool = focus ? items.filter(x => x.topic === focus) : items;
   const vis = (focus || showAll || pool.length <= MIX_CAP) ? pool : pool.slice(0, MIX_CAP);
   const mingLab = prefs.weakMing ? "明返　" : "";
-  box.innerHTML = bars + (focus ? "<p class=\"hint\">而家睇：" + mingLab + esc(topicLabel(focus)) + "　<button class=\"ghost\" id=\"weakClear\">顯示全部</button></p>" : (prefs.weakMing ? "<p class=\"hint\">而家睇明返。撐課題條出未做建議。</p>" : "<p class=\"hint\">撐課題條先出未做建議（淺→深）。</p>")) +
+  box.innerHTML = bars + (focus ? "<p class=\"hint\">而家睇：" + mingLab + esc(topicLabel(focus)) + "　<button class=\"ghost\" id=\"weakClear\">顯示全部</button></p>" : (prefs.weakMing ? "<p class=\"hint\">而家睇明返。撘課題條出未做建議。</p>" : "<p class=\"hint\">撘課題條先出未做建議（淺→深）。</p>")) +
     capNote(vis.length, pool.length) +
     tableBlock(vis) +
     (focus ? nextHtml(focus) : "");
