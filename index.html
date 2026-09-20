@@ -6,8 +6,8 @@
   <title>DSE 數學操卷神器</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20260920e" />
-  <link rel="stylesheet" href="./patch.css?v=20260920e" />
+  <link rel="stylesheet" href="./styles.css?v=20260920f" />
+  <link rel="stylesheet" href="./patch.css?v=20260920f" />
 </head>
 <body>
   <header>
@@ -121,7 +121,7 @@
       <h2 class="page-title">操卷進度</h2>
       <div class="year-jump" id="yearJump"></div>
       <div class="stats" id="stats"></div>
-      <p class="hint">短按格改狀態 · 長按或鉛筆寫筆記（批量時唔開） · 分數同操卷日人手填 · 用時由計時批准寫入 · Enter 跳去下一年</p>
+      <p class="hint">短按格改狀態 · 長按或鉑筆寫筆記（批量時唔開） · 分數同操卷日人手填 · 用時由計時批准寫入 · Enter 跳去下一年</p>
       <div id="grid"></div>
       <div class="summary" id="summary"></div>
       <details class="note-list" id="noteList" hidden>
@@ -132,7 +132,7 @@
     </section>
     <section class="view" id="view-ability">
       <h2 class="page-title">能力分析</h2>
-      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。未做唔入摘錄。<br>撞摘錄列：卷一去進度（方格閃爍），卷二去 MC。明返預設關；撞課題條出未做建議（淺→深）。</p>
+      <p class="hint">實色＝你嘅標記平均；虛線＝全港參照。摘錄篩選唔改雷達。未做唔入摘錄。<br>撐摘錄列：卷一去進度（方格閃爌），卷二去 MC。明返預設關；撐課題條出未做建議（淺→深）。</p>
       <div class="toolbar" id="weakBar">
         <label>試卷
           <select id="weakPaper">
@@ -180,10 +180,10 @@
     </section>
     <section class="view" id="view-mc">
       <h2 class="page-title">卷二 MC 查詢</h2>
-      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撞小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
+      <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撐小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
       <div id="mcResult"></div>
       <details class="freq-box" id="mcFreqBox">
-        <summary>課題頻率（只列該部分曾出現過嘅課題；已隱藏舊課程）</summary>
+        <summary>課題頻率（只列該部分曾出現過的課題；已隱藏舊課程）</summary>
         <div id="mcFreq"></div>
       </details>
     </section>
@@ -199,7 +199,7 @@
     </section>
     <section class="view" id="view-items">
       <h2 class="page-title">全港平均表現</h2>
-      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撞格跳去該年。2026 未公布則為 -。<br>卷一單年課題名預設隱藏；「卷一課題表現」短表預設摺埋，可隨時打開。要對單年題號先開「顯示卷一課題」。</p>
+      <p class="hint">分部平均分（一位小數），滿分見左欄。色帶：綠 ≥60%、黃 41–59%、紅 ≤40%。撐格跳去該年。2026 未公布則為 -。<br>卷一單年課題名預設隱藏；「卷一課題表現」短表預設摺埋，可隨時打開。要對單年題號先開「顯示卷一課題」。</p>
       <div class="toolbar">
         <label>試卷
           <select id="itemPaper">
@@ -248,7 +248,7 @@
     </section>
     <section class="view" id="view-class">
       <h2 class="page-title">班況</h2>
-      <p class="hint">必修 8 軸／M2 6 軸同具體弱課題。撞軸睇每人同最多人錯題；撞名去能力頁。未做唔入平均。</p>
+      <p class="hint">必修 8 軸／M2 6 軸同具體弱課題。撐軸睇每人同最多人錯題；撐名去能力頁。未做唔入平均。</p>
       <div class="toolbar">
         <label>試卷
           <select id="classPaper">
@@ -304,7 +304,7 @@
           </select>
         </label>
         <button type="button" class="ghost" id="timerExtra">不加時</button>
-        <div class="seg" id="timerExtraSeg" hidden title="加時只可喅開始前撿">
+        <div class="seg" id="timerExtraSeg" hidden title="加時只可喊始開始前揃">
           <button type="button" data-extra="0">不加時</button>
           <button type="button" data-extra="1">加時</button>
         </div>
@@ -326,7 +326,7 @@
   <dialog id="noteDlg">
     <div class="dlg">
       <h3 id="noteTitle" style="margin:0 0 8px">筆記／錯因</h3>
-      <div class="sub">最多撿 3 個標籤</div>
+      <div class="sub">最多揃 3 個標籤</div>
       <div class="tags" id="tagBox"></div>
       <textarea id="noteText" placeholder="可寫個人事項、重做日期…"></textarea>
       <div class="row">
@@ -405,7 +405,7 @@
   <script src="./data/p1-topics.js"></script>
   <script src="./data/m2-topics.js"></script>
   <script src="./data/item-stats.js"></script>
-  <script src="./app.js?v=20260920e"></script>
-  <script src="./app-patch.js?v=20260920e"></script>
+  <script src="./app.js?v=20260920f"></script>
+  <script src="./app-patch.js?v=20260920f"></script>
 </body>
 </html>
