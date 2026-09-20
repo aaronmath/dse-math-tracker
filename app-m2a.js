@@ -1,7 +1,7 @@
 /* Compact M2 overlay — loaded after app.js */
 var CLASS_MIN_M2 = 12;
 var M2_AXES = [
-  { id: "m2-base", name: "歸納與二項式", part: "M2", topics: ["數學歸納法","二項式定理"] },
+  { id: "m2-base", name: "基礎知識", part: "M2", topics: ["數學歸納法","二項式定理"] },
   { id: "m2-trig", name: "三角學", part: "M2", topics: ["三角學"] },
   { id: "m2-diff", name: "微分", part: "M2", topics: ["基本原理","微分法","切線與法線","極值","變率","曲線描繪"] },
   { id: "m2-int", name: "積分", part: "M2", topics: ["不定積分","積分求方程","定積分","面積與體積"] },
@@ -10,6 +10,8 @@ var M2_AXES = [
 ];
 var M2_TOPIC_ORDER = ["數學歸納法","二項式定理","三角學","基本原理","微分法","切線與法線","極值","變率","曲線描繪","不定積分","積分求方程","定積分","面積與體積","行列式","矩陣","線性方程組","向量簡介","向量的應用"];
 var M2_FILTER_ALIAS = { "定積分": ["定積分","面積與體積"] };
+var M2_TOPIC_LABEL = { "切線與法線": "切線" };
+function topicLabel(t) { return (M2_TOPIC_LABEL && M2_TOPIC_LABEL[t]) || t; }
 if (typeof TOPIC_ORDER === "object") TOPIC_ORDER.M2 = M2_TOPIC_ORDER;
 function classMinFor(paper) { return paper === "m2" ? CLASS_MIN_M2 : CLASS_MIN; }
 function axisMinN(paper) { return paper === "m2" ? 3 : 4; }
@@ -37,7 +39,7 @@ function m2TopicLine(y, q) {
   const names = [], seen = {};
   m2Subs(y, q).forEach(function (s) {
     [s.topic, s.sub1, s.sub2].forEach(function (t) {
-      if (t && !seen[t]) { seen[t] = 1; names.push(t); }
+      if (t && !seen[t]) { seen[t] = 1; names.push(topicLabel(t)); }
     });
   });
   return names.join("／");
@@ -105,7 +107,7 @@ function fillTopicFilter() {
   const show = currentPaper === "p1" || currentPaper === "p2" || currentPaper === "m2";
   lab.hidden = !show;
   if (!show) { topicFilter = ""; return; }
-  const labT = function (f) { return esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : ""); };
+  const labT = function (f) { return esc(topicLabel(f.topic)) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : ""); };
   const keep = topicFilter;
   if (currentPaper === "m2") {
     const freq = ((window.M2_TOPICS && M2_TOPICS.freq) || []).filter(function (f) { return (f.total || 0) > 0; });
@@ -143,7 +145,7 @@ function collectPaperItems(paper, pred) {
         const subs = m2Subs(y, q);
         const sec = (subs[0] && subs[0].sec) || (q <= 8 ? "甲" : "乙");
         const pct = m2HitPct(y, q);
-        if (!bandOk(pct)) return;
+        if (!isMing(c) && !bandOk(pct)) return;
         out.push({ paper: "m2", y: y, q: q, s: c.s, topic: topic, topics: m2TopicLine(y, q), tags: c.tags || [], note: c.note || "", part: sec, axisPart: "M2", pct: pct, w: !!c.w });
       });
     });
@@ -159,7 +161,7 @@ function collectPaperItems(paper, pred) {
         const subs = p1Subs(y, q);
         const sec = (subs[0] && subs[0].sec) || (q <= 9 ? "甲一" : q <= 14 ? "甲二" : "乙");
         const pct = p1HitPct(y, q);
-        if (!bandOk(pct)) return;
+        if (!isMing(c) && !bandOk(pct)) return;
         out.push({ paper: paper, y: y, q: q, s: c.s, topic: topic, topics: p1TopicLine(y, q), tags: c.tags || [], note: c.note || "", part: sec, axisPart: p1PartOfSec(sec), pct: pct, w: !!c.w });
       });
     });
@@ -171,7 +173,8 @@ function collectPaperItems(paper, pred) {
       if (!pred(c)) return;
       const pct = p2Hit(y, q);
       const topic = topicOf(y, q) || "未分類";
-      if (isHexQ(y, q) || skipOldTopic(topic) || !bandOk(pct)) return;
+      if (isHexQ(y, q) || skipOldTopic(topic)) return;
+      if (!isMing(c) && !bandOk(pct)) return;
       out.push({ paper: "p2", y: y, q: q, s: c.s, topic: topic, topics: topic, tags: c.tags || [], note: c.note || "", part: q <= 30 ? "甲" : "乙", axisPart: q <= 30 ? "甲" : "乙", pct: pct, w: !!c.w });
     });
   });
@@ -181,7 +184,7 @@ function renderPaperSelect() {
   const el = document.getElementById("paper");
   if (!el) return;
   el.innerHTML = Object.keys(PAPERS).map(function (id) {
-    return '<option value="' + id + '"' + (id === currentPaper ? " selected" : "") + ">" + PAPERS[id].name + "</option>";
+    return '<option value="' + id + '"' + (id === currentPaper ? " selected" : "") + '>' + PAPERS[id].name + "</option>";
   }).join("");
   const hb = document.getElementById("hitBtn");
   if (!hb) return;

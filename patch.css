@@ -40,8 +40,8 @@ button.stat.ring-stat {
 .cell.ming {
   box-shadow: inset 0 0 0 2px #2f5d50;
 }
-.cell.ming::after {
-  content: "\660e";
+.cell.ming::before {
+  content: "明";
   position: absolute;
   right: 1px;
   bottom: 0;
@@ -50,4 +50,6 @@ button.stat.ring-stat {
   color: #2f5d50;
   line-height: 1;
   pointer-events: none;
+  z-index: 2;
 }
+.ming-badge { display: none; }
