@@ -141,25 +141,25 @@ function renderRadar() {
     }
   }
   const empty = markedPaperCount(weakPaperId()) === 0;
-  const emptyHint = "\u53bb\u9032\u5ea6\u6a19\u8a18" + paperLabel(weakPaperId()) + "\u5148\u51fa\u5716\u3002";
+  const emptyHint = "去進度標記" + paperLabel(weakPaperId()) + "先出圖。";
   const drawKey = currentProfile + ":" + weakPaperId();
   const first = radarDrawn !== drawKey;
   if (!empty) radarDrawn = drawKey;
   document.getElementById("radarBox").innerHTML = empty
     ? "<p class=\"hint\">" + emptyHint + "</p>"
     : "<svg viewBox=\"0 0 340 340\" class=\"" + (first ? "radar-draw" : "") + "\">" + rings + spokes + hk + stu + labels +
-      "<text x=\"170\" y=\"318\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">\u5be6\u8272\uff1d\u4f60\u5605\u6a19\u8a18\u5e73\u5747\u3000\u865b\u7dda\uff1d\u5168\u6e2f\u53c3\u7167</text>" +
-      "<text x=\"170\" y=\"332\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">\u7d05\u7dda\uff1d40%\u3000\u7da0\u7dda\uff1d60%\u3000\u5377\u4e00\uff0fM2 \u6309\u5206\u6578\u52a0\u6b0a</text></svg>";
+      "<text x=\"170\" y=\"318\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">實色＝你嘅標記平均　虛線＝全港參照</text>" +
+      "<text x=\"170\" y=\"332\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">紅線＝40%　綠線＝60%　卷一／M2 按分數加權</text></svg>";
   document.getElementById("axisLegend").innerHTML = axes.map((a, i) => {
     const sc = scores[i];
-    const stuLab = sc.L == null ? "\u672a\u8a55" : Math.round(sc.L * 100) + "%";
-    const hkLab = sc.hk == null ? "\u2014" : Math.round(sc.hk * 100) + "%";
+    const stuLab = sc.L == null ? "未評" : Math.round(sc.L * 100) + "%";
+    const hkLab = sc.hk == null ? "—" : Math.round(sc.hk * 100) + "%";
     const chips = a.topics.filter(t => !skipOldTopic(t) && paperHasTopic(paper, a.part, t)).map(t => {
       const ab = topicAbility(a.part, t);
       const bc = abilityBand(ab.L);
-      return "<button type=\"button\" class=\"tchip" + (bc ? " " + bc : "") + "\" data-jump-topic=\"" + esc(t) + "\">" + esc(t) + "</button>";
+      return "<button type=\"button\" class=\"tchip" + (bc ? " " + bc : "") + "\" data-jump-topic=\"" + esc(t) + "\">" + esc(topicLabel(t)) + "</button>";
     }).join("");
-    return "<div class=\"axis-row" + (radarAxis === a.id ? " on" : "") + "\" data-axis=\"" + a.id + "\"><b>" + esc(a.name) + "\u3000" + esc(currentProfile) + " " + stuLab + "\u3000\u5168\u6e2f " + hkLab + (sc.n ? " \u00b7 " + sc.n + " \u984c" : "") + "</b>" + chips + "</div>";
+    return "<div class=\"axis-row" + (radarAxis === a.id ? " on" : "") + "\" data-axis=\"" + a.id + "\"><b>" + esc(a.name) + "\u3000" + esc(currentProfile) + " " + stuLab + "\u3000\u5168港 " + hkLab + (sc.n ? " \u00b7 " + sc.n + " 題" : "") + "</b>" + chips + "</div>";
   }).join("");
 }
 
@@ -175,10 +175,10 @@ function axisBuckets() {
       part: ax.part,
       L: sc.L,
       hk: sc.hk,
-      deep: ax.part === "\u4e59",
+      deep: ax.part === "乙",
       hkLow: sc.hk != null && sc.hk <= 0.4
     };
-    rec.lab = sc.L == null ? "" : Math.round(sc.L * 100) + "%" + (sc.hk != null ? "\uff08\u5168\u6e2f " + Math.round(sc.hk * 100) + "%\uff09" : "");
+    rec.lab = sc.L == null ? "" : Math.round(sc.L * 100) + "%" + (sc.hk != null ? "（全港 " + Math.round(sc.hk * 100) + "%）" : "");
     if (sc.L == null) { unrated.push(rec); return; }
     const vsHk = sc.hk != null ? sc.L - sc.hk : 0;
     const hi = sc.L >= 0.6 || vsHk > 0.03;
@@ -188,9 +188,3 @@ function axisBuckets() {
   });
   return { strong, weak, unrated, rated: axes.length - unrated.length };
 }
-
-(function () {
-  const s = document.createElement("script");
-  s.src = "./app-m2c.js?v=20260920h";
-  document.body.appendChild(s);
-})();
