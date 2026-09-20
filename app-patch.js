@@ -51,7 +51,7 @@
     if (noteTag && !tags.some(function (pair) { return pair[0] === noteTag; })) noteTag = "";
     const shown = all.filter(noteMatch);
     if (filt) {
-      const hasTopic = currentPaper === "p1" || currentPaper === "p2";
+      const hasTopic = currentPaper === "p1" || currentPaper === "p2" || currentPaper === "m2";
       var topicSel = "";
       if (hasTopic) {
         topicSel = "<label>課題 <select id=\"noteTopicSel\"><option value=\"\">全部課題</option>";
@@ -180,4 +180,25 @@
 
   try { if (currentView === "tracker") { renderStats(); renderNoteList(); } } catch (e) {}
   try { if (currentView === "timer") paintTimer(); } catch (e) {}
+})();
+
+(function loadM2Overlay() {
+  const files = ["./app-m2a.js?v=20260920g", "./app-m2b.js?v=20260920g"];
+  function next(i) {
+    if (i >= files.length) {
+      try {
+        if (typeof renderPaperSelect === "function") renderPaperSelect();
+        if (typeof fillTopicFilter === "function") fillTopicFilter();
+        if (typeof currentView !== "undefined" && currentView === "tracker" && typeof renderGrid === "function") renderGrid();
+        if (typeof currentView !== "undefined" && currentView === "ability" && typeof renderRadar === "function") renderRadar();
+      } catch (e) {}
+      return;
+    }
+    const s = document.createElement("script");
+    s.src = files[i];
+    s.onload = function () { next(i + 1); };
+    s.onerror = function () { next(i + 1); };
+    document.body.appendChild(s);
+  }
+  next(0);
 })();
