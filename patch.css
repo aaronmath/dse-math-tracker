@@ -37,3 +37,17 @@ button.stat.ring-stat {
   height: 26px; font-size: 12px; background: #eef6f2; color: #2f5d50;
 }
 .chip.cut-chip.on { opacity: 1; background: var(--cut, var(--accent)); color: #fff; border-color: transparent; }
+.cell.ming {
+  box-shadow: inset 0 0 0 2px #2f5d50;
+}
+.cell.ming::after {
+  content: "\660e";
+  position: absolute;
+  right: 1px;
+  bottom: 0;
+  font-size: 8px;
+  font-weight: 700;
+  color: #2f5d50;
+  line-height: 1;
+  pointer-events: none;
+}

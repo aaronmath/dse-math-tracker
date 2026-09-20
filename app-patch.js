@@ -4,7 +4,6 @@
     window.notePart = "";
     window.noteTag = "";
   }
-
   window.collectNotes = function collectNotes() {
     const items = [];
     for (const y of yearsDesc()) {
@@ -18,14 +17,12 @@
     }
     return items;
   };
-
   window.noteMatch = function noteMatch(it) {
     if (notePart && it.part !== notePart) return false;
     if (noteTopic && it.topic !== noteTopic) return false;
     if (noteTag && !(it.tags || []).includes(noteTag)) return false;
     return true;
   };
-
   window.renderNoteList = function renderNoteList() {
     const box = document.getElementById("noteList");
     const body = document.getElementById("noteListBody");
@@ -54,24 +51,24 @@
       const hasTopic = currentPaper === "p1" || currentPaper === "p2" || currentPaper === "m2";
       var topicSel = "";
       if (hasTopic) {
-        topicSel = "<label>課題 <select id=\"noteTopicSel\"><option value=\"\">全部課題</option>";
+        topicSel = "<label>\u8ab2\u984c <select id=\"noteTopicSel\"><option value=\"\">\u5168\u90e8\u8ab2\u984c</option>";
         topics.forEach(function (x) {
-          topicSel += "<option value=\"" + esc(x.topic) + "\"" + (noteTopic === x.topic ? " selected" : "") + ">" + esc(x.part ? x.part + "　" : "") + esc(x.topic) + (x.old ? "（舊課程）" : "") + "</option>";
+          topicSel += "<option value=\"" + esc(x.topic) + "\"" + (noteTopic === x.topic ? " selected" : "") + ">" + esc(x.part ? x.part + "\u3000" : "") + esc(x.topic) + (x.old ? "\uff08\u820a\u8ab2\u7a0b\uff09" : "") + "</option>";
         });
         topicSel += "</select></label>";
       }
       var partBtns = "";
       if (hasTopic && parts.length) {
         partBtns = "<span class=\"seg mini\" id=\"notePartSeg\">";
-        ["", "甲", "乙"].forEach(function (p) {
+        ["", "\u7532", "\u4e59"].forEach(function (p) {
           if (p && parts.indexOf(p) < 0) return;
-          partBtns += "<button type=\"button\" data-note-part=\"" + p + "\" class=\"" + (notePart === p ? "on" : "") + "\">" + (p || "全部") + "</button>";
+          partBtns += "<button type=\"button\" data-note-part=\"" + p + "\" class=\"" + (notePart === p ? "on" : "") + "\">" + (p || "\u5168\u90e8") + "</button>";
         });
         partBtns += "</span>";
       }
       var tagSel = "";
       if (tags.length) {
-        tagSel = "<label>標籤 <select id=\"noteTagSel\"><option value=\"\">全部標籤</option>";
+        tagSel = "<label>\u6a19\u7c64 <select id=\"noteTagSel\"><option value=\"\">\u5168\u90e8\u6a19\u7c64</option>";
         tags.forEach(function (pair) {
           tagSel += "<option value=\"" + pair[0] + "\"" + (noteTag === pair[0] ? " selected" : "") + ">" + esc(pair[1]) + "</option>";
         });
@@ -79,18 +76,14 @@
       }
       filt.innerHTML = "<div class=\"note-filter-row\">" + topicSel + partBtns + tagSel + "</div>";
     }
-    box.querySelector("summary").textContent = "筆記一覽　" + shown.length + (shown.length !== all.length ? "／" + all.length : "");
-    if (!shown.length) {
-      body.innerHTML = "<p class=\"hint\">呢個篩冇筆記。</p>";
-    } else {
-      body.innerHTML = shown.map(function (it) {
-        const topic = [it.part, it.topic].filter(Boolean).join("　");
-        return "<button type=\"button\" class=\"note-row\" data-jump=\"" + it.y + ":" + it.q + "\" data-jump-paper=\"" + currentPaper + "\"><b>" + it.y + " Q" + it.q + (topic ? "　" + esc(topic) : "") + "</b><span>" + esc(notePreview(it.c)) + "</span></button>";
-      }).join("");
-    }
+    box.querySelector("summary").textContent = "\u7b46\u8a18\u4e00\u89bd\u3000" + shown.length + (shown.length !== all.length ? "\uff0f" + all.length : "");
+    if (!shown.length) body.innerHTML = "<p class=\"hint\">\u5462\u500b\u7be9\u5187\u7b46\u8a18\u3002</p>";
+    else body.innerHTML = shown.map(function (it) {
+      const topic = [it.part, it.topic].filter(Boolean).join("\u3000");
+      return "<button type=\"button\" class=\"note-row\" data-jump=\"" + it.y + ":" + it.q + "\" data-jump-paper=\"" + currentPaper + "\"><b>" + it.y + " Q" + it.q + (topic ? "\u3000" + esc(topic) : "") + "</b><span>" + esc(notePreview(it.c)) + "</span></button>";
+    }).join("");
     box.open = wasOpen;
   };
-
   const _renderStats = window.renderStats;
   window.renderStats = function renderStats() {
     if (typeof _renderStats === "function") _renderStats();
@@ -101,28 +94,16 @@
     for (var yi = 0; yi < YEARS.length; yi++) {
       var y = YEARS[yi];
       var qs = visQs(y, allQs(currentPaper, y));
-      for (var qi = 0; qi < qs.length; qi++) {
-        total++;
-        counts[getCell(currentPaper, y, qs[qi]).s]++;
-      }
+      for (var qi = 0; qi < qs.length; qi++) { total++; counts[getCell(currentPaper, y, qs[qi]).s]++; }
     }
     var done = total - counts[0];
     var spans = ring.querySelectorAll("span");
     var lab = ring.querySelector(".ring-lab") || spans[0];
-    if (lab) {
-      lab.classList.add("ring-lab");
-      lab.textContent = "已標記　" + done + "/" + total;
-    }
+    if (lab) { lab.classList.add("ring-lab"); lab.textContent = "\u5df2\u6a19\u8a18\u3000" + done + "/" + total; }
     var undo = ring.querySelector(".ring-undo") || ring.querySelector("span.sub") || spans[1];
-    if (undo) {
-      undo.classList.add("ring-undo");
-      undo.textContent = "未做 " + counts[0];
-    }
-    ring.querySelectorAll("span").forEach(function (sp) {
-      if (sp !== lab && sp !== undo) sp.remove();
-    });
+    if (undo) { undo.classList.add("ring-undo"); undo.textContent = "\u672a\u505a " + counts[0]; }
+    ring.querySelectorAll("span").forEach(function (sp) { if (sp !== lab && sp !== undo) sp.remove(); });
   };
-
   const _paintTimer = window.paintTimer;
   window.paintTimer = function paintTimer() {
     if (typeof _paintTimer === "function") _paintTimer();
@@ -138,35 +119,26 @@
     }
     if (extraBtn) extraBtn.hidden = !!extraSeg;
   };
-
   const paperEl = document.getElementById("paper");
   if (paperEl) {
     const prev = paperEl.onchange;
     paperEl.onchange = function (e) {
-      noteTopic = "";
-      notePart = "";
-      noteTag = "";
+      noteTopic = ""; notePart = ""; noteTag = "";
       if (typeof prev === "function") prev.call(this, e);
     };
   }
-
   const noteList = document.getElementById("noteList");
   if (noteList && !noteList.dataset.patchBound) {
     noteList.dataset.patchBound = "1";
     noteList.addEventListener("click", function (e) {
       const part = e.target.closest("[data-note-part]");
-      if (part) {
-        notePart = part.dataset.notePart || "";
-        renderNoteList();
-        e.stopPropagation();
-      }
+      if (part) { notePart = part.dataset.notePart || ""; renderNoteList(); e.stopPropagation(); }
     });
     noteList.addEventListener("change", function (e) {
       if (e.target.id === "noteTopicSel") { noteTopic = e.target.value; renderNoteList(); }
       if (e.target.id === "noteTagSel") { noteTag = e.target.value; renderNoteList(); }
     });
   }
-
   const seg = document.getElementById("timerExtraSeg");
   if (seg && !seg.dataset.patchBound) {
     seg.dataset.patchBound = "1";
@@ -177,24 +149,15 @@
       paintTimer();
     });
   }
-
   try { if (currentView === "tracker") { renderStats(); renderNoteList(); } } catch (e) {}
   try { if (currentView === "timer") paintTimer(); } catch (e) {}
 })();
-
 (function loadM2Overlay() {
-  const files = [
-    "./data/p1-q5-fix.js?v=20260920h",
-    "./app-m2a.js?v=20260920h",
-    "./app-m2b.js?v=20260920h",
-    "./app-m2c.js?v=20260920h"
-  ];
+  const files = ["./data/p1-q5-fix.js?v=20260920i","./app-m2a.js?v=20260920i","./app-m2b.js?v=20260920i","./app-m2c.js?v=20260920i","./app-m2-fix.js?v=20260920i"];
   function next(i) {
     if (i >= files.length) {
       try {
-        window.classEligible = function (pr, paper) {
-          return markedCountOf(pr, paper) >= classMinFor(paper);
-        };
+        window.classEligible = function (pr, paper) { return markedCountOf(pr, paper) >= classMinFor(paper); };
         if (typeof renderPaperSelect === "function") renderPaperSelect();
         if (typeof fillTopicFilter === "function") fillTopicFilter();
         if (typeof currentView !== "undefined" && currentView === "tracker" && typeof renderGrid === "function") renderGrid();
