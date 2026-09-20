@@ -183,14 +183,23 @@
 })();
 
 (function loadM2Overlay() {
-  const files = ["./app-m2a.js?v=20260920g", "./app-m2b.js?v=20260920g"];
+  const files = [
+    "./data/p1-q5-fix.js?v=20260920h",
+    "./app-m2a.js?v=20260920h",
+    "./app-m2b.js?v=20260920h",
+    "./app-m2c.js?v=20260920h"
+  ];
   function next(i) {
     if (i >= files.length) {
       try {
+        window.classEligible = function (pr, paper) {
+          return markedCountOf(pr, paper) >= classMinFor(paper);
+        };
         if (typeof renderPaperSelect === "function") renderPaperSelect();
         if (typeof fillTopicFilter === "function") fillTopicFilter();
         if (typeof currentView !== "undefined" && currentView === "tracker" && typeof renderGrid === "function") renderGrid();
         if (typeof currentView !== "undefined" && currentView === "ability" && typeof renderRadar === "function") renderRadar();
+        if (typeof currentView !== "undefined" && currentView === "items" && typeof renderItemTopics === "function") renderItemTopics();
       } catch (e) {}
       return;
     }
