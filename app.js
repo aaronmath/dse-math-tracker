@@ -2382,7 +2382,7 @@ function renderClassPage() {
       weak.map(x => `<tr class="clickable${prefs.classTopic === x.topic && prefs.classPart === x.part ? " on-row" : ""}" data-class-topic="${esc(x.topic)}" data-class-part="${x.part}">
         <td>${x.part}　${esc(x.topic)}</td>
         <td>${Math.round(x.L * 100)}%</td>
-        <td>${x.hk == null ? "—" : Math.round(x.hk * 100) + "%"}</td>
+        <td class="${x.hk == null ? "" : bandClass(x.hk * 100)}">${x.hk == null ? "—" : Math.round(x.hk * 100) + "%"}</td>
         <td>${x.markedPeople}／${people.length}</td>
         <td>${x.worst ? qJumpHtml(x.worst) : "—"}</td></tr>`).join("")
     }</tbody></table></div>`

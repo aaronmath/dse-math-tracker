@@ -628,7 +628,7 @@
         if (!any && filter) continue;
         const key = keyMap(year)[q] || {};
         const topic = topicOf(year, q) || "";
-        rows.push(`<tr><td>${q}</td><td>${esc(topic)}</td><td>${esc(key.ans || "—")}</td><td>${key.pct == null ? "—" : Math.round(key.pct) + "%"}</td><td>${dist.A}</td><td>${dist.B}</td><td>${dist.C}</td><td>${dist.D}</td><td>${sureBad}</td></tr>`);
+        rows.push(`<tr><td>${q}</td><td>${esc(topic)}</td><td>${esc(key.ans || "—")}</td><td class="${key.pct == null ? "" : bandClass(key.pct)}">${key.pct == null ? "—" : Math.round(key.pct) + "%"}</td><td>${dist.A}</td><td>${dist.B}</td><td>${dist.C}</td><td>${dist.D}</td><td>${sureBad}</td></tr>`);
       }
       body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>題</th><th>課題</th><th>答案</th><th>全港</th><th>A</th><th>B</th><th>C</th><th>D</th><th>黑筆錯</th></tr></thead><tbody>${rows.join("") || `<tr><td colspan="9">冇符合嘅題。</td></tr>`}</tbody></table></div>`;
     } else {
