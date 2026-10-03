@@ -144,4 +144,30 @@ button.stat.ring-stat {
 .class-mc-cell.b { color: #2f6fdb; font-weight: 700; }
 .class-mc-cell.ok { box-shadow: inset 0 -2px 0 #2f5d50; }
 .class-mc-cell.bad { box-shadow: inset 0 -2px 0 #8b3a2d; }
+.mc-analysis { margin-top: 18px; }
+.mc-ana td.ok { color: #2f5d50; font-weight: 700; }
+.mc-ana td.bad { color: #8b3a2d; font-weight: 700; }
+.mc-you.k { color: var(--ink); }
+.mc-you.b { color: #2f6fdb; }
+.mc-sts { white-space: nowrap; }
+.mc-st {
+  border: 1px solid transparent; border-radius: 6px; padding: 2px 6px;
+  font-size: 12px; cursor: pointer; opacity: .4; margin-right: 2px;
+}
+.mc-st.s3 { background: var(--mastered); }
+.mc-st.s2 { background: var(--ok); }
+.mc-st.s1 { background: var(--weak); }
+.mc-st.on { opacity: 1; outline: 2px solid var(--ink); }
+.mc-tag-dot {
+  width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid #c9c0b2;
+  background: #fff; padding: 0; vertical-align: middle; cursor: pointer;
+}
+.mc-tag-dot.on { background: #2f5d50; border-color: #2f5d50; }
+.mc-tagchip {
+  border: 1px solid var(--line); border-radius: 99px; font-size: 11px;
+  padding: 1px 6px; margin: 1px; cursor: pointer; background: #fff;
+}
+.mc-tagpick { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; max-width: 240px; }
+.mc-tagcell { min-width: 72px; }
+
 
