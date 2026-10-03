@@ -170,6 +170,9 @@ button.stat.ring-stat {
 .mc-bar i b { display: block; height: 100%; background: #3d6e8c; }
 .mc-bar.blue i b { background: #2f6fdb; }
 .mc-axis { font-size: 12px; line-height: 1.5; }
+.mc-axis-fold { margin-top: 4px; }
+.mc-axis-fold summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+#mcTagDlg { width: min(360px, 94vw); }
 .mc-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .mc-mark { margin-top: 0; flex-wrap: nowrap; }
 .mc-mark button { height: 26px; padding: 0 8px; }

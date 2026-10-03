@@ -147,10 +147,15 @@
         }
       });
       const name = ax.name.replace("　", " ");
-      return { name, n, v: n ? sum / n : 0 };
+      let hkSum = 0, hkN = 0;
+      items.forEach(x => {
+        const row = keyMap(year)[x.q];
+        if (row && row.pct != null && row.pct !== "") { hkSum += +row.pct / 100; hkN++; }
+      });
+      return { name, n, v: n ? sum / n : 0, hk: hkN ? hkSum / hkN : 0 };
     });
   }
-  function radarHtml(rows) {
+  function radarHtml(rows, showHk) {
     if (!rows.some(r => r.n)) return `<p class="hint">未有可計嘅題。留空唔入平均，冇題嘅軸當 0。</p>`;
     const cx = 170, cy = 170, r = 112, N = rows.length;
     let rings = "", spokes = "", labels = "";
@@ -175,13 +180,19 @@
       const x = cx + r * row.v * Math.cos(ang), y = cy + r * row.v * Math.sin(ang);
       dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#3d6e8c"/>`;
     });
+    let hk = "";
+    if (showHk) {
+      const pts = radarPolyRated(rows.map(row => row.hk || 0), cx, cy, r).join(" ");
+      hk = `<polygon points="${pts}" fill="none" stroke="#8a8178" stroke-width="1.5" stroke-dasharray="5 4"/>`;
+    }
     const stu = `<polygon points="${poly}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>${dots}`;
-    return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${stu}${labels}</svg>`;
+    return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${hk}${stu}${labels}</svg>`;
   }
-  function axisList(rows) {
+  function axisList(rows, showHk) {
     return rows.map(row => {
-      const pct = row.n ? Math.round(row.v * 100) + "%" : "0%";
-      return `<div class="mc-axis">${esc(row.name)}　${row.n} 題　${pct}</div>`;
+      const you = row.n ? Math.round(row.v * 100) + "%" : "0%";
+      const hk = showHk ? `　全港 ${Math.round((row.hk || 0) * 100)}%` : "";
+      return `<div class="mc-axis">${esc(row.name)}　你 ${you}${hk}　${row.n} 題</div>`;
     }).join("");
   }
 
@@ -269,7 +280,7 @@
       ).join("");
       const note = d.touch[q] && d.touch[q].note ? (d.notes[q] || "") : (d.retake ? "" : (getCell("p2", year, q).note || ""));
       const tags = tagsOf(d, q, year);
-      const chosen = tags.map(id => `<button type="button" class="mc-tagchip on" data-mc-tag="${id}" data-mc-q="${q}">${esc(tagName(id))}</button>`).join("");
+      const chosen = tags.map(id => `<button type="button" class="mc-tagchip on" data-mc-tagq="${q}">${esc(tagName(id))}</button>`).join("");
       const you = p && p.letter ? `<b class="mc-you ${p.ink === "b" ? "b" : "k"}">${p.letter}</b>` : "—";
       const mark = hit === false ? "✗" : hit ? "✓" : "";
       const pct = key.pct == null ? "—" : Math.round(key.pct) + "%";
@@ -283,13 +294,6 @@
         <td><input class="mc-note" data-mc-note="${q}" value="${esc(note)}" placeholder="筆記"></td>
         <td class="mc-tagcell"><button type="button" class="mc-tag-dot${tags.length ? " on" : ""}" data-mc-tagq="${q}" aria-label="錯因"></button>${chosen}</td>
       </tr>`);
-      if (d.tagOpen === q) {
-        const picker = TAGS.map(([id, name]) => {
-          const on = tags.includes(id) ? " on" : "";
-          return `<button type="button" class="mc-tagchip${on}" data-mc-tag="${id}" data-mc-q="${q}">${esc(name)}</button>`;
-        }).join("");
-        rows.push(`<tr class="mc-tagbar"><td colspan="8"><div class="mc-tagpick">${picker}</div></td></tr>`);
-      }
     }
     const paperBtns = [
       ["", "全部", 45],
@@ -319,9 +323,9 @@
             <button type="button" class="ghost${!know ? " on-toggle" : ""}" data-mc-radar="mark">對錯</button>
             <button type="button" class="ghost${know ? " on-toggle" : ""}" data-mc-radar="know">明白程度</button>
           </div>
-          ${radarHtml(axes)}
-          <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色係今次對錯，撞中都算對。留空唔入平均，冇題嘅軸當 0。能力頁唔跟呢度。"}</p>
-          <div class="mc-axis-list">${axisList(axes)}</div>
+          ${radarHtml(axes, !know)}
+          <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
+          <details class="mc-axis-fold"${mcUi.axisOpen ? " open" : ""}><summary>軸的數字</summary><div class="mc-axis-list">${axisList(axes, !know)}</div></details>
         </div>
         <div class="mc-scoreboard">
           <div class="stats">
@@ -393,9 +397,59 @@
       ${d.revealed && year ? analysisHtml(year, d) : ""}`;
     mcSeenYear = year;
     persistDrafts();
+    const tagDlg = document.getElementById("mcTagDlg");
+    if (tagDlg && tagDlg.open && d.tagOpen) openTagDlg(d.tagOpen);
     window.scrollTo(0, keep);
   }
 
+  function toggleTag(q, id) {
+    const d = draft();
+    const year = mcYear();
+    const cur = tagsOf(d, q, year).slice();
+    const i = cur.indexOf(id);
+    if (i >= 0) cur.splice(i, 1);
+    else if (cur.length >= 3) return;
+    else cur.push(id);
+    d.tags[q] = cur;
+    d.touch[q] = d.touch[q] || {};
+    d.touch[q].tags = true;
+    d.tagOpen = q;
+    renderMcSheet();
+  }
+  function openTagDlg(q) {
+    const year = mcYear();
+    const d = draft();
+    if (!q || !year) return;
+    d.tagOpen = q;
+    const dlg = document.getElementById("mcTagDlg");
+    if (!dlg) return;
+    const p = d.picks[q];
+    const key = keyMap(year)[q] || {};
+    const you = p && p.letter ? (p.ink === "b" ? "藍筆 " : "黑筆 ") + p.letter : "未填";
+    const bits = [you];
+    if (key.ans) bits.push("答案 " + key.ans);
+    const topic = topicOf(year, q);
+    if (topic) bits.push(topic);
+    const title = document.getElementById("mcTagTitle");
+    const meta = document.getElementById("mcTagMeta");
+    const box = document.getElementById("mcTagBox");
+    if (title) title.textContent = "Q" + q + " 錯因";
+    if (meta) meta.textContent = bits.join("　");
+    const tags = tagsOf(d, q, year);
+    if (box) {
+      box.innerHTML = TAGS.map(([id, name]) => {
+        const on = tags.includes(id) ? " on" : "";
+        return `<button type="button" class="mc-tagchip${on}" data-mc-tag="${id}" data-mc-q="${q}">${esc(name)}</button>`;
+      }).join("");
+    }
+    if (!dlg.open) dlg.showModal();
+  }
+  function closeTagDlg() {
+    const d = draft();
+    d.tagOpen = 0;
+    const dlg = document.getElementById("mcTagDlg");
+    if (dlg && dlg.open) dlg.close();
+  }
   function fillLeast(part) {
     const d = draft();
     const from = part === "A" ? 1 : 31;
@@ -740,6 +794,9 @@
 
   const sheet = document.getElementById("mcSheet");
   if (sheet) {
+    sheet.addEventListener("toggle", e => {
+      if (e.target.classList && e.target.classList.contains("mc-axis-fold")) mcUi.axisOpen = e.target.open;
+    }, true);
     sheet.addEventListener("click", e => {
       const penBtn = e.target.closest("[data-mc-pen]");
       if (penBtn) { prefs.mcPen = penBtn.dataset.mcPen; savePrefs(); renderMcSheet(); return; }
@@ -791,13 +848,7 @@
         return;
       }
       const tagDot = e.target.closest("[data-mc-tagq]");
-      if (tagDot) {
-        const q = +tagDot.dataset.mcTagq;
-        const d = draft();
-        d.tagOpen = d.tagOpen === q ? 0 : q;
-        renderMcSheet();
-        return;
-      }
+      if (tagDot) { openTagDlg(+tagDot.dataset.mcTagq); return; }
       const st = e.target.closest("[data-mc-s]");
       if (st) {
         const q = +st.dataset.mcQ;
@@ -920,5 +971,22 @@
       paintSound();
     });
     paintSound();
+  }
+  const tagDlg = document.getElementById("mcTagDlg");
+  if (tagDlg) {
+    tagDlg.addEventListener("click", e => {
+      if (e.target === tagDlg || e.target.id === "mcTagClose") {
+        closeTagDlg();
+        renderMcSheet();
+        return;
+      }
+      const tagBtn = e.target.closest("[data-mc-tag]");
+      if (!tagBtn) return;
+      toggleTag(+tagBtn.dataset.mcQ, tagBtn.dataset.mcTag);
+    });
+    tagDlg.addEventListener("close", () => {
+      const d = draft();
+      if (d.tagOpen) d.tagOpen = 0;
+    });
   }
 })();
