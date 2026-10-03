@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20260920m" />
-  <link rel="stylesheet" href="./patch.css?v=20260920m" />
+  <link rel="stylesheet" href="./patch.css?v=20261003a" />
 </head>
 <body>
   <header>
@@ -284,6 +284,7 @@
         <button type="button" class="ghost" id="classScoreCsv">匯出成績 CSV</button>
       </div>
       <div style="overflow:auto" id="classScores"></div>
+      <div id="classMc"></div>
       <div id="classRoster"></div>
     </section>
     <section class="view" id="view-timer">
@@ -319,6 +320,7 @@
         <button type="button" class="ghost" id="timerSave" hidden>寫入進度</button>
         <button type="button" class="ghost" id="timerReset">重設</button>
       </div>
+      <div id="mcSheet" hidden></div>
     </section>
   </main>
   <footer>Powered by Chan Yiu Hei</footer>
@@ -417,5 +419,6 @@
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
   <script src="./app-m2-ui.js?v=20260920m"></script>
+  <script src="./app-mc-sheet.js?v=20261003a"></script>
 </body>
 </html>
