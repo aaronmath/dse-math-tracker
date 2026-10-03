@@ -2038,6 +2038,16 @@ function paintTimer() {
     const can = (timerRun.paused || timerRun.ended) && ySel && ySel.value;
     saveBtn.hidden = !can;
   }
+  const go = document.getElementById("timerStart");
+  if (go) {
+    const ended = !!(timerRun.ended || (timerRun.start && rem <= 0));
+    const running = !!(timerRun.start && !timerRun.paused && !ended);
+    const paused = !!(timerRun.start && timerRun.paused && !ended);
+    go.hidden = ended;
+    go.classList.toggle("timer-pause", running);
+    go.classList.toggle("timer-go", !running);
+    go.textContent = running ? "暫停" : paused ? "繼續" : "開始";
+  }
 }
 function timerTick() {
   const rem = timerRemain();
@@ -3231,6 +3241,13 @@ document.getElementById("timerExtra").onclick = () => {
 setChange("timerSound", e => { prefs.timerSound = e.target.checked; savePrefs(); });
 document.getElementById("timerStart").onclick = () => {
   if (timerRun.ended) return;
+  if (timerRun.start && !timerRun.paused) {
+    timerRun.paused = true;
+    timerRun.pause = Date.now();
+    clearInterval(timerRun.tick);
+    paintTimer();
+    return;
+  }
   if (!timerRun.start) {
     timerRun.start = Date.now();
     timerRun.paused = false;
@@ -3247,7 +3264,8 @@ document.getElementById("timerStart").onclick = () => {
   timerRun.tick = setInterval(timerTick, 250);
   paintTimer();
 };
-document.getElementById("timerPause").onclick = () => {
+const timerPauseBtn = document.getElementById("timerPause");
+if (timerPauseBtn) timerPauseBtn.onclick = () => {
   if (!timerRun.start || timerRun.ended || timerRun.paused) return;
   timerRun.paused = true;
   timerRun.pause = Date.now();

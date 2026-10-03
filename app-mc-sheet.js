@@ -232,6 +232,24 @@
     if (d.retake) return 0;
     return (getCell("p2", year, q).s) || 0;
   }
+  function willMing(year, q) {
+    const saved = getCell("p2", year, q);
+    return saved.s === 1 || saved.s === 2 || !!(saved.s === 3 && saved.w);
+  }
+  function batchCount(year, d, kind) {
+    let n = 0;
+    for (let q = 1; q <= 45; q++) {
+      const p = d.picks[q];
+      if (!p || !p.letter) continue;
+      const hit = judged(year, q, p.letter);
+      const blue = p.ink === "b";
+      const st = shownStatus(d, year, q);
+      if (kind === "sure-ok" && !blue && hit && st !== 3) n++;
+      else if (kind === "sure-bad" && !blue && hit === false && st !== 1) n++;
+      else if (kind === "guess-bad" && blue && hit === false && st !== 1) n++;
+    }
+    return n;
+  }
   function paperKind(year, d, q) {
     const p = d.picks[q];
     if (!p || !p.letter) return "blank";
@@ -239,7 +257,7 @@
     return judged(year, q, p.letter) ? "ok" : "bad";
   }
   function donutSvg(ok, bad, blank) {
-    const parts = [[ok, "#3d6e8c"], [bad, "#8b3a2d"], [blank, "#c4bdb3"]];
+    const parts = [[ok, "#3e9a62"], [bad, "#d15a4a"], [blank, "#d9d3c8"]];
     const total = ok + bad + blank || 1;
     const radius = 42, circ = 2 * Math.PI * radius;
     let acc = 0;
@@ -275,9 +293,11 @@
       const p = d.picks[q];
       const key = keyMap(year)[q] || {};
       const hit = p && p.letter ? judged(year, q, p.letter) : null;
-      const chips = [[3, "ok", "已掌握"], [2, "warn", "一般"], [1, "danger", "唔識"]].map(([sv, cls, lab]) =>
-        `<button type="button" class="${cls}${st === sv ? "" : " fade"}" data-mc-s="${sv}" data-mc-q="${q}">${lab}</button>`
-      ).join("");
+      const chips = [[3, "ok", "已掌握"], [2, "warn", "一般"], [1, "danger", "唔識"]].map(([sv, cls, lab]) => {
+        const on = st === sv;
+        const ming = sv === 3 && on && willMing(year, q);
+        return `<button type="button" class="${cls}${ming ? " ming" : ""}${on ? "" : " fade"}" data-mc-s="${sv}" data-mc-q="${q}">${ming ? "已掌握　明返" : lab}</button>`;
+      }).join("");
       const note = d.touch[q] && d.touch[q].note ? (d.notes[q] || "") : (d.retake ? "" : (getCell("p2", year, q).note || ""));
       const tags = tagsOf(d, q, year);
       const chosen = tags.map(id => `<button type="button" class="mc-tagchip on" data-mc-tagq="${q}">${esc(tagName(id))}</button>`).join("");
@@ -312,11 +332,6 @@
     const wrong = s.seen - s.ok;
     return `<section class="mc-analysis">
       <h3 class="sec-title">分析</h3>
-      <div class="mc-status-tools">
-        <button type="button" class="ghost" data-mc-batch="sure-ok">黑筆答對標已掌握</button>
-        <button type="button" class="ghost" data-mc-batch="sure-bad">黑筆答錯標唔識</button>
-        <button type="button" class="ghost" data-mc-batch="guess-bad">藍筆答錯標唔識</button>
-      </div>
       <div class="mc-review">
         <div class="radar-box">
           <div class="mc-tools">
@@ -350,6 +365,11 @@
       </div>
       <div class="mc-filters">${paperBtns}<button type="button" class="ghost" id="mcFilterReset">重設</button></div>
       <div class="mc-filters">${statHtml}</div>
+      <div class="mc-status-tools">
+        <button type="button" class="mc-batch" data-mc-batch="sure-ok">黑筆答對標已掌握 ${batchCount(year, d, "sure-ok")}</button>
+        <button type="button" class="mc-batch badb" data-mc-batch="sure-bad">黑筆答錯標唔識 ${batchCount(year, d, "sure-bad")}</button>
+        <button type="button" class="mc-batch blueb" data-mc-batch="guess-bad">藍筆答錯標唔識 ${batchCount(year, d, "guess-bad")}</button>
+      </div>
       <div style="overflow:auto">
         <table class="data-table mc-ana">
           <thead><tr><th>題</th><th>你的</th><th>正確</th><th>課題</th><th>全港</th><th>狀態</th><th>筆記</th><th>錯因</th></tr></thead>
@@ -374,15 +394,17 @@
     const saved = yearHasSaved(year);
     let banner = "";
     if (year && d.retake) {
-      banner = `<p class="hint">${year} 再操一次。未寫入之前，舊記錄仲喺。 <button type="button" class="ghost" data-mc-saved="1">改返上次</button></p>`;
+      banner = `<p class="hint">${year} 再做一次。未寫入之前，舊記錄仲喺。 <button type="button" class="ghost" data-mc-saved="1">改返上次</button></p>`;
     } else if (year && saved) {
-      banner = `<p class="hint">${year} 已有記錄。而家係改呢次。 <button type="button" class="ghost" data-mc-retake="1">再操一次</button></p>`;
+      banner = `<p class="hint">${year} 已有記錄。而家係改呢次。 <button type="button" class="ghost" data-mc-retake="1">再做一次</button></p>`;
     }
     box.innerHTML = `
       ${banner}
       <div class="mc-tools">
-        <button type="button" class="ghost${ink === "k" ? " on-toggle" : ""}" data-mc-pen="k">黑筆</button>
-        <button type="button" class="ghost${ink === "b" ? " on-toggle" : ""}" data-mc-pen="b">藍筆</button>
+        <div class="seg pen" role="group" aria-label="筆色">
+          <button type="button" class="${ink === "k" ? "on" : ""}" data-mc-pen="k">黑筆</button>
+          <button type="button" class="${ink === "b" ? "on pen-b" : ""}" data-mc-pen="b">藍筆</button>
+        </div>
         <button type="button" class="ghost" data-mc-least="A">甲部空白撞最少</button>
         <button type="button" class="ghost" data-mc-least="B">乙部空白撞最少</button>
       </div>
@@ -484,6 +506,7 @@
       else if (kind === "sure-bad" && !blue && hit === false) s = 1;
       else if (kind === "guess-bad" && blue && hit === false) s = 1;
       else continue;
+      if (shownStatus(d, year, q) === s) continue;
       d.status[q] = s;
       d.touch[q] = d.touch[q] || {};
       d.touch[q].s = true;
@@ -534,10 +557,14 @@
         if (!cell.s && !(cell.note && cell.note.length) && !(cell.tags && cell.tags.length)) delete pr.cells[k];
       }
       if (d.touch[q] && d.touch[q].s) {
+        const prev = getCell("p2", year, q);
+        const prevS = prev.s || 0;
+        const prevW = !!prev.w;
         cell = pr.cells[k] || { s: 0, note: "", tags: [] };
         cell.s = d.status[q] || 0;
         if (cell.s === 1 || cell.s === 2) cell.w = 1;
         else if (cell.s === 0) cell.w = 0;
+        else if (cell.s === 3) cell.w = (prevS === 1 || prevS === 2 || prevW) ? 1 : 0;
         pr.cells[k] = cell;
       }
       if (d.touch[q] && d.touch[q].note) {
@@ -804,7 +831,7 @@
       if (leastBtn) { fillLeast(leastBtn.dataset.mcLeast); return; }
       if (e.target.closest("[data-mc-retake]")) {
         const d = draft();
-        if (draftHasWork(d) && !d.retake && !confirm("清空畫面再操一次？未寫入之前，舊記錄仲喺。")) return;
+        if (draftHasWork(d) && !d.retake && !confirm("清空畫面再做一次？未寫入之前，舊記錄仲喺。")) return;
         const y = mcYear();
         const next = blankDraft();
         next.retake = true;
