@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20260920m" />
-  <link rel="stylesheet" href="./patch.css?v=20261003b" />
+  <link rel="stylesheet" href="./patch.css?v=20261003c" />
 </head>
 <body>
   <header>
@@ -309,7 +309,11 @@
           <button type="button" data-extra="0">不加時</button>
           <button type="button" data-extra="1">加時</button>
         </div>
-        <label class="chk"><input type="checkbox" id="timerSound" /> 結束音效　關／開</label>
+        <div class="seg" id="timerSoundSeg" role="group" aria-label="結束音效">
+          <button type="button" data-sound="1">音效開</button>
+          <button type="button" data-sound="0">音效關</button>
+        </div>
+        <input type="checkbox" id="timerSound" hidden />
       </div>
       <div class="timer-clock" id="timerClock">0:00:00</div>
       <div class="timer-sub" id="timerElapsed">已用 0:00:00</div>
@@ -419,6 +423,6 @@
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
   <script src="./app-m2-ui.js?v=20260920m"></script>
-  <script src="./app-mc-sheet.js?v=20261003b"></script>
+  <script src="./app-mc-sheet.js?v=20261003c"></script>
 </body>
 </html>
