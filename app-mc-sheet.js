@@ -467,9 +467,9 @@
       ["blank", "留空", "fp-blank", kinds.blank]
     ].map(([key, lab, cls, n]) => `<button type="button" class="mk-stf ${cls}${mcUi.paper === key ? " on" : ""}" data-mc-fp="${key}">${lab} (${n})</button>`).join("");
     const statHtml = [
-      ["1", "唔識", "st1", statusN[1]],
-      ["2", "一般", "st2", statusN[2]],
       ["3", "已掌握", "st3", statusN[3]],
+      ["2", "一般", "st2", statusN[2]],
+      ["1", "唔識", "st1", statusN[1]],
       ["0", "未標", "st0", statusN[0]]
     ].map(([key, lab, cls, n]) => `<button type="button" class="mk-stf ${cls}${mcUi.status === key ? " on" : ""}" data-mc-fs="${key}">${lab} (${n})</button>`).join("");
     const clearOn = !mcUi.paper && mcUi.status === "" && !mcUi.axis && !mcUi.topic && !mcUi.sec ? " on" : "";
@@ -503,15 +503,6 @@
         </div>
       </div>
       <div class="mc-scoreboard score-card">
-        <div class="stats">
-          <div class="stat"><b>${s.ok}/45</b><span>全卷</span></div>
-          <div class="stat"><b>${s.sec.A.ok}/30</b><span>甲</span></div>
-          <div class="stat"><b>${s.sec.B.ok}/15</b><span>乙</span></div>
-          <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
-          <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
-          <div class="stat"><b>${s.blank}</b><span>留空</span></div>
-          <div class="stat"><b>${s.sureBad}</b><span>信心錯</span></div>
-        </div>
         <div class="mc-visual mk-visual">
           ${donutSvg(s.ok, wrong, s.blank)}
           <div class="mk-bars">
@@ -519,6 +510,12 @@
             ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c")}
             ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a")}
           </div>
+        </div>
+        <div class="stats">
+          <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
+          <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
+          <div class="stat"><b>${s.blank}</b><span>留空</span></div>
+          <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
         </div>
         <p class="hint">圓環係答對、答錯、留空。撳甲或乙篩下面的題。</p>
       </div>

@@ -287,9 +287,9 @@
     if (mkUi.st !== "") bits.push(["未做", "唔識", "一般", "已掌握"][+mkUi.st] || "");
     if (mkUi.blank) bits.push("未入分");
     const watch = bits.filter(Boolean).join(" · ");
-    const filters = [["", "全部", ""], ["0", "未做", " st0"], ["1", "唔識", " st1"], ["2", "一般", " st2"], ["3", "已掌握", " st3"]].map(([v, lab, cls]) => {
+    const filters = [["3", "已掌握", " st3"], ["2", "一般", " st2"], ["1", "唔識", " st1"], ["0", "未做", " st0"]].map(([v, lab, cls]) => {
       return `<button type="button" class="mk-stf${cls}${mkUi.st === v ? " on" : ""}" data-mk-stf="${v}">${lab}</button>`;
-    }).join("") + `<button type="button" class="mk-stf stblank${mkUi.blank ? " on" : ""}" data-mk-blank="1">未入分</button>`;
+    }).join("") + `<button type="button" class="mk-stf stblank${mkUi.blank ? " on" : ""}" data-mk-blank="1">未入分</button>` + `<button type="button" class="mk-stf${mkUi.st === "" ? " on" : ""}" data-mk-stf="">全部</button>`;
     box.innerHTML = `<section class="mc-analysis">
       <h3 class="sec-title">評卷</h3>
       <div class="mc-review mk-top">
