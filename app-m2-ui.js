@@ -519,7 +519,7 @@ function jumpTrackerTopic(paper, topic) {
     currentPaper = prevPaper;
     topicFilter = prevTopic;
     cellFilter = prevCell;
-    alert("呢個課題而家篩選下冇題。");
+    askBox({ notice: true, text: "呢個課題而家篩選下冇題。" });
     return;
   }
   showView("tracker");

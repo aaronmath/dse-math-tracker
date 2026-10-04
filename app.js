@@ -200,6 +200,58 @@ function setCell(paper, year, q, patch) {
   save();
 }
 function isMing(c) { return !!(c && c.s === 3 && c.w); }
+function askBox(opts) {
+  const o = opts || {};
+  const job = () => new Promise(resolve => {
+    const dlg = document.getElementById("askDlg");
+    const title = document.getElementById("askTitle");
+    const text = document.getElementById("askText");
+    const input = document.getElementById("askInput");
+    const area = document.getElementById("askArea");
+    const choices = document.getElementById("askChoices");
+    const ok = document.getElementById("askOk");
+    const cancel = document.getElementById("askCancel");
+    title.textContent = o.title || "";
+    title.hidden = !o.title;
+    text.textContent = o.text || "";
+    text.hidden = !o.text;
+    const multi = !!o.multiline;
+    input.hidden = !o.input || multi;
+    area.hidden = !o.input || !multi;
+    if (o.input) (multi ? area : input).value = o.value == null ? "" : String(o.value);
+    choices.innerHTML = "";
+    const list = o.choices || [];
+    choices.hidden = !list.length;
+    let done = false;
+    const finish = v => {
+      if (done) return;
+      done = true;
+      if (dlg.open) dlg.close();
+      resolve(v);
+    };
+    list.forEach(c => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = c.label;
+      b.onclick = () => finish(c.value);
+      choices.appendChild(b);
+    });
+    const notice = !!o.notice;
+    cancel.hidden = notice;
+    ok.hidden = !!list.length;
+    ok.textContent = o.ok || (notice ? "知道" : "確定");
+    cancel.textContent = "取消";
+    ok.onclick = () => finish(o.input ? (multi ? area : input).value : true);
+    cancel.onclick = () => finish(o.input || list.length ? null : false);
+    dlg.oncancel = ev => { ev.preventDefault(); finish(o.input || list.length ? null : false); };
+    if (!dlg.open) dlg.showModal();
+    if (o.input) (multi ? area : input).focus();
+  });
+  const prev = askBox.q || Promise.resolve();
+  const next = prev.then(job, job);
+  askBox.q = next.then(() => {}, () => {});
+  return next;
+}
 function applyStatus(paper, year, q, next, how) {
   const cur = getCell(paper, year, q);
   const patch = { s: next };
@@ -1053,7 +1105,7 @@ function pepLine(b) {
 }
 function openSumDlg() {
   if (markedPaperCount(weakPaperId()) === 0) {
-    alert("去進度標記" + paperLabel(weakPaperId()) + "先出摘要。");
+    askBox({ notice: true, text: "去進度標記" + paperLabel(weakPaperId()) + "先出摘要。" });
     return;
   }
   const b = axisBuckets();
@@ -1909,8 +1961,8 @@ function copyHw() {
     setTimeout(() => { btn.textContent = old; btn.disabled = false; }, 2000);
   };
   if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(t).then(done, () => { window.prompt("複製以下內容", t); done(); });
-  } else { window.prompt("複製以下內容", t); done(); }
+    navigator.clipboard.writeText(t).then(done, () => { askBox({ title: "複製以下內容", text: "選取下面文字再複製。", input: true, multiline: true, value: t, ok: "關閉", notice: true }); done(); });
+  } else { askBox({ title: "複製以下內容", text: "選取下面文字再複製。", input: true, multiline: true, value: t, ok: "關閉", notice: true }); done(); }
 }
 function csvHw() {
   const rows = hwRows();
@@ -1948,7 +2000,7 @@ function jumpP1Topic(topic) {
     currentPaper = prevPaper;
     topicFilter = prevTopic;
     cellFilter = prevCell;
-    alert("呢個課題而家篩選下冇題。");
+    askBox({ notice: true, text: "呢個課題而家篩選下冇題。" });
     return;
   }
   showView("tracker");
@@ -2578,7 +2630,7 @@ function jsonForNames(names) {
   return { currentProfile: names[0] || currentProfile, profiles, classes: classNames() };
 }
 function exportNamesJson(names, filename) {
-  if (!names.length) { alert("無學生"); return; }
+  if (!names.length) { askBox({ notice: true, text: "無學生" }); return; }
   downloadBlob(new Blob([JSON.stringify(jsonForNames(names), null, 2)], { type: "application/json;charset=utf-8" }), filename);
 }
 const CRC_T = (() => {
@@ -2622,7 +2674,7 @@ function zipStore(files) {
   return out;
 }
 function exportClassZip(names, zipName) {
-  if (!names.length) { alert("呢班無學生"); return; }
+  if (!names.length) { askBox({ notice: true, text: "呢班無學生" }); return; }
   const files = names.map(n => ({
     name: "dse-math-tracker-" + safeFilePart(n) + ".json",
     text: JSON.stringify({ currentProfile: n, profiles: { [n]: db.profiles[n] } }, null, 2)
@@ -2773,21 +2825,25 @@ document.getElementById("addProfile").onclick = () => {
   if (currentView === "tracker") renderTracker();
 };
 document.getElementById("renameProfile").onclick = () => {
-  const name = prompt("新名稱", currentProfile);
-  if (!name || name === currentProfile) return;
-  if (db.profiles[name]) { alert("已有呢個名稱"); return; }
-  db.profiles[name] = db.profiles[currentProfile];
-  db.profiles[name].name = name;
-  delete db.profiles[currentProfile];
-  currentProfile = name; save(); renderProfiles();
+  askBox({ title: "新名稱", input: true, value: currentProfile }).then(name => {
+    name = name == null ? "" : String(name).trim();
+    if (!name || name === currentProfile) return;
+    if (db.profiles[name]) { askBox({ notice: true, text: "已有呢個名稱" }); return; }
+    db.profiles[name] = db.profiles[currentProfile];
+    db.profiles[name].name = name;
+    delete db.profiles[currentProfile];
+    currentProfile = name; save(); renderProfiles();
+  });
 };
 document.getElementById("delProfile").onclick = () => {
-  if (Object.keys(db.profiles).length < 2) { alert("至少留一個學生"); return; }
-  if (!confirm("刪除「" + currentProfile + "」？此操作不可還原。")) return;
-  delete db.profiles[currentProfile];
-  currentProfile = Object.keys(db.profiles)[0];
-  save();
-  if (currentView === "tracker") renderTracker(); else renderProfiles();
+  if (Object.keys(db.profiles).length < 2) { askBox({ notice: true, text: "至少留一個學生" }); return; }
+  askBox({ title: "刪除學生", text: "刪除「" + currentProfile + "」？此操作不可還原。" }).then(ok => {
+    if (!ok) return;
+    delete db.profiles[currentProfile];
+    currentProfile = Object.keys(db.profiles)[0];
+    save();
+    if (currentView === "tracker") renderTracker(); else renderProfiles();
+  });
 };
 setChange("paper", e => { currentPaper = e.target.value; selected.clear(); topicFilter = ""; renderTracker(); });
 setClick("batchBtn", () => { batch = !batch; selected.clear(); renderTracker(); });
@@ -2972,20 +3028,24 @@ onId("grid", "click", e => {
   if (dateClear) {
     const y = +dateClear.dataset.dateClear;
     const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[currentPaper] || currentPaper;
-    if (!confirm("清除 " + y + " " + short + "操卷日？")) return;
-    pushUndo();
-    setDate(currentPaper, y, "");
-    renderTracker();
+    askBox({ title: "清除操卷日", text: "清除 " + y + " " + short + "操卷日？" }).then(ok => {
+      if (!ok) return;
+      pushUndo();
+      setDate(currentPaper, y, "");
+      renderTracker();
+    });
     return;
   }
   const timeClear = e.target.closest("[data-time-clear]");
   if (timeClear) {
     const y = +timeClear.dataset.timeClear;
     const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[currentPaper] || currentPaper;
-    if (!confirm("清除 " + y + " " + short + "用時？")) return;
-    pushUndo();
-    setTimeSec(currentPaper, y, 0);
-    renderTracker();
+    askBox({ title: "清除用時", text: "清除 " + y + " " + short + "用時？" }).then(ok => {
+      if (!ok) return;
+      pushUndo();
+      setTimeSec(currentPaper, y, 0);
+      renderTracker();
+    });
     return;
   }
   const cell = e.target.closest(".cell");
@@ -3068,7 +3128,7 @@ onId("yearJump", "click", e => {
 });
 onId("tagBox", "change", () => {
   const boxes = [...document.querySelectorAll("#tagBox input:checked")];
-  if (boxes.length > 3) { boxes[boxes.length - 1].checked = false; alert("每題最多 3 個錯因標籤"); }
+  if (boxes.length > 3) { boxes[boxes.length - 1].checked = false; askBox({ notice: true, text: "每題最多 3 個錯因標籤" }); }
 });
 setClick("noteCancel", () => document.getElementById("noteDlg").close());
 document.getElementById("noteSave").onclick = () => {
@@ -3283,10 +3343,12 @@ document.getElementById("timerSave").onclick = () => {
   if (!y) return;
   const used = timerUsedSec();
   const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[paper] || paper;
-  if (!confirm("將 " + fmtHm(used) + " 記入 " + y + " " + short + "進度？")) return;
-  pushUndo();
-  setTimeSec(paper, y, used);
-  if (currentView === "tracker" && currentPaper === paper) renderTracker();
+  askBox({ title: "寫入用時", text: "將 " + fmtHm(used) + " 記入 " + y + " " + short + "進度？" }).then(ok => {
+    if (!ok) return;
+    pushUndo();
+    setTimeSec(paper, y, used);
+    if (currentView === "tracker" && currentPaper === paper) renderTracker();
+  });
 };
 document.getElementById("timerReset").onclick = () => {
   clearInterval(timerRun.tick);
@@ -3628,7 +3690,7 @@ async function openXferShow() {
     const text = await encodeQrText(prof());
     drawQrWithLogo(document.getElementById("xferQr"), text);
   } catch (err) {
-    alert("出示失敗：" + err.message + "。改用匯出 JSON。");
+    askBox({ notice: true, text: "出示失敗：" + err.message + "。改用匯出 JSON。" });
     return;
   }
   dlg.showModal();
@@ -3714,10 +3776,10 @@ function readQrFromImageFile(file) {
     ctx.drawImage(img, 0, 0);
     const data = ctx.getImageData(0, 0, c.width, c.height);
     const code = typeof jsQR === "function" ? jsQR(data.data, c.width, c.height) : null;
-    if (!code) { alert("認唔到進度碼，試下近啲、光啲。"); return; }
-    acceptQrText(code.data).then(ok => { if (!ok) alert("認唔到進度碼，試下近啲、光啲。"); });
+    if (!code) { askBox({ notice: true, text: "認唔到進度碼，試下近啲、光啲。" }); return; }
+    acceptQrText(code.data).then(ok => { if (!ok) askBox({ notice: true, text: "認唔到進度碼，試下近啲、光啲。" }); });
   };
-  img.onerror = () => { URL.revokeObjectURL(url); alert("圖片讀唔到"); };
+  img.onerror = () => { URL.revokeObjectURL(url); askBox({ notice: true, text: "圖片讀唔到" }); };
   img.src = url;
 }
 function exportCurrentJson() {
@@ -3837,16 +3899,17 @@ document.getElementById("importFile").onchange = e => {
         return incoming;
       });
       const exist = incomingNames.filter(n => db.profiles[n]).length;
+      const go = () => {
+        let last = currentProfile;
+        parsed.forEach((incoming, i) => { last = mergeOne(incoming, list[i].name) || last; });
+        currentProfile = db.profiles[last] ? last : currentProfile;
+        refreshAfterProfile();
+      };
       if (classUnlocked()) {
-        const msg = "將匯入 " + incomingNames.length + " 個學生（其中 " + exist + " 個同名會覆蓋進度）。繼續？";
-        if (!confirm(msg)) return;
-      }
-      let last = currentProfile;
-      parsed.forEach((incoming, i) => { last = mergeOne(incoming, list[i].name) || last; });
-      currentProfile = db.profiles[last] ? last : currentProfile;
-      refreshAfterProfile();
+        askBox({ title: "匯入", text: "將匯入 " + incomingNames.length + " 個學生（其中 " + exist + " 個同名會覆蓋進度）。繼續？" }).then(ok => { if (ok) go(); });
+      } else go();
     })
-    .catch(err => alert("匯入失敗：" + err.message));
+    .catch(err => askBox({ notice: true, text: "匯入失敗：" + err.message }));
 };
 
 const _ts = document.getElementById("timerSound"); if (_ts) _ts.checked = !!prefs.timerSound;
@@ -3955,37 +4018,41 @@ document.getElementById("classExit").onclick = () => {
   if (currentView === "class") showView("tracker");
 };
 document.getElementById("classAddBtn").onclick = () => {
-  const name = prompt("班名");
-  if (!name || !name.trim()) return;
-  ensureClassName(name.trim());
-  prefs.classSel = name.trim();
-  save(); savePrefs();
-  renderProfileClass();
-  renderClassPage();
+  askBox({ title: "班名", input: true }).then(name => {
+    if (name == null || !String(name).trim()) return;
+    ensureClassName(String(name).trim());
+    prefs.classSel = String(name).trim();
+    save(); savePrefs();
+    renderProfileClass();
+    renderClassPage();
+  });
 };
 document.getElementById("classRenameBtn").onclick = () => {
   if (!prefs.classSel || prefs.classSel === "__none") return;
-  const name = prompt("新班名", prefs.classSel);
-  if (!name || !name.trim() || name.trim() === prefs.classSel) return;
-  const old = prefs.classSel, neu = name.trim();
-  if (classNames().includes(neu)) { alert("已有呢個班名"); return; }
-  db.classes = classNames().map(n => n === old ? neu : n);
-  Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = neu; });
-  prefs.classSel = neu;
-  save(); savePrefs();
-  renderProfileClass();
-  renderClassPage();
+  askBox({ title: "新班名", input: true, value: prefs.classSel }).then(name => {
+    if (name == null || !String(name).trim() || String(name).trim() === prefs.classSel) return;
+    const old = prefs.classSel, neu = String(name).trim();
+    if (classNames().includes(neu)) { askBox({ notice: true, text: "已有呢個班名" }); return; }
+    db.classes = classNames().map(n => n === old ? neu : n);
+    Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = neu; });
+    prefs.classSel = neu;
+    save(); savePrefs();
+    renderProfileClass();
+    renderClassPage();
+  });
 };
 document.getElementById("classDelBtn").onclick = () => {
   if (!prefs.classSel || prefs.classSel === "__none") return;
-  if (!confirm("刪班「" + prefs.classSel + "」？學生改為未分班，進度保留。")) return;
-  const old = prefs.classSel;
-  db.classes = classNames().filter(n => n !== old);
-  Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = ""; });
-  prefs.classSel = classNames()[0] || "__none";
-  save(); savePrefs();
-  renderProfileClass();
-  renderClassPage();
+  askBox({ title: "刪班", text: "刪班「" + prefs.classSel + "」？學生改為未分班，進度保留。" }).then(ok => {
+    if (!ok) return;
+    const old = prefs.classSel;
+    db.classes = classNames().filter(n => n !== old);
+    Object.values(db.profiles).forEach(p => { if (p.className === old) p.className = ""; });
+    prefs.classSel = classNames()[0] || "__none";
+    save(); savePrefs();
+    renderProfileClass();
+    renderClassPage();
+  });
 };
 setClick("classCsvBtn", exportClassCsv);
 setClick("classScoreCsv", exportScoreCsv);

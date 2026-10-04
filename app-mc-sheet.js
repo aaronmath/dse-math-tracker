@@ -6,7 +6,7 @@
   let mcSeenYear = null;
   let mcWho = "";
   const classUi = { mode: "person", filter: "", open: "" };
-  const mcUi = { paper: "", status: "", axis: "", radarKey: "" };
+  const mcUi = { paper: "", status: "", axis: "", radarKey: "", leastMsg: "", pinSheet: false };
 
   function mcYear() {
     const el = document.getElementById("timerYear");
@@ -230,6 +230,10 @@
     return (getCell("p2", year, q).s) || 0;
   }
   function willMing(year, q) {
+    const d = draft();
+    const picked = d.picks[q];
+    const hit = picked && picked.letter ? judged(year, q, picked.letter) : null;
+    if (d.touch[q] && d.touch[q].s && (d.status[q] || 0) === 3 && hit === false) return true;
     const saved = getCell("p2", year, q);
     return saved.s === 1 || saved.s === 2 || !!(saved.s === 3 && saved.w);
   }
@@ -383,7 +387,7 @@
           <tbody>${rows.join("") || `<tr><td colspan="8">冇符合嘅題。</td></tr>`}</tbody>
         </table>
       </div>
-      <div class="mc-tools"><button type="button" id="mcWrite">寫入進度</button></div>
+      <div class="mc-tools">${year && d.revealed && !d.retake ? `<button type="button" class="ghost" data-mc-retake="1">再做一次</button>` : ""}<button type="button" id="mcWrite">寫入進度</button></div>
     </section>`;
   }
 
@@ -401,9 +405,11 @@
     const saved = yearHasSaved(year);
     let banner = "";
     if (year && d.retake) {
-      banner = `<p class="hint">${year} 再做一次。未寫入之前，舊記錄仲喺。 <button type="button" class="ghost" data-mc-saved="1">改返上次</button></p>`;
-    } else if (year && saved) {
-      banner = `<p class="hint">${year} 已有記錄。而家係改呢次。 <button type="button" class="ghost" data-mc-retake="1">再做一次</button></p>`;
+      banner = saved
+        ? `<p class="hint">${year} 再做一次。未寫入之前，舊記錄仲喺。 <button type="button" class="ghost" data-mc-saved="1">改返上次</button></p>`
+        : `<p class="hint">${year} 再做一次。今次未寫入過。</p>`;
+    } else if (year && d.revealed) {
+      banner = `<p class="hint">${year} 已對答案。 <button type="button" class="ghost" data-mc-retake="1">再做一次</button></p>`;
     }
     box.innerHTML = `
       ${banner}
@@ -415,7 +421,7 @@
         <button type="button" class="ghost" data-mc-least="A">甲部空白撞最少</button>
         <button type="button" class="ghost" data-mc-least="B">乙部空白撞最少</button>
       </div>
-      <p class="hint">黑筆＝有信心。藍筆＝撞。再撳同一格就清走。${year ? "" : "揀年份先可以對答案同寫入。"}</p>
+      <p class="hint">黑筆＝有信心。藍筆＝撞。再撳同一格就清走。${mcUi.leastMsg ? " " + esc(mcUi.leastMsg) + "。" : ""}${year ? "" : "揀年份先可以對答案同寫入。"}</p>
       <div class="mc-sheet">
         <div>${colHtml(1, 25, d, year)}</div>
         <div>${colHtml(26, 45, d, year)}</div>
@@ -428,7 +434,10 @@
     persistDrafts();
     const tagDlg = document.getElementById("mcTagDlg");
     if (tagDlg && tagDlg.open && d.tagOpen) openTagDlg(d.tagOpen);
-    window.scrollTo(0, keep);
+    if (mcUi.pinSheet) {
+      mcUi.pinSheet = false;
+      box.scrollIntoView({ block: "start" });
+    } else window.scrollTo(0, keep);
   }
 
   function toggleTag(q, id) {
@@ -485,18 +494,20 @@
     const to = part === "A" ? 30 : 45;
     const name = part === "A" ? "甲部" : "乙部";
     const t = tally(d, from, to);
-    if (!t.black) { alert(name + "還沒有黑筆，唔會自動撞。"); return; }
-    if (!t.blanks.length) { alert(name + "冇空白題。"); return; }
+    if (!t.black) { askBox({ notice: true, text: name + "還沒有黑筆，唔會自動撞。" }); return; }
+    if (!t.blanks.length) { askBox({ notice: true, text: name + "冇空白題。" }); return; }
     const least = leastOf(t.counts);
-    let letter = least[0];
-    if (least.length !== 1) {
-      const ans = prompt(name + "黑筆 " + countLine(t.counts) + "。最少係 " + least.join("、") + "。撞邊個？");
-      if (ans == null) return;
-      letter = ans.trim().toUpperCase();
-      if (!least.includes(letter)) { alert("只可以係 " + least.join("、")); return; }
-    }
-    t.blanks.forEach(q => { d.picks[q] = { letter, ink: "b" }; });
-    renderMcSheet();
+    const paint = letter => {
+      t.blanks.forEach(q => { d.picks[q] = { letter, ink: "b" }; });
+      mcUi.leastMsg = name + " " + t.blanks.length + " 題已填 " + letter;
+      renderMcSheet();
+    };
+    if (least.length === 1) { paint(least[0]); return; }
+    askBox({
+      title: name + "撞最少",
+      text: "黑筆 " + countLine(t.counts) + "。打和，揀一個。",
+      choices: least.map(L => ({ value: L, label: "撞 " + L }))
+    }).then(letter => { if (letter) paint(letter); });
   }
 
   function applyBatch(kind) {
@@ -545,7 +556,8 @@
     lines.push("選項 " + letters + " 題" + (cleared ? "，清空 " + cleared + " 題" : ""));
     lines.push("狀態更新 " + statusN + " 題，筆記 " + noteN + " 題，錯因 " + tagN + " 題");
     lines.push("今次未改嘅狀態、筆記同錯因唔郁。");
-    if (!confirm(lines.join("\n"))) return;
+    askBox({ title: d.retake ? "取代舊卷" : "寫入進度", text: lines.join("\n") }).then(ok => {
+    if (!ok) return;
     pushUndo();
     const pr = prof();
     for (let q = 1; q <= 45; q++) {
@@ -571,7 +583,11 @@
         cell.s = d.status[q] || 0;
         if (cell.s === 1 || cell.s === 2) cell.w = 1;
         else if (cell.s === 0) cell.w = 0;
-        else if (cell.s === 3) cell.w = (prevS === 1 || prevS === 2 || prevW) ? 1 : 0;
+        else if (cell.s === 3) {
+          const pick = d.picks[q];
+          const hit = pick && pick.letter ? judged(year, q, pick.letter) : null;
+          cell.w = (hit === false || prevS === 1 || prevS === 2 || prevW) ? 1 : 0;
+        }
         pr.cells[k] = cell;
       }
       if (d.touch[q] && d.touch[q].note) {
@@ -600,6 +616,7 @@
     persistDrafts();
     if (currentView === "tracker" && currentPaper === "p2") renderTracker();
     renderMcSheet();
+    });
   }
 
   function personMc(pr, year) {
@@ -838,18 +855,27 @@
       if (leastBtn) { fillLeast(leastBtn.dataset.mcLeast); return; }
       if (e.target.closest("[data-mc-retake]")) {
         const d = draft();
-        if (draftHasWork(d) && !d.retake && !confirm("清空畫面再做一次？未寫入之前，舊記錄仲喺。")) return;
-        const y = mcYear();
-        const next = blankDraft();
-        next.retake = true;
-        mcDrafts[String(y)] = next;
-        renderMcSheet();
+        const saved = yearHasSaved(mcYear());
+        const text = saved
+          ? "清空畫面再做一次？選項、狀態、筆記同錯因都會清走。未寫入之前，舊記錄仲喺。"
+          : "清空今次答案再填？選項、狀態、筆記同錯因都會清走。未寫入，清走就冇得返。";
+        askBox({ title: "再做一次", text }).then(ok => {
+          if (!ok) return;
+          const y = mcYear();
+          const next = blankDraft();
+          next.retake = true;
+          mcDrafts[String(y)] = next;
+          mcUi.pinSheet = true;
+          renderMcSheet();
+        });
         return;
       }
       if (e.target.closest("[data-mc-saved]")) {
-        if (!confirm("捨棄呢次畫面，改返已儲低嘅卷？")) return;
-        mcDrafts[String(mcYear())] = freshDraft(mcYear());
-        renderMcSheet();
+        askBox({ title: "改返上次", text: "捨棄呢次畫面，改返已儲低嘅卷？" }).then(ok => {
+          if (!ok) return;
+          mcDrafts[String(mcYear())] = freshDraft(mcYear());
+          renderMcSheet();
+        });
         return;
       }
       const bub = e.target.closest("[data-mc-l]");
@@ -914,12 +940,14 @@
       if (radar) { prefs.mcRadar = radar.dataset.mcRadar; savePrefs(); renderMcSheet(); return; }
       if (e.target.id === "mcCheck") {
         const year = mcYear();
-        if (!year) { alert("揀年份先可以對答案。"); return; }
+        if (!year) { askBox({ notice: true, text: "揀年份先可以對答案。" }); return; }
         const d = draft();
         if (d.revealed) return;
-        if (!confirm("對完會顯示答案、課題同全港命中率，確定？")) return;
-        d.revealed = true;
-        renderMcSheet();
+        askBox({ title: "對答案", text: "對完會顯示答案、課題同全港命中率，確定？" }).then(ok => {
+          if (!ok) return;
+          d.revealed = true;
+          renderMcSheet();
+        });
         return;
       }
       if (e.target.id === "mcWrite") writeSheet();
@@ -969,14 +997,23 @@
     if (prev == null || next === prev) { renderMcSheet(); return; }
     mcUi.paper = "";
     mcUi.status = "";
+    mcUi.leastMsg = "";
     if (prev === 0 && next) {
       const practice = mcDrafts["0"];
       if (draftHasWork(practice)) {
         const occupied = yearHasSaved(next) || draftHasWork(mcDrafts[String(next)]);
-        if (occupied && !confirm(next + " 已有記錄。練習卷跟過去會蓋過畫面，舊卷要到寫入先取代。確定？")) {
-          const sel = document.getElementById("timerYear");
-          if (sel) sel.value = "";
-          renderMcSheet();
+        if (occupied) {
+          askBox({ title: "轉去 " + next, text: next + " 已有記錄。練習卷跟過去會蓋過畫面，舊卷要到寫入先取代。確定？" }).then(ok => {
+            if (!ok) {
+              const sel = document.getElementById("timerYear");
+              if (sel) sel.value = "";
+              renderMcSheet();
+              return;
+            }
+            mcDrafts[String(next)] = practice;
+            delete mcDrafts["0"];
+            renderMcSheet();
+          });
           return;
         }
         mcDrafts[String(next)] = practice;

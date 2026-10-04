@@ -444,7 +444,11 @@ textarea { width: 100%; min-height: 80px; font: inherit; border-radius: 10px; bo
   padding: 10px; box-shadow: var(--shadow);
 }
 .radar-stu { cursor: pointer; }
-.radar-stu:hover { opacity: .72; }
+.radar-stu:hover { stroke-width: 3.5; fill: rgba(61,110,140,.42); }
+#askText { white-space: pre-wrap; }
+#askDlg input, #askDlg textarea { width: 100%; margin-top: 8px; }
+.ask-choices { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.ask-choices button { min-width: 96px; height: 44px; font-size: 16px; border-radius: 12px; }
 .cell.syll-old::after, .cell.syll-part::after {
   position: absolute; left: 1px; top: 0; font-size: 8px; line-height: 1;
   color: #8a8178; font-weight: 700; pointer-events: none;
