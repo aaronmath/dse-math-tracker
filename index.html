@@ -6,8 +6,8 @@
   <title>DSE 數學操卷神器</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="./styles.css?v=20261004b" />
-  <link rel="stylesheet" href="./patch.css?v=20261004c" />
+  <link rel="stylesheet" href="./styles.css?v=20261004e" />
+  <link rel="stylesheet" href="./patch.css?v=20261004e" />
 </head>
 <body>
   <header>
@@ -26,7 +26,7 @@
         <button class="tab" data-view="items">全港平均</button>
         <button class="tab" data-view="cutoffs">Cut-off</button>
         <button class="tab" data-view="class" id="classTab" hidden>班況</button>
-        <button class="tab" data-view="timer">計時</button>
+        <button class="tab" data-view="timer">操卷</button>
       </nav>
       <div class="toolbar" id="peopleBar">
         <label>學生 <select id="profile"></select></label>
@@ -288,7 +288,7 @@
       <div id="classRoster"></div>
     </section>
     <section class="view" id="view-timer">
-      <h2 class="page-title">計時</h2>
+      <h2 class="page-title">操卷</h2>
       <div class="timer-now" id="timerNow"></div>
       <div class="toolbar">
         <label>試卷
@@ -315,15 +315,17 @@
         </div>
         <input type="checkbox" id="timerSound" hidden />
       </div>
+      <h3 class="sec-title">計時</h3>
       <div class="timer-clock" id="timerClock">0:00:00</div>
       <div class="timer-sub" id="timerElapsed">已用 0:00:00</div>
       <div class="timer-alerts" id="timerAlerts"></div>
       <div class="toolbar">
         <button type="button" id="timerStart" class="timer-go">開始</button>
-        <button type="button" class="ghost" id="timerSave" hidden>寫入進度</button>
+        <button type="button" class="ghost" id="timerSave" hidden>寫入用時</button>
         <button type="button" class="ghost" id="timerReset">重設</button>
       </div>
       <div id="mcSheet" hidden></div>
+      <div id="markSheet" hidden></div>
     </section>
   </main>
   <footer>Powered by Chan Yiu Hei</footer>
@@ -367,7 +369,7 @@
         <h3 style="margin:0 0 6px">出示進度碼</h3>
         <p class="hint" id="xferShowMeta"></p>
         <canvas id="xferQr" width="360" height="360"></canvas>
-        <p class="hint">用另一部裝置：過檔 → 掃入。含狀態、分數、錯因、用時、操卷日；筆記唔在碼內。</p>
+        <p class="hint">用另一部裝置：過檔 → 掃入。含狀態、分數、細分、錯因、用時、操卷日、MC 選項；筆記唔在碼內。</p>
         <div class="row"><button type="button" class="ghost" id="xferShowClose">關閉</button></div>
       </div>
       <div id="xferScan" hidden>
@@ -382,7 +384,7 @@
       </div>
       <div id="xferMerge" hidden>
         <h3 style="margin:0 0 6px">掃到「<span id="xferMergeName"></span>」</h3>
-        <p class="hint">會寫入狀態、分數、錯因、用時、操卷日。筆記唔會被 QR 改動。</p>
+        <p class="hint">會寫入狀態、分數、細分、錯因、用時、操卷日、MC 選項。筆記唔會被 QR 改動。</p>
         <p class="hint" id="xferMergeExist"></p>
         <div class="row xfer-actions">
           <button type="button" id="xferMergeBtn">合併（建議）</button>
@@ -436,13 +438,14 @@
   <script src="./data/m2-y24-26.js?v=20260930b"></script>
   <script src="./data/m2-join.js?v=20260930b"></script>
   <script src="./data/item-stats.js?v=20260930a"></script>
-  <script src="./app.js?v=20261004b"></script>
+  <script src="./app.js?v=20261004e"></script>
   <script src="./app-m2a.js?v=20260920m"></script>
   <script src="./app-m2b.js?v=20260920m"></script>
   <script src="./app-m2c.js?v=20260920m"></script>
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
   <script src="./app-m2-ui.js?v=20261004b"></script>
-  <script src="./app-mc-sheet.js?v=20261004c"></script>
+  <script src="./app-mc-sheet.js?v=20261004d"></script>
+  <script src="./app-mark-sheet.js?v=20261004e"></script>
 </body>
 </html>

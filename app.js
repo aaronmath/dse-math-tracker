@@ -634,12 +634,15 @@ function renderGrid() {
     const yQs = visQs(y, allQs(currentPaper, y));
     const yOn = yQs.length && yQs.every(q => selected.has(y + ":" + q));
     const pickLab = (on, name) => (on ? "取消" : "選") + name;
+    const locked = typeof hasPartScores === "function" && hasPartScores(currentPaper, y);
+    const sum = locked ? partSum(currentPaper, y) : null;
+    const shown = locked && sum != null ? sum : sc;
     html += `<div class="year-block" data-year="${y}">
       <div class="year-head">
         <b>${y}</b>
         ${yearStackHtml(y)}
         <div class="score-box">分數 / ${paper.full}
-          <input type="number" min="0" max="${paper.full}" step="1" inputmode="numeric" data-score="${y}" value="${sc}">
+          <input type="number" min="0" max="${paper.full}" step="1" inputmode="numeric" data-score="${y}" value="${shown}"${locked ? " readonly" : ""}>
         </div>
         <div class="score-box">操卷日
           <input type="date" data-date="${y}" value="${dt}">
@@ -1327,8 +1330,10 @@ function renderGrades() {
   head += `</tr>`;
   let rows = head;
   for (const y of YEARS.slice().reverse()) {
-    const p1 = getScore("p1", y), p2 = getScore("p2", y);
-    const m1 = getScore("m1", y), m2 = getScore("m2", y);
+    const p1raw = getScore("p1", y), p2 = getScore("p2", y);
+    const m1 = getScore("m1", y), m2raw = getScore("m2", y);
+    const p1 = typeof hasPartScores === "function" && hasPartScores("p1", y) && partSum("p1", y) != null ? partSum("p1", y) : p1raw;
+    const m2 = typeof hasPartScores === "function" && hasPartScores("m2", y) && partSum("m2", y) != null ? partSum("m2", y) : m2raw;
     const cp = corePct(y, p1, p2);
     const ready = p1 !== "" && p2 !== "";
     const pack = window.CUTOFFS.core[String(y)];
@@ -1341,7 +1346,7 @@ function renderGrades() {
     rows += `<tr>
       <td class="clickable" data-go-year="${y}">${y}</td>`;
     if (showCore) {
-      rows += `<td><input type="number" min="0" max="105" step="1" inputmode="numeric" data-gs="p1:${y}" value="${p1}"></td>
+      rows += `<td><input type="number" min="0" max="105" step="1" inputmode="numeric" data-gs="p1:${y}" value="${p1}"${typeof hasPartScores === "function" && hasPartScores("p1", y) ? " readonly" : ""}></td>
       <td><input type="number" min="0" max="45" step="1" inputmode="numeric" data-gs="p2:${y}" value="${p2}"></td>
       <td>${coreCell}</td>
       ${coreEst ? lvCellHtml(coreLv, pack.starts, cp, true) : `<td class="lv">${coreLv}</td>`}`;
@@ -1356,7 +1361,7 @@ function renderGrades() {
       const packM2 = window.CUTOFFS.m2[String(y)];
       let lv = m2 === "" ? "-" : estimateShort("m2", y, Number(m2));
       const m2Ready = m2 !== "" && packM2 && lv !== "資料未齊";
-      rows += `<td><input type="number" min="0" max="100" step="1" inputmode="numeric" data-gs="m2:${y}" value="${m2}"></td>${m2Ready ? lvCellHtml(lv, packM2.starts, Number(m2), true) : `<td>${lv}</td>`}`;
+      rows += `<td><input type="number" min="0" max="100" step="1" inputmode="numeric" data-gs="m2:${y}" value="${m2}"${typeof hasPartScores === "function" && hasPartScores("m2", y) ? " readonly" : ""}></td>${m2Ready ? lvCellHtml(lv, packM2.starts, Number(m2), true) : `<td>${lv}</td>`}`;
     }
     rows += `</tr>`;
   }
@@ -2091,6 +2096,12 @@ function paintTimer() {
     const can = (timerRun.paused || timerRun.ended) && ySel && ySel.value;
     saveBtn.hidden = !can;
   }
+  const profSel = document.getElementById("profile");
+  if (profSel) profSel.disabled = !!timerLocked;
+  ["addProfile", "renameProfile", "delProfile", "newProfile"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.disabled = !!timerLocked;
+  });
   const go = document.getElementById("timerStart");
   if (go) {
     const ended = !!(timerRun.ended || (timerRun.start && rem <= 0));
@@ -2752,7 +2763,7 @@ function showView(id) {
   document.body.classList.toggle("paper-bg", ["ability", "grades", "cutoffs", "class"].includes(id));
   document.querySelectorAll(".view").forEach(v => v.classList.toggle("on", v.id === "view-" + id));
   document.querySelectorAll(".tabs .tab").forEach(t => t.classList.toggle("on", t.dataset.view === id));
-  const people = id === "tracker" || id === "ability" || id === "grades" || id === "mc" || id === "class";
+  const people = id === "tracker" || id === "ability" || id === "grades" || id === "mc" || id === "class" || id === "cutoffs" || id === "timer";
   const pb = document.getElementById("peopleBar");
   if (pb) pb.style.display = people ? "flex" : "none";
   const th = document.getElementById("trackerTheme");
@@ -2764,6 +2775,14 @@ function showView(id) {
     const dock = document.getElementById("batchDock");
     if (dock) dock.hidden = true;
   }
+  if (id !== "timer") {
+    const profSel = document.getElementById("profile");
+    if (profSel) profSel.disabled = false;
+    ["addProfile", "renameProfile", "delProfile", "newProfile"].forEach(pid => {
+      const el = document.getElementById(pid);
+      if (el) el.disabled = false;
+    });
+  }
   window.scrollTo(0, 0);
   try {
     if (id === "tracker") renderTracker();
@@ -2771,8 +2790,8 @@ function showView(id) {
     if (id === "grades") { renderProfiles(); renderGrades(); }
     if (id === "mc") { renderProfiles(); renderMc(); }
     if (id === "items") renderItems();
-    if (id === "cutoffs") renderCutoffs();
-    if (id === "timer") renderTimer();
+    if (id === "cutoffs") { renderProfiles(); renderCutoffs(); }
+    if (id === "timer") { renderProfiles(); renderTimer(); }
     if (id === "class") { renderProfiles(); renderProfileClass(); renderClassPage(); }
   } catch (e) {}
   location.hash = id;
@@ -2814,6 +2833,8 @@ document.getElementById("profile").onchange = e => {
   if (currentView === "ability") renderWeak();
   if (currentView === "mc") renderMc();
   if (currentView === "class") renderClassPage();
+  if (currentView === "timer") renderTimer();
+  if (currentView === "cutoffs") renderCutoffs();
 };
 document.getElementById("addProfile").onclick = () => {
   const name = document.getElementById("newProfile").value.trim();
@@ -3095,6 +3116,7 @@ onId("grid", "contextmenu", e => {
 onId("grid", "change", e => {
   if (e.target.dataset.score) {
     const y = +e.target.dataset.score;
+    if (typeof hasPartScores === "function" && hasPartScores(currentPaper, y)) return;
     pushUndo();
     const v = setScore(currentPaper, y, e.target.value);
     e.target.value = v;
@@ -3138,12 +3160,14 @@ document.getElementById("noteSave").onclick = () => {
   document.getElementById("noteDlg").close();
   if (currentView === "mc") renderMcKeep();
   else if (currentView === "tracker") renderTracker();
+  else if (currentView === "timer") renderTimer();
   else renderTracker();
 };
 onId("gradeTable", "change", e => {
   const gs = e.target.dataset.gs;
   if (!gs) return;
   const [paper, year] = gs.split(":");
+  if (typeof hasPartScores === "function" && hasPartScores(paper, +year)) return;
   pushUndo();
   const v = setScore(paper, +year, e.target.value);
   e.target.value = v;
@@ -3343,10 +3367,11 @@ document.getElementById("timerSave").onclick = () => {
   if (!y) return;
   const used = timerUsedSec();
   const short = { p1: "卷一", p2: "卷二", m1: "M1", m2: "M2" }[paper] || paper;
-  askBox({ title: "寫入用時", text: "將 " + fmtHm(used) + " 記入 " + y + " " + short + "進度？" }).then(ok => {
+  askBox({ title: "寫入用時", text: "將 " + fmtHm(used) + " 記入 " + y + " " + short + "。未有操卷日就寫今日。" }).then(ok => {
     if (!ok) return;
     pushUndo();
     setTimeSec(paper, y, used);
+    if (!getDate(paper, y)) setDate(paper, y, todayIso());
     if (currentView === "tracker" && currentPaper === paper) renderTracker();
   });
 };

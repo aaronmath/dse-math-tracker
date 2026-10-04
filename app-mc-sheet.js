@@ -84,6 +84,64 @@
     return row.ans === letter;
   }
   function pen() { return prefs.mcPen === "b" ? "b" : "k"; }
+  function scorePick(d, year, q) {
+    if (d.freeze && year) {
+      const c = getCell("p2", year, q);
+      if (c.mc && LETTERS.includes(c.mc)) return { letter: c.mc, ink: c.ink === "b" ? "b" : "k" };
+      return null;
+    }
+    return d.picks[q] || null;
+  }
+  function commitMcStatus(year, q) {
+    if (!year) return;
+    const d = draft();
+    const prev = getCell("p2", year, q);
+    const s = d.touch[q] && d.touch[q].s ? (d.status[q] || 0) : (prev.s || 0);
+    const prevS = prev.s || 0;
+    const prevW = !!prev.w;
+    let w = 0;
+    if (s === 1 || s === 2) w = 1;
+    else if (s === 3) {
+      const p = scorePick(d, year, q);
+      const hit = p && p.letter ? judged(year, q, p.letter) : null;
+      w = (hit === false || prevS === 1 || prevS === 2 || prevW) ? 1 : 0;
+    }
+    setCell("p2", year, q, { s, w });
+  }
+  function commitMcNote(year, q) {
+    if (!year) return;
+    const d = draft();
+    setCell("p2", year, q, { note: d.notes[q] || "" });
+  }
+  function commitMcTags(year, q) {
+    if (!year) return;
+    const d = draft();
+    setCell("p2", year, q, { tags: (d.tags[q] || []).slice(0, 3) });
+  }
+  function commitMcAnswers(year) {
+    const d = draft();
+    d.freeze = false;
+    pushUndo();
+    const pr = prof();
+    for (let q = 1; q <= 45; q++) {
+      const k = "p2:" + year + ":" + q;
+      const p = scorePick(d, year, q);
+      let cell = pr.cells[k];
+      if (p && p.letter) {
+        cell = cell || { s: 0, note: "", tags: [] };
+        cell.mc = p.letter;
+        if (p.ink === "b") cell.ink = "b";
+        else delete cell.ink;
+        pr.cells[k] = cell;
+      } else if (cell && cell.mc) {
+        delete cell.mc;
+        delete cell.ink;
+      }
+    }
+    const s = summary(year, d);
+    pr.updatedAt = Date.now();
+    setScore("p2", year, s.ok);
+  }
 
   function tally(d, from, to) {
     const counts = { A: 0, B: 0, C: 0, D: 0 };
@@ -109,7 +167,7 @@
     let bk = 0, bkOk = 0, bl = 0, blOk = 0, sureBad = 0;
     const sec = { A: { ok: 0, n: 30 }, B: { ok: 0, n: 15 } };
     for (let q = 1; q <= 45; q++) {
-      const p = d.picks[q];
+      const p = scorePick(d, year, q);
       const side = q <= 30 ? "A" : "B";
       if (!p || !p.letter) { blank++; continue; }
       seen++;
@@ -138,7 +196,7 @@
           sum += s === 3 ? 1 : s === 2 ? 0.5 : 0;
           n++;
         } else {
-          const p = d.picks[x.q];
+          const p = scorePick(d, year, x.q);
           if (!p || !p.letter) return;
           const hit = judged(year, x.q, p.letter);
           if (hit == null) return;
@@ -201,7 +259,7 @@
       if (s === 1) return "bad";
       return "";
     }
-    const p = d.picks[q];
+    const p = scorePick(d, year, q);
     if (!p || !p.letter) return "";
     const hit = judged(year, q, p.letter);
     if (hit == null) return "";
@@ -274,14 +332,13 @@
   }
   function tagsOf(d, q, year) {
     if (d.touch[q] && d.touch[q].tags) return d.tags[q] || [];
-    if (d.retake) return [];
     const saved = year ? getCell("p2", year, q) : {};
     return (saved.tags || []).slice(0, 3);
   }
   function rowHtml(q, d, year) {
     const p = d.picks[q];
     const show = d.revealed && year;
-    const hit = show && p && p.letter ? judged(year, q, p.letter) : null;
+    const hit = show && !d.freeze && p && p.letter ? judged(year, q, p.letter) : null;
     const numCls = hit == null ? "" : hit ? " ok" : " bad";
     const bubbles = LETTERS.map(L => {
       const on = p && p.letter === L ? (p.ink === "b" ? " b" : " k") : "";
@@ -301,12 +358,11 @@
 
   function shownStatus(d, year, q) {
     if (d.touch[q] && d.touch[q].s) return d.status[q] || 0;
-    if (d.retake) return 0;
     return (getCell("p2", year, q).s) || 0;
   }
   function willMing(year, q) {
     const d = draft();
-    const picked = d.picks[q];
+    const picked = scorePick(d, year, q);
     const hit = picked && picked.letter ? judged(year, q, picked.letter) : null;
     if (d.touch[q] && d.touch[q].s && (d.status[q] || 0) === 3 && hit === false) return true;
     const saved = getCell("p2", year, q);
@@ -315,7 +371,7 @@
   function batchCount(year, d, kind) {
     let n = 0;
     for (let q = 1; q <= 45; q++) {
-      const p = d.picks[q];
+      const p = scorePick(d, year, q);
       if (!p || !p.letter) continue;
       const hit = judged(year, q, p.letter);
       const blue = p.ink === "b";
@@ -327,7 +383,7 @@
     return n;
   }
   function paperKind(year, d, q) {
-    const p = d.picks[q];
+    const p = scorePick(d, year, q);
     if (!p || !p.letter) return "blank";
     if (p.ink === "b") return "guess";
     return judged(year, q, p.letter) ? "ok" : "bad";
@@ -376,7 +432,7 @@
       }
       const st = shownStatus(d, year, q);
       if (mcUi.status !== "" && st !== +mcUi.status) continue;
-      const p = d.picks[q];
+      const p = scorePick(d, year, q);
       const key = keyMap(year)[q] || {};
       const hit = p && p.letter ? judged(year, q, p.letter) : null;
       const chips = [[3, "ok", "已掌握"], [2, "warn", "一般"], [1, "danger", "唔識"]].map(([sv, cls, lab]) => {
@@ -384,7 +440,7 @@
         const ming = sv === 3 && on && willMing(year, q);
         return `<button type="button" class="${cls}${ming ? " ming" : ""}${on ? "" : " fade"}" data-mc-s="${sv}" data-mc-q="${q}">${ming ? "已掌握　明返" : lab}</button>`;
       }).join("");
-      const note = d.touch[q] && d.touch[q].note ? (d.notes[q] || "") : (d.retake ? "" : (getCell("p2", year, q).note || ""));
+      const note = d.touch[q] && d.touch[q].note ? (d.notes[q] || "") : (getCell("p2", year, q).note || "");
       const tags = tagsOf(d, q, year);
       const chosen = tags.map(id => `<button type="button" class="mc-tagchip on" data-mc-tagq="${q}">${esc(tagName(id))}</button>`).join("");
       const you = p && p.letter ? `<b class="mc-you ${p.ink === "b" ? "b" : "k"}">${p.letter}</b>` : "—";
@@ -469,7 +525,7 @@
           <tbody>${rows.join("") || `<tr><td colspan="8">冇符合嘅題。</td></tr>`}</tbody>
         </table>
       </div>
-      <div class="mc-tools">${year && d.revealed && !d.retake ? `<button type="button" class="ghost" data-mc-retake="1">再做一次</button>` : ""}<button type="button" id="mcWrite">寫入進度</button></div>
+      <div class="mc-tools">${year && d.revealed && !d.freeze ? `<button type="button" class="ghost" data-mc-retake="1">再做一次</button>` : ""}</div>
     </section>`;
   }
 
@@ -486,10 +542,8 @@
     const ink = pen();
     const saved = yearHasSaved(year);
     let banner = "";
-    if (year && d.retake) {
-      banner = saved
-        ? `<p class="hint">${year} 再做一次。未寫入之前，舊記錄仲喺。 <button type="button" class="ghost" data-mc-saved="1">改返上次</button></p>`
-        : `<p class="hint">${year} 再做一次。今次未寫入過。</p>`;
+    if (year && d.freeze) {
+      banner = `<p class="hint">${year} 答題紙已清。狀態、錯因同分數沿用上次。${saved ? ` <button type="button" class="ghost" data-mc-saved="1">改返上次</button>` : ""}</p>`;
     } else if (year && d.revealed) {
       banner = `<p class="hint">${year} 已對答案。 <button type="button" class="ghost" data-mc-retake="1">再做一次</button></p>`;
     }
@@ -509,7 +563,7 @@
         <div>${colHtml(26, 45, d, year)}</div>
       </div>
       <div class="mc-tools">
-        <button type="button" id="mcCheck" ${d.revealed ? "disabled" : ""}>${d.revealed ? "已對答案" : "對答案"}</button>
+        <button type="button" id="mcCheck" ${d.revealed && !d.freeze ? "disabled" : ""}>${d.revealed && !d.freeze ? "已對答案" : "對答案"}</button>
       </div>
       ${d.revealed && year ? analysisHtml(year, d) : ""}`;
     mcSeenYear = year;
@@ -534,6 +588,7 @@
     d.touch[q] = d.touch[q] || {};
     d.touch[q].tags = true;
     d.tagOpen = q;
+    commitMcTags(year, q);
     renderMcSheet();
   }
   function openTagDlg(q) {
@@ -597,7 +652,7 @@
     const d = draft();
     if (!d.revealed || !year) return;
     for (let q = 1; q <= 45; q++) {
-      const p = d.picks[q];
+      const p = scorePick(d, year, q);
       if (!p || !p.letter) continue;
       const hit = judged(year, q, p.letter);
       const blue = p.ink === "b";
@@ -610,6 +665,7 @@
       d.status[q] = s;
       d.touch[q] = d.touch[q] || {};
       d.touch[q].s = true;
+      commitMcStatus(year, q);
     }
     renderMcSheet();
   }
@@ -644,7 +700,7 @@
     const pr = prof();
     for (let q = 1; q <= 45; q++) {
       const k = "p2:" + year + ":" + q;
-      const p = d.picks[q];
+      const p = scorePick(d, year, q);
       let cell = pr.cells[k];
       if (p && p.letter) {
         cell = cell || { s: 0, note: "", tags: [] };
@@ -903,14 +959,6 @@
     }
   };
 
-  const _paintTimer = paintTimer;
-  paintTimer = function () {
-    _paintTimer();
-    if (document.getElementById("timerPaper").value === "p2") {
-      const b = document.getElementById("timerSave");
-      if (b) b.hidden = true;
-    }
-  };
   const _renderTimer = renderTimer;
   renderTimer = function () { _renderTimer(); renderMcSheet(); };
   const _renderClassPage = renderClassPage;
@@ -936,16 +984,19 @@
       const leastBtn = e.target.closest("[data-mc-least]");
       if (leastBtn) { fillLeast(leastBtn.dataset.mcLeast); return; }
       if (e.target.closest("[data-mc-retake]")) {
-        const d = draft();
-        const saved = yearHasSaved(mcYear());
-        const text = saved
-          ? "清空畫面再做一次？選項、狀態、筆記同錯因都會清走。未寫入之前，舊記錄仲喺。"
-          : "清空今次答案再填？選項、狀態、筆記同錯因都會清走。未寫入，清走就冇得返。";
-        askBox({ title: "再做一次", text }).then(ok => {
+        askBox({ title: "再做一次", text: "只清走 45 個選項。狀態、筆記、錯因同現時分數留低。" }).then(ok => {
           if (!ok) return;
           const y = mcYear();
+          const prev = draft();
           const next = blankDraft();
           next.retake = true;
+          next.freeze = true;
+          next.revealed = true;
+          next.status = Object.assign({}, prev.status);
+          next.notes = Object.assign({}, prev.notes);
+          next.tags = {};
+          Object.keys(prev.tags || {}).forEach(k => { next.tags[k] = (prev.tags[k] || []).slice(); });
+          next.touch = JSON.parse(JSON.stringify(prev.touch || {}));
           mcDrafts[String(y)] = next;
           mcUi.pinSheet = true;
           renderMcSheet();
@@ -955,7 +1006,9 @@
       if (e.target.closest("[data-mc-saved]")) {
         askBox({ title: "改返上次", text: "捨棄呢次畫面，改返已儲低嘅卷？" }).then(ok => {
           if (!ok) return;
-          mcDrafts[String(mcYear())] = freshDraft(mcYear());
+          const next = freshDraft(mcYear());
+          next.revealed = true;
+          mcDrafts[String(mcYear())] = next;
           renderMcSheet();
         });
         return;
@@ -986,6 +1039,7 @@
         d.tags[q] = cur;
         d.touch[q] = d.touch[q] || {};
         d.touch[q].tags = true;
+        commitMcTags(year, q);
         renderMcSheet();
         return;
       }
@@ -997,10 +1051,11 @@
         const s = +st.dataset.mcS;
         const d = draft();
         const year = mcYear();
-        const shown = d.touch[q] && d.touch[q].s ? (d.status[q] || 0) : (d.retake ? 0 : ((getCell("p2", year, q).s) || 0));
+        const shown = shownStatus(d, year, q);
         d.touch[q] = d.touch[q] || {};
         d.touch[q].s = true;
         d.status[q] = shown === s ? 0 : s;
+        commitMcStatus(year, q);
         renderMcSheet();
         return;
       }
@@ -1032,15 +1087,16 @@
         const year = mcYear();
         if (!year) { askBox({ notice: true, text: "揀年份先可以對答案。" }); return; }
         const d = draft();
-        if (d.revealed) return;
-        askBox({ title: "對答案", text: "對完會顯示答案、課題同全港命中率，確定？" }).then(ok => {
+        if (d.revealed && !d.freeze) return;
+        askBox({ title: "對答案", text: "對完會顯示答案、課題同全港命中率，並寫入今次選項同分數。確定？" }).then(ok => {
           if (!ok) return;
           d.revealed = true;
+          d.freeze = false;
+          commitMcAnswers(year);
           renderMcSheet();
         });
         return;
       }
-      if (e.target.id === "mcWrite") writeSheet();
     });
     sheet.addEventListener("input", e => {
       const note = e.target.closest("[data-mc-note]");
@@ -1050,7 +1106,7 @@
       d.notes[q] = note.value;
       d.touch[q] = d.touch[q] || {};
       d.touch[q].note = true;
-      persistDrafts();
+      commitMcNote(mcYear(), q);
     });
   }
   const classBox = document.getElementById("classMc");
