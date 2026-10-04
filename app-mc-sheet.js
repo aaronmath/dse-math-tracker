@@ -6,7 +6,7 @@
   let mcSeenYear = null;
   let mcWho = "";
   const classUi = { mode: "person", filter: "", open: "" };
-  const mcUi = { paper: "", status: "" };
+  const mcUi = { paper: "", status: "", axis: "", radarKey: "" };
 
   function mcYear() {
     const el = document.getElementById("timerYear");
@@ -152,10 +152,10 @@
         const row = keyMap(year)[x.q];
         if (row && row.pct != null && row.pct !== "") { hkSum += +row.pct / 100; hkN++; }
       });
-      return { name, n, v: n ? sum / n : 0, hk: hkN ? hkSum / hkN : 0 };
+      return { id: ax.id, name, n, v: n ? sum / n : 0, hk: hkN ? hkSum / hkN : 0 };
     });
   }
-  function radarHtml(rows, showHk) {
+  function radarHtml(rows, showHk, draw) {
     if (!rows.some(r => r.n)) return `<p class="hint">未有可計嘅題。留空唔入平均，冇題嘅軸當 0。</p>`;
     const cx = 170, cy = 170, r = 112, N = rows.length;
     let rings = "", spokes = "", labels = "";
@@ -169,24 +169,21 @@
       const ang = -Math.PI / 2 + i * 2 * Math.PI / N;
       spokes += `<line x1="${cx}" y1="${cy}" x2="${(cx + r * Math.cos(ang)).toFixed(1)}" y2="${(cy + r * Math.sin(ang)).toFixed(1)}" stroke="#e4ddd2"/>`;
       const lx = cx + (r + 22) * Math.cos(ang), ly = cy + (r + 22) * Math.sin(ang);
-      labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" fill="#1c1915">${esc(row.name)}</text>`;
+      const on = mcUi.axis === row.id;
+      labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" fill="${on ? "#3d6e8c" : "#1c1915"}" data-mc-axis="${row.id}" style="cursor:pointer">${esc(row.name)}</text>`;
     });
     const vals = rows.map(row => row.v || 0);
     const poly = radarPolyRated(vals, cx, cy, r).join(" ");
-    let dots = "";
-    rows.forEach((row, i) => {
-      if (!row.n) return;
-      const ang = -Math.PI / 2 + i * 2 * Math.PI / N;
-      const x = cx + r * row.v * Math.cos(ang), y = cy + r * row.v * Math.sin(ang);
-      dots += `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="#3d6e8c"/>`;
-    });
     let hk = "";
     if (showHk) {
       const pts = radarPolyRated(rows.map(row => row.hk || 0), cx, cy, r).join(" ");
       hk = `<polygon points="${pts}" fill="none" stroke="#8a8178" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     }
-    const stu = `<polygon points="${poly}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>${dots}`;
-    return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${hk}${stu}${labels}</svg>`;
+    const stu = `<polygon class="radar-stu" points="${poly}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>`;
+    const cap = showHk
+      ? `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅對錯　虛線＝全港命中率</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`
+      : `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝今次揀嘅狀態</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`;
+    return `<svg viewBox="0 0 340 340" class="${draw ? "radar-draw" : ""}">${rings}${spokes}${hk}${stu}${labels}${cap}</svg>`;
   }
   function axisList(rows, showHk) {
     return rows.map(row => {
@@ -288,6 +285,11 @@
     for (let q = 1; q <= 45; q++) {
       const kind = paperKind(year, d, q);
       if (mcUi.paper && kind !== mcUi.paper) continue;
+      if (mcUi.axis) {
+        const ax = AXES.find(a => a.id === mcUi.axis);
+        const part = q <= 30 ? "甲" : "乙";
+        if (!ax || ax.part !== part || !ax.topics.includes(topicOf(year, q))) continue;
+      }
       const st = shownStatus(d, year, q);
       if (mcUi.status !== "" && st !== +mcUi.status) continue;
       const p = d.picks[q];
@@ -330,6 +332,10 @@
       ["3", "已掌握", statusN[3]]
     ].map(([key, lab, n]) => `<button type="button" class="ghost${mcUi.status === key ? " on-toggle" : ""}" data-mc-fs="${key}">${lab} ${n}</button>`).join("");
     const wrong = s.seen - s.ok;
+    const drawKey = year + ":" + (know ? "know" : "mark");
+    const draw = mcUi.radarKey !== drawKey;
+    mcUi.radarKey = drawKey;
+    const axisOn = AXES.find(a => a.id === mcUi.axis);
     return `<section class="mc-analysis">
       <h3 class="sec-title">分析</h3>
       <div class="mc-review">
@@ -338,7 +344,7 @@
             <button type="button" class="ghost${!know ? " on-toggle" : ""}" data-mc-radar="mark">對錯</button>
             <button type="button" class="ghost${know ? " on-toggle" : ""}" data-mc-radar="know">明白程度</button>
           </div>
-          ${radarHtml(axes, !know)}
+          ${radarHtml(axes, !know, draw)}
           <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
           <details class="mc-axis-fold"${mcUi.axisOpen ? " open" : ""}><summary>軸的數字</summary><div class="mc-axis-list">${axisList(axes, !know)}</div></details>
         </div>
@@ -365,6 +371,7 @@
       </div>
       <div class="mc-filters">${paperBtns}<button type="button" class="ghost" id="mcFilterReset">重設</button></div>
       <div class="mc-filters">${statHtml}</div>
+      ${axisOn ? `<p class="hint">而家睇：${esc(axisOn.name.replace("　", " "))}　<button type="button" class="ghost" data-mc-axis="${axisOn.id}">顯示全部軸</button></p>` : ""}
       <div class="mc-status-tools">
         <button type="button" class="mc-batch" data-mc-batch="sure-ok">黑筆答對標已掌握 ${batchCount(year, d, "sure-ok")}</button>
         <button type="button" class="mc-batch badb" data-mc-batch="sure-bad">黑筆答錯標唔識 ${batchCount(year, d, "sure-bad")}</button>
@@ -895,7 +902,14 @@
       if (fp) { mcUi.paper = fp.dataset.mcFp; renderMcSheet(); return; }
       const fs = e.target.closest("[data-mc-fs]");
       if (fs) { mcUi.status = fs.dataset.mcFs; renderMcSheet(); return; }
-      if (e.target.id === "mcFilterReset") { mcUi.paper = ""; mcUi.status = ""; renderMcSheet(); return; }
+      if (e.target.id === "mcFilterReset") { mcUi.paper = ""; mcUi.status = ""; mcUi.axis = ""; renderMcSheet(); return; }
+      const axisHit = e.target.closest("[data-mc-axis]");
+      if (axisHit) {
+        const id = axisHit.dataset.mcAxis;
+        mcUi.axis = mcUi.axis === id ? "" : id;
+        renderMcSheet();
+        return;
+      }
       const radar = e.target.closest("[data-mc-radar]");
       if (radar) { prefs.mcRadar = radar.dataset.mcRadar; savePrefs(); renderMcSheet(); return; }
       if (e.target.id === "mcCheck") {
