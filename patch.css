@@ -162,8 +162,9 @@ button.stat.ring-stat {
 .mc-bar i b { display: block; height: 100%; background: #3e9a62; }
 .mc-bar.blue i b { background: #2f6fdb; }
 .mc-axis { font-size: 12px; line-height: 1.5; }
-.mc-axis-fold { margin-top: 4px; }
-.mc-axis-fold summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+.mc-board { margin-top: 12px; }
+.mc-board > summary { cursor: pointer; font-weight: 700; font-size: 15px; }
+.mc-board .tchip.on { outline: 2px solid var(--accent); }
 #mcTagDlg { width: min(360px, 94vw); }
 .mc-filters { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 6px 0; }
 .mc-mark { margin-top: 0; flex-wrap: nowrap; }

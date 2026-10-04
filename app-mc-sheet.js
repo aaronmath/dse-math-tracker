@@ -192,6 +192,81 @@
       return `<div class="mc-axis">${esc(row.name)}　你 ${you}${hk}　${row.n} 題</div>`;
     }).join("");
   }
+  function topicTone(year, d, q, know) {
+    if (know) {
+      if (!(d.touch[q] && d.touch[q].s)) return "";
+      const s = d.status[q] || 0;
+      if (s === 3) return "ok";
+      if (s === 2) return "mid";
+      if (s === 1) return "bad";
+      return "";
+    }
+    const p = d.picks[q];
+    if (!p || !p.letter) return "";
+    const hit = judged(year, q, p.letter);
+    if (hit == null) return "";
+    return hit ? "ok" : "bad";
+  }
+  function boardHtml(year, d, know) {
+    const blocks = AXES.map(ax => {
+      const items = (P2_TOPICS.items || []).filter(x => x.y === year && x.part === ax.part && ax.topics.includes(x.topic));
+      const byTopic = new Map();
+      items.forEach(x => {
+        if (!byTopic.has(x.topic)) byTopic.set(x.topic, []);
+        byTopic.get(x.topic).push(x.q);
+      });
+      let ok = 0, answered = 0, sum = 0, marked = 0, hkSum = 0, hkN = 0;
+      items.forEach(x => {
+        if (!know) {
+          const row = keyMap(year)[x.q];
+          if (row && row.pct != null && row.pct !== "") { hkSum += +row.pct; hkN++; }
+        }
+        const tone = topicTone(year, d, x.q, know);
+        if (!tone) return;
+        if (know) {
+          const s = d.status[x.q] || 0;
+          sum += s === 3 ? 1 : s === 2 ? 0.5 : 0;
+          marked++;
+        } else {
+          answered++;
+          if (tone === "ok") ok++;
+        }
+      });
+      const total = items.length;
+      const pct = know
+        ? (marked ? Math.round(sum / marked * 100) + "%" : "—")
+        : (answered ? Math.round(ok / answered * 100) + "%" : "—");
+      const frac = know ? marked + "/" + total : ok + "/" + total;
+      const hk = !know && hkN ? "　全港 " + Math.round(hkSum / hkN) + "%" : "";
+      const topics = [...byTopic.keys()].sort((a, b) => topicRank(ax.part, a) - topicRank(ax.part, b));
+      const chips = topics.map(topic => {
+        const qs = byTopic.get(topic);
+        let good = 0, bad = 0, mid = 0;
+        qs.forEach(q => {
+          const tone = topicTone(year, d, q, know);
+          if (tone === "ok") good++;
+          else if (tone === "bad") bad++;
+          else if (tone === "mid") mid++;
+        });
+        let cls = "";
+        if (know) {
+          const n = good + bad + mid;
+          if (n && good === n) cls = " hi";
+          else if (n && bad === n) cls = " lo";
+          else if (n) cls = " mid";
+        } else if (good && bad) cls = " mid";
+        else if (bad) cls = " lo";
+        else if (good) cls = " hi";
+        const key = ax.part + "\n" + topic;
+        const on = mcUi.topic === key ? " on" : "";
+        return `<button type="button" class="tchip${cls}${on}" data-mc-part="${esc(ax.part)}" data-mc-topic="${esc(topic)}">${esc(topic)}</button>`;
+      }).join("");
+      const headOn = mcUi.axis === ax.id ? " on" : "";
+      return `<div class="axis-row${headOn}"><b>${esc(ax.name.replace("　", " "))}　你 ${pct}　${frac}${hk}</b>${chips}</div>`;
+    }).join("");
+    const open = mcUi.boardOpen !== false ? " open" : "";
+    return `<details class="mc-board axis-legend"${open}><summary>8軸課題對照</summary>${blocks}</details>`;
+  }
 
   function tagColor(id) {
     const i = TAGS.findIndex(t => t[0] === id);
@@ -294,6 +369,11 @@
         const part = q <= 30 ? "甲" : "乙";
         if (!ax || ax.part !== part || !ax.topics.includes(topicOf(year, q))) continue;
       }
+      if (mcUi.topic) {
+        const part = q <= 30 ? "甲" : "乙";
+        const topic = topicOf(year, q);
+        if (part + "\n" + topic !== mcUi.topic) continue;
+      }
       const st = shownStatus(d, year, q);
       if (mcUi.status !== "" && st !== +mcUi.status) continue;
       const p = d.picks[q];
@@ -340,6 +420,7 @@
     const draw = mcUi.radarKey !== drawKey;
     mcUi.radarKey = drawKey;
     const axisOn = AXES.find(a => a.id === mcUi.axis);
+    const topicOn = mcUi.topic ? mcUi.topic.split("\n") : null;
     return `<section class="mc-analysis">
       <h3 class="sec-title">分析</h3>
       <div class="mc-review">
@@ -350,7 +431,6 @@
           </div>
           ${radarHtml(axes, !know, draw)}
           <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
-          <details class="mc-axis-fold"${mcUi.axisOpen ? " open" : ""}><summary>軸的數字</summary><div class="mc-axis-list">${axisList(axes, !know)}</div></details>
         </div>
         <div class="mc-scoreboard">
           <div class="stats">
@@ -373,9 +453,11 @@
           </div>
         </div>
       </div>
+      ${boardHtml(year, d, know)}
       <div class="mc-filters">${paperBtns}<button type="button" class="ghost" id="mcFilterReset">重設</button></div>
       <div class="mc-filters">${statHtml}</div>
       ${axisOn ? `<p class="hint">而家睇：${esc(axisOn.name.replace("　", " "))}　<button type="button" class="ghost" data-mc-axis="${axisOn.id}">顯示全部軸</button></p>` : ""}
+      ${topicOn ? `<p class="hint">而家睇：${esc(topicOn[0])}　${esc(topicOn[1])}　<button type="button" class="ghost" data-mc-topic-clear="1">顯示全部課題</button></p>` : ""}
       <div class="mc-status-tools">
         <button type="button" class="mc-batch" data-mc-batch="sure-ok">黑筆答對標已掌握 ${batchCount(year, d, "sure-ok")}</button>
         <button type="button" class="mc-batch badb" data-mc-batch="sure-bad">黑筆答錯標唔識 ${batchCount(year, d, "sure-bad")}</button>
@@ -846,7 +928,7 @@
   const sheet = document.getElementById("mcSheet");
   if (sheet) {
     sheet.addEventListener("toggle", e => {
-      if (e.target.classList && e.target.classList.contains("mc-axis-fold")) mcUi.axisOpen = e.target.open;
+      if (e.target.classList && e.target.classList.contains("mc-board")) mcUi.boardOpen = e.target.open;
     }, true);
     sheet.addEventListener("click", e => {
       const penBtn = e.target.closest("[data-mc-pen]");
@@ -928,7 +1010,15 @@
       if (fp) { mcUi.paper = fp.dataset.mcFp; renderMcSheet(); return; }
       const fs = e.target.closest("[data-mc-fs]");
       if (fs) { mcUi.status = fs.dataset.mcFs; renderMcSheet(); return; }
-      if (e.target.id === "mcFilterReset") { mcUi.paper = ""; mcUi.status = ""; mcUi.axis = ""; renderMcSheet(); return; }
+      if (e.target.id === "mcFilterReset") { mcUi.paper = ""; mcUi.status = ""; mcUi.axis = ""; mcUi.topic = ""; renderMcSheet(); return; }
+      if (e.target.closest("[data-mc-topic-clear]")) { mcUi.topic = ""; renderMcSheet(); return; }
+      const topicHit = e.target.closest("[data-mc-topic]");
+      if (topicHit) {
+        const key = topicHit.dataset.mcPart + "\n" + topicHit.dataset.mcTopic;
+        mcUi.topic = mcUi.topic === key ? "" : key;
+        renderMcSheet();
+        return;
+      }
       const axisHit = e.target.closest("[data-mc-axis]");
       if (axisHit) {
         const id = axisHit.dataset.mcAxis;
