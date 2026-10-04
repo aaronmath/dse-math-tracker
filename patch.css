@@ -247,7 +247,25 @@ button.mk-axis-name {
   font: inherit; font-weight: 700; text-align: left; padding: 0; border-radius: 0;
 }
 .axis-row.on button.mk-axis-name { color: var(--accent); }
-.mk-scoreboard { margin: 0 0 8px; }
+.score-card {
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--paper);
+  padding: 8px 12px 2px;
+  box-shadow: var(--shadow);
+}
+.mc-flt-gap { width: 1px; align-self: stretch; background: var(--line); margin: 4px 4px; }
+.mk-filters button.fp-ok { background: #d7eed4; color: #1f7a45; }
+.mk-filters button.fp-bad { background: var(--weak); color: #a33b2c; }
+.mk-filters button.fp-guess { background: #d6e4f8; color: #2458b0; }
+.mk-filters button.fp-blank { background: #fff; color: var(--ink); border-style: dashed; }
+.mc-scroll { overflow: auto; }
+.mc-ana th:first-child, .mc-ana td:first-child {
+  position: sticky; left: 0; z-index: 1; background: #fff;
+  box-shadow: 1px 0 0 var(--line);
+}
+.mc-ana th:first-child { z-index: 2; background: #f7f3eb; }
+.mc-ana td { white-space: nowrap; vertical-align: middle; }
 .xfer-qr-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
 .xfer-qr-row canvas { width: min(280px, 42vw); height: auto; background: #fff; border-radius: 12px; }
 .xfer-qr-nav { display: none; align-items: center; justify-content: space-between; }

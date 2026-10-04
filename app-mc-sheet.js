@@ -6,7 +6,7 @@
   let mcSeenYear = null;
   let mcWho = "";
   const classUi = { mode: "person", filter: "", open: "" };
-  const mcUi = { paper: "", status: "", axis: "", radarKey: "", leastMsg: "", pinSheet: false };
+  const mcUi = { paper: "", status: "", axis: "", topic: "", sec: "", radarKey: "", leastMsg: "", pinSheet: false };
 
   function mcYear() {
     const el = document.getElementById("timerYear");
@@ -320,7 +320,7 @@
         return `<button type="button" class="tchip${cls}${on}" data-mc-part="${esc(ax.part)}" data-mc-topic="${esc(topic)}">${esc(topic)}</button>`;
       }).join("");
       const headOn = mcUi.axis === ax.id ? " on" : "";
-      return `<div class="axis-row${headOn}"><b>${esc(ax.name.replace("　", " "))}　你 ${pct}　${frac}${hk}</b>${chips}</div>`;
+      return `<div class="axis-row${headOn}"><button type="button" class="mk-axis-name" data-mc-axis="${esc(ax.id)}">${esc(ax.name.replace("　", " "))}　你 ${pct}　${frac}${hk}</button>${chips}</div>`;
     }).join("");
     const open = mcUi.boardOpen !== false ? " open" : "";
     return `<details class="mc-board axis-legend"${open}><summary>8軸課題對照</summary>${blocks}</details>`;
@@ -399,11 +399,13 @@
       acc += len;
       return el;
     }).join("");
-    return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="59" text-anchor="middle" font-size="20" fill="#1c1915">${ok}</text></svg>`;
+    return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="52" text-anchor="middle" font-size="18" fill="#1c1915">${ok}</text><text x="54" y="68" text-anchor="middle" font-size="11" fill="#6b645b">/45</text></svg>`;
   }
-  function scoreBar(label, fill, total, blue) {
+  function secBar(label, fill, total, key, color) {
     const pct = total ? Math.max(0, Math.min(100, Math.round(fill * 100 / total))) : 0;
-    return `<div class="mc-bar${blue ? " blue" : ""}"><span>${label}</span><i><b style="width:${pct}%"></b></i><span>${fill}/${total}</span></div>`;
+    const on = key !== "*" && mcUi.sec === key ? " on" : "";
+    const dim = mcUi.sec && mcUi.sec !== key ? " dim" : "";
+    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b></i><span>${fill}/${total}</span></button>`;
   }
   function analysisHtml(year, d) {
     const know = prefs.mcRadar === "know";
@@ -412,13 +414,14 @@
     const kinds = { bad: 0, guess: 0, ok: 0, blank: 0 };
     const statusN = { 0: 0, 1: 0, 2: 0, 3: 0 };
     for (let q = 1; q <= 45; q++) {
-      const kind = paperKind(year, d, q);
-      kinds[kind]++;
-      if (!mcUi.paper || kind === mcUi.paper) statusN[shownStatus(d, year, q)]++;
+      kinds[paperKind(year, d, q)]++;
+      statusN[shownStatus(d, year, q)]++;
     }
     const rows = [];
     for (let q = 1; q <= 45; q++) {
       const kind = paperKind(year, d, q);
+      if (mcUi.sec === "A" && q > 30) continue;
+      if (mcUi.sec === "B" && q <= 30) continue;
       if (mcUi.paper && kind !== mcUi.paper) continue;
       if (mcUi.axis) {
         const ax = AXES.find(a => a.id === mcUi.axis);
@@ -458,25 +461,32 @@
       </tr>`);
     }
     const paperBtns = [
-      ["", "全部", 45],
-      ["bad", "答錯", kinds.bad],
-      ["guess", "撞", kinds.guess],
-      ["ok", "答對", kinds.ok],
-      ["blank", "留空", kinds.blank]
-    ].map(([key, lab, n]) => `<button type="button" class="ghost${mcUi.paper === key ? " on-toggle" : ""}" data-mc-fp="${key}">${lab} ${n}</button>`).join("");
+      ["ok", "答對", "fp-ok", kinds.ok],
+      ["bad", "答錯", "fp-bad", kinds.bad],
+      ["guess", "撞", "fp-guess", kinds.guess],
+      ["blank", "留空", "fp-blank", kinds.blank]
+    ].map(([key, lab, cls, n]) => `<button type="button" class="mk-stf ${cls}${mcUi.paper === key ? " on" : ""}" data-mc-fp="${key}">${lab} (${n})</button>`).join("");
     const statHtml = [
-      ["", "全部", statusN[0] + statusN[1] + statusN[2] + statusN[3]],
-      ["0", "未標", statusN[0]],
-      ["1", "唔識", statusN[1]],
-      ["2", "一般", statusN[2]],
-      ["3", "已掌握", statusN[3]]
-    ].map(([key, lab, n]) => `<button type="button" class="ghost${mcUi.status === key ? " on-toggle" : ""}" data-mc-fs="${key}">${lab} ${n}</button>`).join("");
+      ["1", "唔識", "st1", statusN[1]],
+      ["2", "一般", "st2", statusN[2]],
+      ["3", "已掌握", "st3", statusN[3]],
+      ["0", "未標", "st0", statusN[0]]
+    ].map(([key, lab, cls, n]) => `<button type="button" class="mk-stf ${cls}${mcUi.status === key ? " on" : ""}" data-mc-fs="${key}">${lab} (${n})</button>`).join("");
+    const clearOn = !mcUi.paper && mcUi.status === "" && !mcUi.axis && !mcUi.topic && !mcUi.sec ? " on" : "";
+    const axisOn = AXES.find(a => a.id === mcUi.axis);
+    const topicOn = mcUi.topic ? mcUi.topic.split("\n") : null;
+    const bits = [];
+    if (mcUi.topic) bits.push(window.topicLabel ? topicLabel(topicOn[1]) : topicOn[1]);
+    else if (axisOn) bits.push(axisOn.name.replace("　", " "));
+    else if (mcUi.sec === "A") bits.push("甲部");
+    else if (mcUi.sec === "B") bits.push("乙部");
+    if (mcUi.status !== "") bits.push(["未標", "唔識", "一般", "已掌握"][+mcUi.status] || "");
+    if (mcUi.paper) bits.push({ ok: "答對", bad: "答錯", guess: "撞", blank: "留空" }[mcUi.paper] || "");
+    const watch = bits.filter(Boolean).join(" · ");
     const wrong = s.seen - s.ok;
     const drawKey = year + ":" + (know ? "know" : "mark");
     const draw = mcUi.radarKey !== drawKey;
     mcUi.radarKey = drawKey;
-    const axisOn = AXES.find(a => a.id === mcUi.axis);
-    const topicOn = mcUi.topic ? mcUi.topic.split("\n") : null;
     return `<section class="mc-analysis">
       <h3 class="sec-title">分析</h3>
       <div class="mc-review">
@@ -488,38 +498,38 @@
           ${radarHtml(axes, !know, draw)}
           <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
         </div>
-        <div class="mc-scoreboard">
-          <div class="stats">
-            <div class="stat"><b>${s.ok}/45</b><span>全卷</span></div>
-            <div class="stat"><b>${s.sec.A.ok}/30</b><span>甲</span></div>
-            <div class="stat"><b>${s.sec.B.ok}/15</b><span>乙</span></div>
-            <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
-            <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
-            <div class="stat"><b>${s.blank}</b><span>留空</span></div>
-            <div class="stat"><b>${s.sureBad}</b><span>信心錯</span></div>
-          </div>
-          <div class="mc-visual">
-            <div>${donutSvg(s.ok, wrong, s.blank)}<p class="hint">圓環：對、錯、留空</p></div>
-            <div>
-              ${scoreBar("甲", s.sec.A.ok, 30)}
-              ${scoreBar("乙", s.sec.B.ok, 15)}
-              ${scoreBar("黑筆", s.bkOk, s.bk)}
-              ${scoreBar("藍筆", s.blOk, s.bl, true)}
-            </div>
-          </div>
+        <div class="mk-topics">
+          ${boardHtml(year, d, know)}
         </div>
       </div>
-      ${boardHtml(year, d, know)}
-      <div class="mc-filters">${paperBtns}<button type="button" class="ghost" id="mcFilterReset">重設</button></div>
-      <div class="mc-filters">${statHtml}</div>
-      ${axisOn ? `<p class="hint">而家只顯示：${esc(axisOn.name.replace("　", " "))}　<button type="button" class="ghost" data-mc-axis="${axisOn.id}">顯示全部</button></p>` : ""}
-      ${topicOn ? `<p class="hint">而家只顯示：${esc(window.topicLabel ? topicLabel(topicOn[1]) : topicOn[1])}　<button type="button" class="ghost" data-mc-topic-clear="1">顯示全部</button></p>` : ""}
+      <div class="mc-scoreboard score-card">
+        <div class="stats">
+          <div class="stat"><b>${s.ok}/45</b><span>全卷</span></div>
+          <div class="stat"><b>${s.sec.A.ok}/30</b><span>甲</span></div>
+          <div class="stat"><b>${s.sec.B.ok}/15</b><span>乙</span></div>
+          <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
+          <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
+          <div class="stat"><b>${s.blank}</b><span>留空</span></div>
+          <div class="stat"><b>${s.sureBad}</b><span>信心錯</span></div>
+        </div>
+        <div class="mc-visual mk-visual">
+          ${donutSvg(s.ok, wrong, s.blank)}
+          <div class="mk-bars">
+            ${secBar("總分", s.ok, 45, "*", "#3e9a62")}
+            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c")}
+            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a")}
+          </div>
+        </div>
+        <p class="hint">圓環係答對、答錯、留空。撳甲或乙篩下面的題。</p>
+      </div>
+      <div class="mc-filters mk-filters">${statHtml}<span class="mc-flt-gap"></span>${paperBtns}<span class="mc-flt-gap"></span><button type="button" class="mk-stf${clearOn}" data-mc-clear="1">顯示全部</button></div>
+      ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" data-mc-clear="1">顯示全部</button></p>` : ""}
       <div class="mc-status-tools">
         <button type="button" class="mc-batch" data-mc-batch="sure-ok">黑筆答對標已掌握 ${batchCount(year, d, "sure-ok")}</button>
         <button type="button" class="mc-batch badb" data-mc-batch="sure-bad">黑筆答錯標唔識 ${batchCount(year, d, "sure-bad")}</button>
         <button type="button" class="mc-batch blueb" data-mc-batch="guess-bad">藍筆答錯標唔識 ${batchCount(year, d, "guess-bad")}</button>
       </div>
-      <div style="overflow:auto">
+      <div class="mc-scroll">
         <table class="data-table mc-ana">
           <thead><tr><th>題</th><th>你的</th><th>正確</th><th>課題</th><th>全港</th><th>狀態</th><th>筆記</th><th>錯因</th></tr></thead>
           <tbody>${rows.join("") || `<tr><td colspan="8">冇符合嘅題。</td></tr>`}</tbody>
@@ -533,6 +543,8 @@
     const box = document.getElementById("mcSheet");
     if (!box) return;
     const keep = window.scrollY;
+    const prevScroll = box.querySelector(".mc-scroll");
+    const keepLeft = prevScroll ? prevScroll.scrollLeft : 0;
     const paper = document.getElementById("timerPaper");
     const on = paper && paper.value === "p2";
     box.hidden = !on;
@@ -574,6 +586,8 @@
       mcUi.pinSheet = false;
       box.scrollIntoView({ block: "start" });
     } else window.scrollTo(0, keep);
+    const scNow = box.querySelector(".mc-scroll");
+    if (scNow) scNow.scrollLeft = keepLeft;
   }
 
   function toggleTag(q, id) {
@@ -1062,16 +1076,40 @@
       const batch = e.target.closest("[data-mc-batch]");
       if (batch) { applyBatch(batch.dataset.mcBatch); return; }
       const fp = e.target.closest("[data-mc-fp]");
-      if (fp) { mcUi.paper = fp.dataset.mcFp; renderMcSheet(); return; }
+      if (fp) {
+        mcUi.paper = mcUi.paper === fp.dataset.mcFp ? "" : fp.dataset.mcFp;
+        mcUi.axis = ""; mcUi.topic = ""; mcUi.sec = "";
+        renderMcSheet();
+        return;
+      }
       const fs = e.target.closest("[data-mc-fs]");
-      if (fs) { mcUi.status = fs.dataset.mcFs; renderMcSheet(); return; }
-      if (e.target.id === "mcFilterReset") { mcUi.paper = ""; mcUi.status = ""; mcUi.axis = ""; mcUi.topic = ""; renderMcSheet(); return; }
-      if (e.target.closest("[data-mc-topic-clear]")) { mcUi.topic = ""; renderMcSheet(); return; }
+      if (fs) {
+        mcUi.status = mcUi.status === fs.dataset.mcFs ? "" : fs.dataset.mcFs;
+        mcUi.axis = ""; mcUi.topic = ""; mcUi.sec = "";
+        renderMcSheet();
+        return;
+      }
+      if (e.target.closest("[data-mc-clear]")) {
+        mcUi.paper = ""; mcUi.status = ""; mcUi.axis = ""; mcUi.topic = ""; mcUi.sec = "";
+        renderMcSheet();
+        return;
+      }
       const topicHit = e.target.closest("[data-mc-topic]");
       if (topicHit) {
         const key = topicHit.dataset.mcPart + "\n" + topicHit.dataset.mcTopic;
         mcUi.topic = mcUi.topic === key ? "" : key;
-        if (mcUi.topic) mcUi.axis = "";
+        if (mcUi.topic) { mcUi.axis = ""; mcUi.sec = ""; mcUi.status = ""; mcUi.paper = ""; }
+        renderMcSheet();
+        return;
+      }
+      const secHit = e.target.closest("[data-mc-sec]");
+      if (secHit) {
+        const id = secHit.dataset.mcSec;
+        if (id === "*") { mcUi.sec = ""; mcUi.axis = ""; mcUi.topic = ""; }
+        else {
+          mcUi.sec = mcUi.sec === id ? "" : id;
+          if (mcUi.sec) { mcUi.axis = ""; mcUi.topic = ""; mcUi.status = ""; mcUi.paper = ""; }
+        }
         renderMcSheet();
         return;
       }
@@ -1079,7 +1117,7 @@
       if (axisHit) {
         const id = axisHit.dataset.mcAxis;
         mcUi.axis = mcUi.axis === id ? "" : id;
-        if (mcUi.axis) mcUi.topic = "";
+        if (mcUi.axis) { mcUi.topic = ""; mcUi.sec = ""; mcUi.status = ""; mcUi.paper = ""; }
         renderMcSheet();
         return;
       }

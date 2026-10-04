@@ -301,7 +301,7 @@
           ${boardHtml(paper, year)}
         </div>
       </div>
-      <div class="mc-scoreboard mk-scoreboard">
+      <div class="mc-scoreboard mk-scoreboard score-card">
         ${scoreVisual(paper, year)}
       </div>
       <div class="mk-filters">${filters}</div>
