@@ -133,21 +133,67 @@
     const open = mkUi.boardOpen !== false ? " open" : "";
     return `<details class="mc-board axis-legend"${open}><summary>${paper === "m2" ? "6" : "8"}軸課題對照</summary>${blocks}</details>`;
   }
-  function secBars(paper, year) {
-    const secs = [];
+  function secColor(name) {
+    if (name === "甲一" || name === "甲") return "#3d6e8c";
+    if (name === "甲二") return "#3e9a62";
+    return "#c48a3a";
+  }
+  function secLabel(paper, name) {
+    return paper === "p1" && name === "乙" ? "乙部" : name;
+  }
+  function secStats(paper, year) {
+    const map = new Map();
     markItems(paper, year).forEach(it => {
-      let s = secs.find(x => x.name === it.sec);
-      if (!s) { s = { name: it.sec || "全卷", earned: 0, all: 0 }; secs.push(s); }
+      const name = it.sec || "全卷";
+      let s = map.get(name);
+      if (!s) { s = { name, earned: 0, all: 0, any: false }; map.set(name, s); }
       s.all += +it.marks || 0;
       const v = partVal(paper, year, it.q, it.sub);
-      if (v != null) s.earned += v;
+      if (v == null) return;
+      s.any = true;
+      s.earned += v;
     });
-    return `<div class="mk-bars">${secs.map(s => {
-      const pct = s.all ? Math.round(s.earned * 100 / s.all) : 0;
-      const on = mkUi.sec === s.name ? " on" : "";
-      const lab = paper === "p1" && s.name === "乙" ? "乙部" : s.name;
-      return `<button type="button" class="mc-bar mk-sec${on}" data-mk-sec="${esc(s.name)}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b></i><span>${s.earned}/${s.all}</span></button>`;
-    }).join("")}</div>`;
+    return [...map.values()];
+  }
+  function donutSvg(parts, rest, center, sub) {
+    const radius = 42, circ = 2 * Math.PI * radius;
+    const total = parts.reduce((s, p) => s + p.n, 0) + rest || 1;
+    let acc = 0;
+    let arcs = "";
+    if (!parts.some(p => p.n > 0)) {
+      arcs = `<circle cx="54" cy="54" r="${radius}" fill="none" stroke="#d9d3c8" stroke-width="12"/>`;
+    } else {
+      parts.forEach(p => {
+        if (!p.n) return;
+        const len = circ * p.n / total;
+        arcs += `<circle cx="54" cy="54" r="${radius}" fill="none" stroke="${p.col}" stroke-width="12" stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+        acc += len;
+      });
+      if (rest > 0) {
+        const len = circ * rest / total;
+        arcs += `<circle cx="54" cy="54" r="${radius}" fill="none" stroke="#d9d3c8" stroke-width="12" stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
+      }
+    }
+    return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="52" text-anchor="middle" font-size="18" fill="#1c1915">${center}</text><text x="54" y="68" text-anchor="middle" font-size="11" fill="#6b645b">${sub}</text></svg>`;
+  }
+  function scoreVisual(paper, year) {
+    const secs = secStats(paper, year);
+    const full = secs.reduce((s, x) => s + x.all, 0);
+    const sum = partSum(paper, year);
+    const earned = sum == null ? 0 : sum;
+    const parts = secs.map(s => ({ n: s.earned, col: secColor(s.name) }));
+    const ring = donutSvg(parts, Math.max(0, full - earned), sum == null ? "—" : String(sum), "/" + full);
+    const bar = (lab, got, all, any, color, key) => {
+      const pct = any && all ? Math.round(got * 100 / all) : 0;
+      const on = key && mkUi.sec === key ? " on" : "";
+      const dim = key && mkUi.sec && mkUi.sec !== key ? " dim" : "";
+      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b></i><span>${any ? got + "/" + all : "—/" + all}</span></button>`;
+    };
+    const rows = bar("總分", earned, full, sum != null, "#2f5d50", "*") + secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name)).join("");
+    const note = paper === "m2"
+      ? "圓環係已得分，顏色分甲、乙。灰色係未得分。撳條篩下面的題。"
+      : "圓環係已得分，顏色分甲一、甲二、乙部。灰色係未得分。撳條篩下面的題。";
+    return `<div class="mc-visual mk-visual">${ring}<div class="mk-bars">${rows}</div></div><p class="hint">${note}</p>`;
   }
   function statusCell(paper, year, q) {
     const c = getCell(paper, year, q);
@@ -172,6 +218,11 @@
       return;
     }
     if ((paper !== "p1" && paper !== "m2") || !year) {
+      if (paper === "p1" || paper === "m2") {
+        box.hidden = false;
+        box.innerHTML = `<p class="hint">揀年份先可以評卷。</p>`;
+        return;
+      }
       box.hidden = true;
       box.innerHTML = "";
       return;
@@ -205,7 +256,10 @@
       const v = partVal(paper, year, it.q, it.sub);
       const max = +it.marks || 0;
       const sets = [];
-      for (let n = 0; n <= max; n++) sets.push(`<button type="button" tabindex="-1" class="${v === n ? "on" : ""}" data-mk-set="${n}" data-mk-q="${it.q}" data-mk-sub="${esc(it.sub)}">${n}</button>`);
+      for (let n = 0; n <= max; n++) {
+        const cls = v == null ? "" : v === n ? "on" : "off";
+        sets.push(`<button type="button" tabindex="-1" class="${cls}" data-mk-set="${n}" data-mk-q="${it.q}" data-mk-sub="${esc(it.sub)}">${n}</button>`);
+      }
       const rate = max && it.hk != null ? Math.round(+it.hk / max * 100) : null;
       const hkTxt = it.hk == null ? "—" : (Math.round(+it.hk * 10) / 10) + "／" + max;
       const span = idx ? "" : ` rowspan="${g.rows.length}" class="mk-span"`;
@@ -218,8 +272,14 @@
         ${tail}
       </tr>`;
     }).join("")).join("");
-    const sum = partSum(paper, year);
-    const full = items.reduce((s, it) => s + (+it.marks || 0), 0);
+    let watch = "";
+    if (mkUi.topic) {
+      const topic = mkUi.topic.split("\n").slice(1).join("\n");
+      watch = window.topicLabel ? topicLabel(topic) : topic;
+    } else if (mkUi.axis) {
+      const ax = axesOf(paper).find(a => a.id === mkUi.axis);
+      watch = ax ? String(ax.name).replace("　", " ") : "";
+    } else if (mkUi.sec) watch = secLabel(paper, mkUi.sec);
     box.innerHTML = `<section class="mc-analysis">
       <h3 class="sec-title">評卷</h3>
       <div class="mc-review">
@@ -228,14 +288,12 @@
           <p class="hint">實色＝已入分題的得分率。未入唔當 0，亦唔入百分比。虛線＝全港。</p>
         </div>
         <div class="mc-scoreboard">
-          <div class="stats"><div class="stat"><b>${sum == null ? "—" : sum}/${full}</b><span>已入細分</span></div></div>
-          ${secBars(paper, year)}
-          <p class="hint">撳分部篩下面的題。條會跟分數即時更新。</p>
+          ${scoreVisual(paper, year)}
         </div>
       </div>
       ${boardHtml(paper, year)}
-      ${mkUi.sec || mkUi.axis || mkUi.topic ? `<p class="hint"><button type="button" class="ghost" id="mkReset">顯示全部</button></p>` : ""}
-      <div style="overflow:auto"><table class="data-table mk-ana"><thead><tr><th>題號</th><th>課題</th><th>得分</th><th>全港平均分</th><th>狀態</th><th>筆記</th><th>錯因</th></tr></thead><tbody>${body || `<tr><td colspan="7">冇符合嘅分題。</td></tr>`}</tbody></table></div>
+      ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" id="mkReset">顯示全部</button></p>` : ""}
+      <div class="mk-scroll"><table class="data-table mk-ana"><thead><tr><th>題號</th><th>課題</th><th>得分</th><th>全港平均分</th><th>狀態</th><th>筆記</th><th>錯因</th></tr></thead><tbody>${body || `<tr><td colspan="7">冇符合嘅分題。</td></tr>`}</tbody></table></div>
     </section>`;
     window.scrollTo(0, keep);
     const want = mkUi.focus;
@@ -388,13 +446,29 @@
       holdRender = false;
       if (e.target.id === "mkReset") { mkUi.sec = ""; mkUi.axis = ""; mkUi.topic = ""; renderMarkSheet(); return; }
       const sec = e.target.closest("[data-mk-sec]");
-      if (sec) { mkUi.sec = mkUi.sec === sec.dataset.mkSec ? "" : sec.dataset.mkSec; renderMarkSheet(); return; }
+      if (sec) {
+        const name = sec.dataset.mkSec;
+        if (name === "*") { mkUi.sec = ""; mkUi.axis = ""; mkUi.topic = ""; }
+        else {
+          mkUi.sec = mkUi.sec === name ? "" : name;
+          mkUi.axis = "";
+          mkUi.topic = "";
+        }
+        renderMarkSheet();
+        return;
+      }
       const ax = e.target.closest("[data-mk-axis]");
-      if (ax) { mkUi.axis = mkUi.axis === ax.dataset.mkAxis ? "" : ax.dataset.mkAxis; renderMarkSheet(); return; }
+      if (ax) {
+        mkUi.axis = mkUi.axis === ax.dataset.mkAxis ? "" : ax.dataset.mkAxis;
+        if (mkUi.axis) { mkUi.sec = ""; mkUi.topic = ""; }
+        renderMarkSheet();
+        return;
+      }
       const topic = e.target.closest("[data-mk-topic]");
       if (topic) {
         const key = topic.dataset.mkPart + "\n" + topic.dataset.mkTopic;
         mkUi.topic = mkUi.topic === key ? "" : key;
+        if (mkUi.topic) { mkUi.sec = ""; mkUi.axis = ""; }
         renderMarkSheet();
         return;
       }
@@ -424,10 +498,13 @@
     });
     box.addEventListener("keydown", e => {
       const inp = e.target.closest && e.target.closest("input.mk-score");
-      if (!inp || e.key !== "Tab") return;
+      if (!inp || (e.key !== "Tab" && e.key !== "Enter")) return;
       const inputs = [...box.querySelectorAll("input.mk-score")];
       const nxt = inputs[inputs.indexOf(inp) + (e.shiftKey ? -1 : 1)];
-      if (!nxt) return;
+      if (!nxt) {
+        if (e.key === "Enter") { e.preventDefault(); writeScore(inp); renderMarkSheet(); }
+        return;
+      }
       e.preventDefault();
       mkUi.focus = { q: nxt.dataset.mkQ, sub: nxt.dataset.mkSub };
       writeScore(inp);

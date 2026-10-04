@@ -512,8 +512,8 @@
       ${boardHtml(year, d, know)}
       <div class="mc-filters">${paperBtns}<button type="button" class="ghost" id="mcFilterReset">重設</button></div>
       <div class="mc-filters">${statHtml}</div>
-      ${axisOn ? `<p class="hint">而家睇：${esc(axisOn.name.replace("　", " "))}　<button type="button" class="ghost" data-mc-axis="${axisOn.id}">顯示全部軸</button></p>` : ""}
-      ${topicOn ? `<p class="hint">而家睇：${esc(topicOn[0])}　${esc(topicOn[1])}　<button type="button" class="ghost" data-mc-topic-clear="1">顯示全部課題</button></p>` : ""}
+      ${axisOn ? `<p class="hint">而家只顯示：${esc(axisOn.name.replace("　", " "))}　<button type="button" class="ghost" data-mc-axis="${axisOn.id}">顯示全部</button></p>` : ""}
+      ${topicOn ? `<p class="hint">而家只顯示：${esc(window.topicLabel ? topicLabel(topicOn[1]) : topicOn[1])}　<button type="button" class="ghost" data-mc-topic-clear="1">顯示全部</button></p>` : ""}
       <div class="mc-status-tools">
         <button type="button" class="mc-batch" data-mc-batch="sure-ok">黑筆答對標已掌握 ${batchCount(year, d, "sure-ok")}</button>
         <button type="button" class="mc-batch badb" data-mc-batch="sure-bad">黑筆答錯標唔識 ${batchCount(year, d, "sure-bad")}</button>
@@ -1071,6 +1071,7 @@
       if (topicHit) {
         const key = topicHit.dataset.mcPart + "\n" + topicHit.dataset.mcTopic;
         mcUi.topic = mcUi.topic === key ? "" : key;
+        if (mcUi.topic) mcUi.axis = "";
         renderMcSheet();
         return;
       }
@@ -1078,6 +1079,7 @@
       if (axisHit) {
         const id = axisHit.dataset.mcAxis;
         mcUi.axis = mcUi.axis === id ? "" : id;
+        if (mcUi.axis) mcUi.topic = "";
         renderMcSheet();
         return;
       }

@@ -168,9 +168,26 @@ button.stat.ring-stat {
 input[readonly] { background: #f7f3eb; color: var(--muted); }
 .mk-score { width: 52px; height: 32px; text-align: center; }
 .mk-sets { display: flex; gap: 4px; align-items: center; flex-wrap: nowrap; }
-.mk-sets button { height: 28px; min-width: 28px; padding: 0 6px; }
+.mk-sets button { height: 28px; min-width: 28px; padding: 0 6px; opacity: .48; background: #f4f0e8; color: #6b645b; }
 .mk-bars .mc-bar { grid-template-columns: auto minmax(40px, 1fr) auto; }
-.mk-sets button.on { outline: 2px solid #1c1915; }
+.mk-sets button.on { opacity: 1; background: #1c1915; color: #fff; outline: none; }
+.mk-sets button.off { opacity: .22; }
+.mk-sets button:hover { opacity: .82; }
+.mk-sets button.on:hover { opacity: 1; }
+.mk-scroll { overflow: auto; }
+.mk-ana th:first-child, .mk-ana td:first-child {
+  position: sticky; left: 0; z-index: 1; background: var(--paper);
+  box-shadow: 1px 0 0 var(--line);
+}
+.mk-ana th:first-child { z-index: 2; background: #f7f3eb; }
+.mk-bars button.mk-sec {
+  background: transparent; color: var(--ink); border-color: transparent;
+  box-shadow: inset 3px 0 0 var(--mk-fill, #3e9a62); text-align: left; border-radius: 8px;
+}
+.mk-bars button.mk-sec.on { background: #eef6f2; outline: 2px solid var(--accent); }
+.mk-bars .mk-sec i b { background: var(--mk-fill, #3e9a62); }
+.mk-sec.dim { opacity: .38; }
+.mk-visual { align-items: center; }
 .mk-ana td { white-space: nowrap; vertical-align: middle; }
 .mk-ana .mk-span { vertical-align: top; }
 .mk-sec.on { outline: 2px solid var(--accent); }
