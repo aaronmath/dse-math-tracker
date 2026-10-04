@@ -66,6 +66,7 @@ let mcHideAns = false;
 let mcUnseen = false;
 let radarAxis = "";
 let radarDrawn = "";
+var classRadarDrawn = "";
 let yearDonePrev = {};
 const CLASS_MIN = 20;
 const CLASS_GATE_KEY = "dse-math-tracker-class-ok";
@@ -2305,8 +2306,11 @@ function classRadarHtml(people, paper, cmpPeople) {
   }
   const empty = people.filter(n => classEligible(db.profiles[n], paper)).length === 0;
   if (empty) return `<p class="hint">入圍 0 人，標滿 ${CLASS_MIN} 題先出班雷達。</p>`;
+  const drawKey = (prefs.classSel || "") + ":" + paper + ":" + (prefs.classCmp || "") + ":" + (prefs.hkRef ? 1 : 0);
+  const draw = classRadarDrawn !== drawKey;
+  classRadarDrawn = drawKey;
   const cap = cmpPeople && cmpPeople.length ? "藍＝呢班　玫紅虛線＝疊班　灰虛線＝全港" : "實色＝班平均　虛線＝全港命中率";
-  return `<svg viewBox="0 0 340 340" class="radar-draw">${rings}${spokes}${hk}${cmp}${stu}${labels}
+  return `<svg viewBox="0 0 340 340" class="${draw ? "radar-draw" : ""}">${rings}${spokes}${hk}${cmp}${stu}${labels}
     <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">${cap}</text></svg>`;
 }
 function renderClassPage() {

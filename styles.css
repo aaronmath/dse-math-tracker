@@ -228,10 +228,13 @@ button.filled-note { box-shadow: inset 0 0 0 2px var(--accent); }
   40% { transform: scale(1.08) rotate(-2deg); }
   100% { transform: scale(1); }
 }
-.radar-draw .radar-stu { animation: radar-in .5s ease; }
+.radar-draw .radar-stu { animation: radar-in .35s linear both; }
 @keyframes radar-in {
   from { opacity: 0; }
   to { opacity: 1; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .radar-draw .radar-stu { animation: none; }
 }
 .timer-clock.warn5 {
   animation: timer-pulse 1.2s ease-in-out infinite;
@@ -440,8 +443,8 @@ textarea { width: 100%; min-height: 80px; font: inherit; border-radius: 10px; bo
   background: var(--paper); border: 1px solid var(--line); border-radius: 14px;
   padding: 10px; box-shadow: var(--shadow);
 }
-.radar-stu { transition: stroke-width .15s, fill .15s; cursor: pointer; }
-.radar-stu:hover { stroke-width: 3.5; fill: rgba(61,110,140,.42); }
+.radar-stu { cursor: pointer; }
+.radar-stu:hover { opacity: .72; }
 .cell.syll-old::after, .cell.syll-part::after {
   position: absolute; left: 1px; top: 0; font-size: 8px; line-height: 1;
   color: #8a8178; font-weight: 700; pointer-events: none;
