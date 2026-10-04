@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20261004e" />
-  <link rel="stylesheet" href="./patch.css?v=20261004f" />
+  <link rel="stylesheet" href="./patch.css?v=20261004g" />
 </head>
 <body>
   <header>
@@ -368,15 +368,21 @@
       <div id="xferShow" hidden>
         <h3 style="margin:0 0 6px">出示進度碼</h3>
         <p class="hint" id="xferShowMeta"></p>
-        <canvas id="xferQr" width="360" height="360"></canvas>
-        <p class="hint">用另一部裝置：過檔 → 掃入。含狀態、分數、細分、錯因、用時、操卷日、MC 選項；筆記唔在碼內。</p>
+        <div id="xferQrRow" class="xfer-qr-row"></div>
+        <div class="row xfer-qr-nav" id="xferQrNav">
+          <button type="button" class="ghost" id="xferQrPrev">上一個</button>
+          <span id="xferQrPage" class="sub"></span>
+          <button type="button" class="ghost" id="xferQrNext">下一個</button>
+        </div>
+        <canvas id="xferQr" width="360" height="360" hidden></canvas>
+        <p class="hint">用另一部裝置：過檔 → 掃入。一個學生可能有 1–4 個碼，掃齊先寫入。含狀態、分數、細分、錯因、用時、操卷日、MC 選項；筆記唔在碼內。</p>
         <div class="row"><button type="button" class="ghost" id="xferShowClose">關閉</button></div>
       </div>
       <div id="xferScan" hidden>
         <h3 style="margin:0 0 6px">掃入進度碼</h3>
         <video id="xferVideo" playsinline muted autoplay></video>
         <canvas id="xferScanCanvas" hidden></canvas>
-        <p class="hint" id="xferScanHint">對準另一部裝置嘅 QR。離線檔案或未授權鏡頭可用相簿。</p>
+        <p class="hint" id="xferScanHint">對準進度碼。多過一個就掃齊先寫入。</p>
         <div class="row">
           <button type="button" class="ghost" id="xferPickImg">改用相簿圖片</button>
           <button type="button" class="ghost" id="xferScanClose">取消</button>
@@ -445,7 +451,8 @@
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
   <script src="./app-m2-ui.js?v=20261004b"></script>
-  <script src="./app-mc-sheet.js?v=20261004f"></script>
-  <script src="./app-mark-sheet.js?v=20261004f"></script>
+  <script src="./app-mc-sheet.js?v=20261004g"></script>
+  <script src="./app-mark-sheet.js?v=20261004g"></script>
+  <script src="./app-qr-pack.js?v=20261004g"></script>
 </body>
 </html>

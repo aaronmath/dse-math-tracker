@@ -1,6 +1,6 @@
 /* 卷一、M2 操卷分題。筆記唔入進度碼。舊碼冇細分就當冇。 */
 (function () {
-  const mkUi = { sec: "", axis: "", topic: "", boardOpen: true, radarKey: "" };
+  const mkUi = { sec: "", axis: "", topic: "", boardOpen: true, radarKey: "", st: "", blank: false };
 
   function markItems(paper, year) {
     const src = paper === "m2"
@@ -128,7 +128,7 @@
       }).join("");
       const hk = row.hk ? "　全港 " + Math.round(row.hk * 100) + "%" : "";
       const you = row.pct == null ? "—" : row.pct + "%";
-      return `<div class="axis-row${mkUi.axis === ax.id ? " on" : ""}"><b>${esc(row.name || ax.name)}　你 ${you}　${row.earned}/${row.all}${hk}</b>${chips}</div>`;
+      return `<div class="axis-row${mkUi.axis === ax.id ? " on" : ""}"><button type="button" class="mk-axis-name" data-mk-axis="${esc(ax.id)}">${esc(row.name || ax.name)}　你 ${you}　${row.earned}/${row.all}${hk}</button>${chips}</div>`;
     }).join("");
     const open = mkUi.boardOpen !== false ? " open" : "";
     return `<details class="mc-board axis-legend"${open}><summary>${paper === "m2" ? "6" : "8"}軸課題對照</summary>${blocks}</details>`;
@@ -229,6 +229,8 @@
     }
     box.hidden = false;
     const keep = window.scrollY;
+    const prevScroll = box.querySelector(".mk-scroll");
+    const keepLeft = prevScroll ? prevScroll.scrollLeft : 0;
     const items = markItems(paper, year);
     const axes = axisRows(paper, year);
     const drawKey = paper + ":" + year;
@@ -244,6 +246,8 @@
         const part = itemPart(paper, it);
         if (part + "\n" + it.topic !== mkUi.topic) return false;
       }
+      if (mkUi.st !== "" && (getCell(paper, year, it.q).s || 0) !== +mkUi.st) return false;
+      if (mkUi.blank && partVal(paper, year, it.q, it.sub) != null) return false;
       return true;
     });
     const groups = [];
@@ -272,30 +276,41 @@
         ${tail}
       </tr>`;
     }).join("")).join("");
-    let watch = "";
+    const bits = [];
     if (mkUi.topic) {
       const topic = mkUi.topic.split("\n").slice(1).join("\n");
-      watch = window.topicLabel ? topicLabel(topic) : topic;
+      bits.push(window.topicLabel ? topicLabel(topic) : topic);
     } else if (mkUi.axis) {
       const ax = axesOf(paper).find(a => a.id === mkUi.axis);
-      watch = ax ? String(ax.name).replace("　", " ") : "";
-    } else if (mkUi.sec) watch = secLabel(paper, mkUi.sec);
+      if (ax) bits.push(String(ax.name).replace("　", " "));
+    } else if (mkUi.sec) bits.push(secLabel(paper, mkUi.sec));
+    if (mkUi.st !== "") bits.push(["未做", "唔識", "一般", "已掌握"][+mkUi.st] || "");
+    if (mkUi.blank) bits.push("未入分");
+    const watch = bits.filter(Boolean).join(" · ");
+    const filters = [["", "全部", ""], ["0", "未做", " st0"], ["1", "唔識", " st1"], ["2", "一般", " st2"], ["3", "已掌握", " st3"]].map(([v, lab, cls]) => {
+      return `<button type="button" class="mk-stf${cls}${mkUi.st === v ? " on" : ""}" data-mk-stf="${v}">${lab}</button>`;
+    }).join("") + `<button type="button" class="mk-stf stblank${mkUi.blank ? " on" : ""}" data-mk-blank="1">未入分</button>`;
     box.innerHTML = `<section class="mc-analysis">
       <h3 class="sec-title">評卷</h3>
-      <div class="mc-review">
+      <div class="mc-review mk-top">
         <div class="radar-box">
           ${radarHtml(axes, draw)}
           <p class="hint">實色＝已入分題的得分率。未入唔當 0，亦唔入百分比。虛線＝全港。</p>
         </div>
-        <div class="mc-scoreboard">
-          ${scoreVisual(paper, year)}
+        <div class="mk-topics">
+          ${boardHtml(paper, year)}
         </div>
       </div>
-      ${boardHtml(paper, year)}
+      <div class="mc-scoreboard mk-scoreboard">
+        ${scoreVisual(paper, year)}
+      </div>
+      <div class="mk-filters">${filters}</div>
       ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" id="mkReset">顯示全部</button></p>` : ""}
       <div class="mk-scroll"><table class="data-table mk-ana"><thead><tr><th>題號</th><th>課題</th><th>得分</th><th>全港平均分</th><th>狀態</th><th>筆記</th><th>錯因</th></tr></thead><tbody>${body || `<tr><td colspan="7">冇符合嘅分題。</td></tr>`}</tbody></table></div>
     </section>`;
     window.scrollTo(0, keep);
+    const scNow = box.querySelector(".mk-scroll");
+    if (scNow) scNow.scrollLeft = keepLeft;
     const want = mkUi.focus;
     mkUi.focus = "";
     if (want) {
@@ -433,6 +448,70 @@
     setPart(paper, year, q, sub, val);
     return true;
   }
+  function livePaper() {
+    return {
+      paper: document.getElementById("timerPaper").value,
+      year: +document.getElementById("timerYear").value
+    };
+  }
+  function keepPos() {
+    const sc = box.querySelector(".mk-scroll");
+    return { top: window.scrollY, left: sc ? sc.scrollLeft : 0 };
+  }
+  function putPos(pos) {
+    window.scrollTo(0, pos.top);
+    const sc = box.querySelector(".mk-scroll");
+    if (sc) sc.scrollLeft = pos.left;
+  }
+  function paintStatus(q) {
+    const pos = keepPos();
+    const { paper, year } = livePaper();
+    if (mkUi.st !== "" && (getCell(paper, year, q).s || 0) !== +mkUi.st) {
+      renderMarkSheet();
+      putPos(pos);
+      requestAnimationFrame(() => putPos(pos));
+      return;
+    }
+    const btn = box.querySelector(`[data-mk-s][data-mk-q="${q}"]`);
+    const td = btn && btn.closest("td");
+    if (td) td.innerHTML = statusCell(paper, year, q);
+    putPos(pos);
+  }
+  function paintScore(q, sub) {
+    const pos = keepPos();
+    const { paper, year } = livePaper();
+    if (mkUi.st !== "" && (getCell(paper, year, q).s || 0) !== +mkUi.st) {
+      renderMarkSheet();
+      putPos(pos);
+      requestAnimationFrame(() => putPos(pos));
+      return;
+    }
+    if (mkUi.blank && partVal(paper, year, q, sub) != null) {
+      renderMarkSheet();
+      putPos(pos);
+      requestAnimationFrame(() => putPos(pos));
+      return;
+    }
+    const v = partVal(paper, year, q, sub);
+    const inp = box.querySelector(`input.mk-score[data-mk-q="${q}"][data-mk-sub="${CSS.escape(String(sub))}"]`);
+    if (inp && document.activeElement !== inp) inp.value = v == null ? "" : String(v);
+    const host = inp && inp.closest(".mk-sets");
+    if (host) host.querySelectorAll("[data-mk-set]").forEach(b => {
+      const n = +b.dataset.mkSet;
+      b.className = v == null ? "" : n === v ? "on" : "off";
+    });
+    const radar = box.querySelector(".radar-box");
+    if (radar) {
+      radar.innerHTML = radarHtml(axisRows(paper, year), false) + `<p class="hint">實色＝已入分題的得分率。未入唔當 0，亦唔入百分比。虛線＝全港。</p>`;
+    }
+    const topics = box.querySelector(".mk-topics");
+    if (topics) topics.innerHTML = boardHtml(paper, year);
+    const sb = box.querySelector(".mk-scoreboard");
+    if (sb) sb.innerHTML = scoreVisual(paper, year);
+    putPos(pos);
+  }
+  function clearChart() { mkUi.sec = ""; mkUi.axis = ""; mkUi.topic = ""; }
+  function clearTable() { mkUi.st = ""; mkUi.blank = false; }
   const box = document.getElementById("markSheet");
   let holdRender = false;
   if (box) {
@@ -444,11 +523,27 @@
     });
     box.addEventListener("click", e => {
       holdRender = false;
-      if (e.target.id === "mkReset") { mkUi.sec = ""; mkUi.axis = ""; mkUi.topic = ""; renderMarkSheet(); return; }
+      if (e.target.id === "mkReset") { clearChart(); clearTable(); renderMarkSheet(); return; }
+      const stf = e.target.closest("[data-mk-stf]");
+      if (stf) {
+        const v = stf.dataset.mkStf;
+        mkUi.st = v === "" ? "" : (mkUi.st === v ? "" : v);
+        clearChart();
+        renderMarkSheet();
+        return;
+      }
+      const blank = e.target.closest("[data-mk-blank]");
+      if (blank) {
+        mkUi.blank = !mkUi.blank;
+        clearChart();
+        renderMarkSheet();
+        return;
+      }
       const sec = e.target.closest("[data-mk-sec]");
       if (sec) {
         const name = sec.dataset.mkSec;
-        if (name === "*") { mkUi.sec = ""; mkUi.axis = ""; mkUi.topic = ""; }
+        clearTable();
+        if (name === "*") clearChart();
         else {
           mkUi.sec = mkUi.sec === name ? "" : name;
           mkUi.axis = "";
@@ -459,6 +554,7 @@
       }
       const ax = e.target.closest("[data-mk-axis]");
       if (ax) {
+        clearTable();
         mkUi.axis = mkUi.axis === ax.dataset.mkAxis ? "" : ax.dataset.mkAxis;
         if (mkUi.axis) { mkUi.sec = ""; mkUi.topic = ""; }
         renderMarkSheet();
@@ -466,6 +562,7 @@
       }
       const topic = e.target.closest("[data-mk-topic]");
       if (topic) {
+        clearTable();
         const key = topic.dataset.mkPart + "\n" + topic.dataset.mkTopic;
         mkUi.topic = mkUi.topic === key ? "" : key;
         if (mkUi.topic) { mkUi.sec = ""; mkUi.axis = ""; }
@@ -478,7 +575,7 @@
         const year = +document.getElementById("timerYear").value;
         pushUndo();
         setPart(paper, year, +set.dataset.mkQ, set.dataset.mkSub, +set.dataset.mkSet);
-        renderMarkSheet();
+        paintScore(+set.dataset.mkQ, set.dataset.mkSub);
         return;
       }
       const st = e.target.closest("[data-mk-s]");
@@ -490,7 +587,7 @@
         const cur = getCell(paper, year, q).s || 0;
         pushUndo();
         applyStatus(paper, year, q, cur === s ? 0 : s, "pick");
-        renderMarkSheet();
+        paintStatus(q);
         return;
       }
       const note = e.target.closest("[data-mk-note]");
@@ -501,25 +598,18 @@
       if (!inp || (e.key !== "Tab" && e.key !== "Enter")) return;
       const inputs = [...box.querySelectorAll("input.mk-score")];
       const nxt = inputs[inputs.indexOf(inp) + (e.shiftKey ? -1 : 1)];
-      if (!nxt) {
-        if (e.key === "Enter") { e.preventDefault(); writeScore(inp); renderMarkSheet(); }
-        return;
-      }
       e.preventDefault();
-      mkUi.focus = { q: nxt.dataset.mkQ, sub: nxt.dataset.mkSub };
       writeScore(inp);
-      renderMarkSheet();
+      paintScore(+inp.dataset.mkQ, inp.dataset.mkSub);
+      if (nxt) { nxt.focus(); nxt.select(); }
     });
     box.addEventListener("change", e => {
       const inp = e.target.closest("input.mk-score");
       if (!inp) return;
       const hold = holdRender;
       holdRender = false;
-      writeScore(inp);
-      if (hold) return;
-      requestAnimationFrame(() => {
-        try { renderMarkSheet(); } catch (err) { console.error(err); }
-      });
+      if (!writeScore(inp) || hold) return;
+      paintScore(+inp.dataset.mkQ, inp.dataset.mkSub);
     });
   }
   function hookSelect(el) {
@@ -529,6 +619,8 @@
       mkUi.sec = "";
       mkUi.axis = "";
       mkUi.topic = "";
+      mkUi.st = "";
+      mkUi.blank = false;
       if (prev) prev(ev);
       try { renderMarkSheet(); } catch (err) { console.error(err); }
     };
