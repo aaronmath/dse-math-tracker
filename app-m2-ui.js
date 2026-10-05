@@ -20,8 +20,50 @@ function axisHkFromItems(items, paper) {
   return hkW ? hkSum / hkW : null;
 }
 
+function useScoreMetric() { return prefs.metric !== "know"; }
+function partRate(cell, sub, marks) {
+  if (!cell || !cell.pts || cell.pts[sub] == null || cell.pts[sub] === "" || !marks) return null;
+  const v = +cell.pts[sub];
+  return Number.isFinite(v) ? v / marks : null;
+}
+function p2Rate(cell, year, q) {
+  if (!cell || !cell.mc) return null;
+  const bank = (window.P2_DATA && P2_DATA.dse && P2_DATA.dse[String(year)]) || [];
+  const row = bank.find(function (r) { return r.q === q; });
+  if (!row || !row.ans) return null;
+  return cell.mc === row.ans ? 1 : 0;
+}
+function scoreAxis(items, paper, cellOf) {
+  let sum = 0, wsum = 0, n = 0;
+  items.forEach(function (x) {
+    const c = cellOf(x);
+    if (paper === "p2") {
+      const r = p2Rate(c, x.y, x.q);
+      if (r == null) return;
+      sum += r; wsum += 1; n++;
+      return;
+    }
+    const r = partRate(c, x.sub, x.marks || 0);
+    if (r == null) return;
+    const m = x.marks || 0;
+    sum += r * m; wsum += m; n++;
+  });
+  return { n: n, L: wsum ? sum / wsum : null };
+}
 function axisScore(axis) {
   const paper = weakPaperId();
+  if (useScoreMetric()) {
+    const items = paper === "m2"
+      ? m2Items().filter(function (x) { return axis.topics.includes(x.topic); })
+      : paper === "p1"
+        ? p1Items().filter(function (x) { return p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic); })
+        : (P2_TOPICS.items || []).filter(function (x) { return x.part === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic); });
+    const got = scoreAxis(items, paper, function (x) { return getCell(paper, x.y, x.q); });
+    const hk = axisHkFromItems(items, paper);
+    const minN = paper === "p2" ? 4 : axisMinN(paper);
+    if (got.n < minN) return { n: got.n, L: null, hk: hk };
+    return { n: got.n, L: got.L, hk: hk };
+  }
   if (paper === "p1") {
     const items = p1Items().filter(function (x) {
       return p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic);
@@ -37,7 +79,7 @@ function axisScore(axis) {
       wsum += m;
       seenQ.add(x.y + ":" + x.q);
     });
-    const hk = axisHkFromItems(items, "p1");
+    const hk = useScoreMetric() ? axisHkFromItems(items, "p1") : null;
     if (seenQ.size < axisMinN(paper)) return { n: seenQ.size, L: null, hk: hk };
     return { n: seenQ.size, L: wsum ? sum / wsum : null, hk: hk };
   }
@@ -54,7 +96,7 @@ function axisScore(axis) {
       wsum += m;
       seenQ.add(x.y + ":" + x.q);
     });
-    const hk = axisHkFromItems(items, "m2");
+    const hk = useScoreMetric() ? axisHkFromItems(items, "m2") : null;
     if (seenQ.size < axisMinN(paper)) return { n: seenQ.size, L: null, hk: hk };
     return { n: seenQ.size, L: wsum ? sum / wsum : null, hk: hk };
   }
@@ -68,12 +110,23 @@ function axisScore(axis) {
     sum += c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
     n++;
   });
-  const hk = axisHkFromItems(items, "p2");
+  const hk = useScoreMetric() ? axisHkFromItems(items, "p2") : null;
   if (n < 4) return { n: n, L: null, hk: hk };
   return { n: n, L: sum / n, hk: hk };
 }
 
 function axisScoreOf(pr, axis, paper) {
+  if (useScoreMetric()) {
+    const items = paper === "m2"
+      ? m2Items().filter(function (x) { return axis.topics.includes(x.topic); })
+      : paper === "p1"
+        ? p1Items().filter(function (x) { return p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic); })
+        : (P2_TOPICS.items || []).filter(function (x) { return x.part === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic); });
+    const got = scoreAxis(items, paper, function (x) { return getCellOf(pr, paper, x.y, x.q); });
+    const minN = paper === "p2" ? 4 : axisMinN(paper);
+    if (got.n < minN) return { n: got.n, L: null };
+    return got;
+  }
   if (paper === "p1") {
     const items = p1Items().filter(function (x) {
       return p1PartOfSec(x.sec) === axis.part && axis.topics.includes(x.topic) && !skipOldQ(x.y, x.q, x.topic);
@@ -123,6 +176,14 @@ function axisScoreOf(pr, axis, paper) {
 }
 
 function topicAbilityOf(pr, part, topic, paper) {
+  if (useScoreMetric()) {
+    const items = paper === "m2"
+      ? m2Items().filter(function (x) { return x.topic === topic; })
+      : paper === "p1"
+        ? p1Items().filter(function (x) { return p1PartOfSec(x.sec) === part && x.topic === topic; })
+        : (P2_TOPICS.items || []).filter(function (x) { return x.part === part && x.topic === topic; });
+    return scoreAxis(items, paper, function (x) { return getCellOf(pr, paper, x.y, x.q); });
+  }
   if (paper === "m2") {
     const items = m2Items().filter(function (x) { return x.topic === topic; });
     let sum = 0, w = 0;
@@ -248,7 +309,8 @@ function classRadarHtml(people, paper, cmpPeople) {
     const ang = -Math.PI / 2 + i * 2 * Math.PI / N;
     stu += "<circle cx=\"" + (cx + r * Math.cos(ang)).toFixed(1) + "\" cy=\"" + (cy + r * Math.sin(ang)).toFixed(1) + "\" r=\"4\" class=\"miss\"/>";
   });
-  if (prefs.hkRef) {
+  const showHk = useScoreMetric() && prefs.hkRef;
+  if (showHk) {
     const ratedH = radarPolyRated(H, cx, cy, r);
     if (ratedH.length >= 4) hk = "<polygon points=\"" + ratedH.join(" ") + "\" fill=\"none\" stroke=\"#8a8178\" stroke-width=\"1.5\" stroke-dasharray=\"5 4\"/>";
     else hk = radarSpokes(H, cx, cy, r, "#8a8178", "5 4").replace(/fill="#8a8178"/g, "fill=\"none\" stroke=\"#8a8178\"");
@@ -262,10 +324,10 @@ function classRadarHtml(people, paper, cmpPeople) {
   const minN = classMinFor(paper);
   const empty = people.filter(function (n) { return classEligible(db.profiles[n], paper); }).length === 0;
   if (empty) return "<p class=\"hint\">入圍 0 人，標滿 " + minN + " 題先出班雷達。</p>";
-  const drawKey = (prefs.classSel || "") + ":" + paper + ":" + (prefs.classCmp || "") + ":" + (prefs.hkRef ? 1 : 0);
+  const drawKey = (prefs.classSel || "") + ":" + paper + ":" + (prefs.classCmp || "") + ":" + (showHk ? 1 : 0) + ":" + (useScoreMetric() ? "score" : "know");
   const draw = classRadarDrawn !== drawKey;
   classRadarDrawn = drawKey;
-  const cap = cmpPeople && cmpPeople.length ? "藍＝呢班　玫紅虛線＝疊班　灰虛線＝全港" : "實色＝班平均　虛線＝全港參照";
+  const cap = useScoreMetric() ? "實色＝已入分得分率　虛線＝全港" : "實色＝掌握程度　掌握模式唔畫全港";
   return "<svg viewBox=\"0 0 340 340\" class=\"" + (draw ? "radar-draw" : "") + "\">" + rings + spokes + hk + cmp + stu + labels +
     "<text x=\"170\" y=\"318\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">" + cap + "</text></svg>";
 }
@@ -465,6 +527,9 @@ function renderClassPage() {
   document.querySelectorAll("#classPaperChips [data-class-paper]").forEach(function (btn) {
     btn.classList.toggle("on", btn.dataset.classPaper === paper);
   });
+  document.querySelectorAll("#classMetric [data-metric], #weakMetric [data-metric]").forEach(function (btn) {
+    btn.classList.toggle("on", btn.dataset.metric === (useScoreMetric() ? "score" : "know"));
+  });
   const mingBtn = document.getElementById("classMingBtn");
   if (mingBtn) {
     mingBtn.textContent = prefs.classMing !== false ? "明返人數　開" : "明返人數　關";
@@ -559,11 +624,11 @@ function renderClassPage() {
   const strong = topicRows.slice().sort(function (a, b) { return b.L - a.L; }).filter(function (x) { return !weakKey[x.part + "\n" + x.topic]; }).slice(0, 10);
   const topicTable = function (list, empty) {
     if (!list.length) return "<p class=\"hint\">" + empty + "</p>";
-    return "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>課題</th><th>班掌握</th><th>全港得分</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>" +
+    return "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>課題</th><th>" + (useScoreMetric() ? "班得分" : "班掌握") + "</th><th>全港得分</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>" +
       list.map(function (x) {
         return "<tr class=\"clickable" + (prefs.classTopic === x.topic && prefs.classPart === x.part ? " on-row" : "") + "\" data-class-topic=\"" + esc(x.topic) + "\" data-class-part=\"" + x.part + "\">" +
           "<td>" + esc(topicLabel(x.topic)) + "</td>" +
-          "<td class=\"" + bandClass(x.L * 100) + "\">" + Math.round(x.L * 100) + "%" + gapBarHtml(x.L, x.hk) + "</td>" +
+          "<td class=\"" + bandClass(x.L * 100) + "\">" + Math.round(x.L * 100) + "%" + (useScoreMetric() ? gapBarHtml(x.L, x.hk) : "") + "</td>" +
           "<td class=\"" + (x.hk == null ? "" : bandClass(x.hk * 100)) + "\">" + (x.hk == null ? "—" : Math.round(x.hk * 100) + "%") + "</td>" +
           "<td>" + x.markedPeople + "／" + people.length + "</td>" +
           "<td>" + (x.worst ? qJumpHtml(x.worst) : "—") + "</td></tr>";
@@ -900,6 +965,18 @@ function renderItemYear(focusSec) {
       renderClassPage();
     });
   }
+  document.querySelectorAll("#classMetric, #weakMetric").forEach(function (box) {
+    if (box.dataset.bound) return;
+    box.dataset.bound = "1";
+    box.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-metric]");
+      if (!btn) return;
+      prefs.metric = btn.dataset.metric === "know" ? "know" : "score";
+      savePrefs();
+      if (typeof renderWeak === "function") renderWeak();
+      if (typeof renderClassPage === "function") renderClassPage();
+    });
+  });
   const axisLegend = document.getElementById("axisLegend");
   if (axisLegend && !axisLegend.dataset.m2Jump) {
     axisLegend.dataset.m2Jump = "1";

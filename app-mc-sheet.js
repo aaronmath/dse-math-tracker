@@ -189,9 +189,7 @@
       let sum = 0, n = 0;
       items.forEach(x => {
         if (mode === "know") {
-          const t = d.touch[x.q];
-          if (!t || !t.s) return;
-          const s = d.status[x.q] || 0;
+          const s = shownStatus(d, year, x.q);
           if (!s) return;
           sum += s === 3 ? 1 : s === 2 ? 0.5 : 0;
           n++;
@@ -214,7 +212,6 @@
     });
   }
   function radarHtml(rows, showHk, draw) {
-    if (!rows.some(r => r.n)) return `<p class="hint">未有可計嘅題。留空唔入平均，冇題嘅軸當 0。</p>`;
     const cx = 170, cy = 170, r = 112, N = rows.length;
     let rings = "", spokes = "", labels = "";
     [0.25, 0.5, 0.75, 1].forEach(k => {
@@ -228,7 +225,7 @@
       spokes += `<line x1="${cx}" y1="${cy}" x2="${(cx + r * Math.cos(ang)).toFixed(1)}" y2="${(cy + r * Math.sin(ang)).toFixed(1)}" stroke="#e4ddd2"/>`;
       const lx = cx + (r + 22) * Math.cos(ang), ly = cy + (r + 22) * Math.sin(ang);
       const on = mcUi.axis === row.id;
-      labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" fill="${on ? "#3d6e8c" : "#1c1915"}" data-mc-axis="${row.id}" style="cursor:pointer">${esc(row.name)}</text>`;
+      labels += `<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle" font-size="10" fill="${on ? "#3d6e8c" : "#1c1915"}" data-mc-axis="${row.id}" style="cursor:pointer">${esc(row.name)} ${row.n ? Math.round(row.v * 100) : 0}%</text>`;
     });
     const vals = rows.map(row => row.v || 0);
     const poly = radarPolyRated(vals, cx, cy, r).join(" ");
@@ -252,8 +249,7 @@
   }
   function topicTone(year, d, q, know) {
     if (know) {
-      if (!(d.touch[q] && d.touch[q].s)) return "";
-      const s = d.status[q] || 0;
+      const s = shownStatus(d, year, q);
       if (s === 3) return "ok";
       if (s === 2) return "mid";
       if (s === 1) return "bad";
@@ -282,7 +278,7 @@
         const tone = topicTone(year, d, x.q, know);
         if (!tone) return;
         if (know) {
-          const s = d.status[x.q] || 0;
+          const s = shownStatus(d, year, x.q);
           sum += s === 3 ? 1 : s === 2 ? 0.5 : 0;
           marked++;
         } else {
@@ -519,31 +515,29 @@
         </div>
       </div>
       <div class="mc-scoreboard score-card">
-        <div class="score-layout">
-          <div class="score-main">
-            <div class="mc-visual mk-visual">
-              ${donutSvg(s.ok, wrong, s.blank)}
-              <div class="mk-bars">
-                ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
-                ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
-                ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
-              </div>
-            </div>
-            <div class="stats">
-              <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
-              <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
-              <div class="stat"><b>${s.blank}</b><span>留空</span></div>
-              <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
-            </div>
+        <div class="score-stack">
+          <div class="mc-visual mk-visual score-ring-only">
+            ${donutSvg(s.ok, wrong, s.blank)}
           </div>
           ${window.levelCol ? window.levelCol("core", year, (function () {
             const p1 = typeof hasPartScores === "function" && hasPartScores("p1", year) && partSum("p1", year) != null
               ? partSum("p1", year)
               : (getScore("p1", year) === "" || getScore("p1", year) == null ? null : +getScore("p1", year));
             return p1 == null ? null : corePct(year, p1, s.ok);
-          })(), "必修", "未齊") : ""}
+          })(), "必修", "未齊") : `<aside class="lv-col"><span class="lv-kicker">必修</span><b class="lv-big lv-wait">資料未齊</b></aside>`}
+          <div class="mk-bars">
+            ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
+            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
+            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
+          </div>
+          <div class="stats">
+            <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
+            <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
+            <div class="stat"><b>${s.blank}</b><span>留空</span></div>
+            <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
+          </div>
         </div>
-        <p class="hint">圓環係答對、答錯、留空。棒上黑線係全港。撳甲或乙篩下面的題。</p>
+        <p class="hint">圓環係答對、答錯、留空。棒上黑線係全港。等級在圓環下面。撳甲或乙篩下面的題。</p>
       </div>
       <div class="mc-filters mk-filters">${statHtml}<span class="mc-flt-gap"></span>${paperBtns}<span class="mc-flt-gap"></span><button type="button" class="mk-stf${clearOn}" data-mc-clear="1">顯示全部</button></div>
       ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" data-mc-clear="1">顯示全部</button></p>` : ""}

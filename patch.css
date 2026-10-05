@@ -283,7 +283,11 @@ button.mk-axis-name {
 
 
 
-.score-layout { display: flex; align-items: center; gap: 12px; }
+.score-stack { display: flex; flex-direction: column; gap: 8px; }
+.score-ring-only { display: flex; justify-content: center; }
+.score-stack .lv-col { width: 100%; min-width: 0; flex: none; }
+.score-stack .lv-bar { width: min(220px, 80%); margin: 0 auto; }
+.seg.metric button.on { background: var(--accent); color: #fff; }
 .score-main { flex: 1 1 auto; min-width: 0; }
 .lv-col {
   flex: 0 0 104px; width: 104px; text-align: center; min-width: 104px;

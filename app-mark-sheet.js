@@ -215,7 +215,7 @@
     const note = paper === "m2"
       ? "圓環係已得分，顏色分甲、乙。灰色係未得分。棒上黑線係全港。撳條篩下面的題。"
       : "圓環係已得分，顏色分甲一、甲二、乙部。灰色係未得分。棒上黑線係全港。撳條篩下面的題。";
-    return `<div class="score-layout"><div class="score-main"><div class="mc-visual mk-visual">${ring}<div class="mk-bars">${rows}</div></div></div>${lv}</div><p class="hint">${note}</p>`;
+    return `<div class="score-stack"><div class="mc-visual mk-visual score-ring-only">${ring}</div>${lv}<div class="mk-bars">${rows}</div></div><p class="hint">${note}</p>`;
   }
   function donutSvg(parts, rest, center, sub) {
     const radius = 42, circ = 2 * Math.PI * radius;
