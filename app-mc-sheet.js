@@ -401,11 +401,27 @@
     }).join("");
     return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="52" text-anchor="middle" font-size="18" fill="#1c1915">${ok}</text><text x="54" y="68" text-anchor="middle" font-size="11" fill="#6b645b">/45</text></svg>`;
   }
-  function secBar(label, fill, total, key, color) {
+  function secBar(label, fill, total, key, color, hk) {
     const pct = total ? Math.max(0, Math.min(100, Math.round(fill * 100 / total))) : 0;
     const on = key !== "*" && mcUi.sec === key ? " on" : "";
     const dim = mcUi.sec && mcUi.sec !== key ? " dim" : "";
-    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b></i><span>${fill}/${total}</span></button>`;
+    const tick = hk != null && total ? `<em class="hk-tick" style="left:${Math.max(0, Math.min(100, hk * 100 / total)).toFixed(1)}%"></em>` : "";
+    let note = "";
+    if (hk != null) {
+      const diff = fill - hk;
+      note = `<small class="hk-note">全港 ${hk.toFixed(1)}${diff >= 0 ? " · 高 " + diff.toFixed(1) : " · 低 " + Math.abs(diff).toFixed(1)}</small>`;
+    }
+    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${fill}/${total}${note}</span></button>`;
+  }
+  function hkExpect(year, from, to) {
+    let s = 0, n = 0;
+    for (let q = from; q <= to; q++) {
+      const row = keyMap(year)[q];
+      if (!row || row.pct == null || row.pct === "") continue;
+      s += +row.pct / 100;
+      n++;
+    }
+    return n ? s : null;
   }
   function analysisHtml(year, d) {
     const know = prefs.mcRadar === "know";
@@ -503,21 +519,31 @@
         </div>
       </div>
       <div class="mc-scoreboard score-card">
-        <div class="mc-visual mk-visual">
-          ${donutSvg(s.ok, wrong, s.blank)}
-          <div class="mk-bars">
-            ${secBar("總分", s.ok, 45, "*", "#3e9a62")}
-            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c")}
-            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a")}
+        <div class="score-layout">
+          <div class="score-main">
+            <div class="mc-visual mk-visual">
+              ${donutSvg(s.ok, wrong, s.blank)}
+              <div class="mk-bars">
+                ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
+                ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
+                ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
+              </div>
+            </div>
+            <div class="stats">
+              <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
+              <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
+              <div class="stat"><b>${s.blank}</b><span>留空</span></div>
+              <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
+            </div>
           </div>
+          ${window.levelCol ? window.levelCol("core", year, (function () {
+            const p1 = typeof hasPartScores === "function" && hasPartScores("p1", year) && partSum("p1", year) != null
+              ? partSum("p1", year)
+              : (getScore("p1", year) === "" || getScore("p1", year) == null ? null : +getScore("p1", year));
+            return p1 == null ? null : corePct(year, p1, s.ok);
+          })(), "必修", "未齊") : ""}
         </div>
-        <div class="stats">
-          <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
-          <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
-          <div class="stat"><b>${s.blank}</b><span>留空</span></div>
-          <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
-        </div>
-        <p class="hint">圓環係答對、答錯、留空。撳甲或乙篩下面的題。</p>
+        <p class="hint">圓環係答對、答錯、留空。棒上黑線係全港。撳甲或乙篩下面的題。</p>
       </div>
       <div class="mc-filters mk-filters">${statHtml}<span class="mc-flt-gap"></span>${paperBtns}<span class="mc-flt-gap"></span><button type="button" class="mk-stf${clearOn}" data-mc-clear="1">顯示全部</button></div>
       ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" data-mc-clear="1">顯示全部</button></p>` : ""}
@@ -813,13 +839,18 @@
       const rows = [];
       for (let q = 1; q <= 45; q++) {
         const dist = { A: 0, B: 0, C: 0, D: 0 };
-        let sureBad = 0, guessOk = 0, any = false;
+        const blue = { A: 0, B: 0, C: 0, D: 0 };
+        let sureBad = 0, guessOk = 0, wrong = 0, answered = 0, ok = 0, any = false;
         people.forEach(n => {
           const c = getCellOf(db.profiles[n], "p2", year, q);
           if (!c.mc || !dist.hasOwnProperty(c.mc)) return;
           dist[c.mc]++;
+          if (c.ink === "b") blue[c.mc]++;
           any = true;
+          answered++;
           const hit = judged(year, q, c.mc);
+          if (hit) ok++;
+          if (hit === false) wrong++;
           if (c.ink !== "b" && hit === false) sureBad++;
           if (c.ink === "b" && hit) guessOk++;
         });
@@ -828,9 +859,22 @@
         if (!any && filter) continue;
         const key = keyMap(year)[q] || {};
         const topic = topicOf(year, q) || "";
-        rows.push(`<tr><td>${q}</td><td>${esc(topic)}</td><td>${esc(key.ans || "—")}</td><td class="${key.pct == null ? "" : bandClass(key.pct)}">${key.pct == null ? "—" : Math.round(key.pct) + "%"}</td><td>${dist.A}</td><td>${dist.B}</td><td>${dist.C}</td><td>${dist.D}</td><td>${sureBad}</td></tr>`);
+        const hitPct = answered ? Math.round(ok * 100 / answered) : null;
+        rows.push({ q, topic, key, dist, blue, sureBad, wrong, answered, hitPct });
       }
-      body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>題</th><th>課題</th><th>答案</th><th>全港</th><th>A</th><th>B</th><th>C</th><th>D</th><th>黑筆錯</th></tr></thead><tbody>${rows.join("") || `<tr><td colspan="9">冇符合嘅題。</td></tr>`}</tbody></table></div>`;
+      const maxWrong = rows.reduce((m, r) => Math.max(m, r.wrong), 0);
+      const maxSure = rows.reduce((m, r) => Math.max(m, r.sureBad), 0);
+      const optCell = (L, r) => {
+        const n = r.dist[L], b = r.blue[L], share = r.answered ? n / r.answered : 0;
+        const tone = n <= 0 ? "opt0" : share >= 0.5 ? "opt3" : share >= 0.25 ? "opt2" : "opt1";
+        const ans = r.key.ans === L ? " opt-ans" : "";
+        const sup = b ? `<sup class="opt-b">${b}</sup>` : "";
+        return `<td class="${tone}${ans}">${n}${sup}</td>`;
+      };
+      body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>題</th><th>課題</th><th>答案</th><th>全港</th><th>班命中</th><th>A</th><th>B</th><th>C</th><th>D</th><th>黑筆錯</th></tr></thead><tbody>${rows.map(r => {
+        const flags = `${maxWrong > 0 && r.wrong === maxWrong ? `<i class="q-flag bad">錯</i>` : ""}${maxSure > 0 && r.sureBad === maxSure ? `<i class="q-flag sure">信</i>` : ""}`;
+        return `<tr><td>${r.q}${flags}</td><td>${esc(r.topic)}</td><td>${esc(r.key.ans || "—")}</td><td class="${r.key.pct == null ? "" : bandClass(r.key.pct)}">${r.key.pct == null ? "—" : Math.round(r.key.pct) + "%"}</td><td class="${r.hitPct == null ? "" : bandClass(r.hitPct)}">${r.hitPct == null ? "—" : r.hitPct + "%"}</td>${optCell("A", r)}${optCell("B", r)}${optCell("C", r)}${optCell("D", r)}<td>${r.sureBad}</td></tr>`;
+      }).join("") || `<tr><td colspan="10">冇符合嘅題。</td></tr>`}</tbody></table></div><p class="hint">棕色愈深＝該題已作答入面愈多人揀。粗體＝正確答案。右上藍字＝藍筆人數。錯＝答錯最多的題，信＝黑筆錯最多的題。</p>`;
     } else {
       body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>姓名</th><th>總分</th><th>黑筆</th><th>撞中</th><th>信心錯</th><th>已標狀態</th></tr></thead><tbody>`;
       people.forEach(n => {

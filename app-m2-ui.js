@@ -270,6 +270,163 @@ function classRadarHtml(people, paper, cmpPeople) {
     "<text x=\"170\" y=\"318\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">" + cap + "</text></svg>";
 }
 
+function medianNums(nums) {
+  if (!nums.length) return null;
+  const a = nums.slice().sort(function (x, y) { return x - y; });
+  const m = Math.floor(a.length / 2);
+  return a.length % 2 ? a[m] : (a[m - 1] + a[m]) / 2;
+}
+function gapBarHtml(L, hk) {
+  if (L == null || hk == null) return "";
+  const d = L - hk;
+  const w = Math.min(50, Math.abs(d) * 100 * 50 / 30);
+  return "<i class=\"gap-bar\" title=\"" + (d >= 0 ? "高全港 " : "低全港 ") + Math.round(Math.abs(d) * 100) + "\"><b class=\"" + (d >= 0 ? "up" : "down") + "\" style=\"width:" + w.toFixed(1) + "%\"></b></i>";
+}
+function paperScoreOf(name, paper, year) {
+  const keep = currentProfile;
+  currentProfile = name;
+  let sc = null;
+  if ((paper === "p1" || paper === "m2") && typeof hasPartScores === "function" && hasPartScores(paper, year) && partSum(paper, year) != null) sc = partSum(paper, year);
+  else {
+    const raw = getScore(paper, year);
+    sc = raw === "" || raw == null ? null : +raw;
+  }
+  currentProfile = keep;
+  return Number.isFinite(sc) ? sc : null;
+}
+function masteryOf(name, paper) {
+  const pr = db.profiles[name];
+  let filled = 0, m3 = 0;
+  YEARS.forEach(function (y) {
+    allQs(paper, y).forEach(function (q) {
+      const s = getCellOf(pr, paper, y, q).s;
+      if (!s) return;
+      filled++;
+      if (s === 3) m3++;
+    });
+  });
+  return { filled: filled, pct: filled ? m3 * 100 / filled : null };
+}
+function missRows(people, paper, year) {
+  if (paper === "p2") {
+    const bank = ((window.P2_DATA && P2_DATA.dse && P2_DATA.dse[String(year)]) || []);
+    const rows = [];
+    for (let q = 1; q <= 45; q++) {
+      const ans = bank.find(function (r) { return r.q === q; });
+      if (!ans) continue;
+      let sure = 0, other = 0;
+      people.forEach(function (n) {
+        const c = getCellOf(db.profiles[n], "p2", year, q);
+        if (!c.mc || c.mc === ans.ans) return;
+        if (c.ink === "b") other++; else sure++;
+      });
+      if (sure + other) rows.push({ q: q, sure: sure, other: other, n: sure + other });
+    }
+    return rows.sort(function (a, b) { return b.n - a.n || b.sure - a.sure; }).slice(0, 8);
+  }
+  const src = paper === "m2" ? ((window.M2_TOPICS && M2_TOPICS.items) || []) : ((window.P1_TOPICS && P1_TOPICS.items) || []);
+  const qs = [];
+  src.forEach(function (it) { if (it.y === year && qs.indexOf(it.q) < 0) qs.push(it.q); });
+  return qs.map(function (q) {
+    let n = 0;
+    people.forEach(function (name) { if (getCellOf(db.profiles[name], paper, year, q).s === 1) n++; });
+    return { q: q, n: n, sure: n, other: 0 };
+  }).filter(function (r) { return r.n > 0; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 8);
+}
+function classChartsHtml(people, paper, year) {
+  const misses = missRows(people, paper, year);
+  const maxN = misses.reduce(function (m, r) { return Math.max(m, r.n); }, 1);
+  const missHtml = misses.length ? "<div class=\"class-miss\">" + misses.map(function (r) {
+    const bar = paper === "p2"
+      ? "<i><b style=\"width:" + (r.sure * 100 / maxN).toFixed(1) + "%\"></b><b class=\"other\" style=\"width:" + (r.other * 100 / maxN).toFixed(1) + "%\"></b></i><em>" + r.sure + " 信 / " + r.other + " 其他</em>"
+      : "<i><b style=\"width:" + (r.n * 100 / maxN).toFixed(1) + "%\"></b></i><em>" + r.n + " 唔識</em>";
+    return "<button type=\"button\" data-jump=\"" + year + ":" + r.q + "\" data-jump-paper=\"" + paper + "\"><span>" + year + " Q" + r.q + "</span>" + bar + "</button>";
+  }).join("") + "</div>" : "<p class=\"hint\">呢年未有可排的錯題。</p>";
+  const scores = people.map(function (n) { return paperScoreOf(n, paper, year); }).filter(function (v) { return v != null; });
+  const step = paper === "p2" ? 5 : 10;
+  const full = paper === "p2" ? 45 : paper === "m2" ? 100 : 105;
+  let hist = "<p class=\"hint\">未有分數。</p>";
+  if (scores.length) {
+    const bins = [];
+    for (let x = 0; x < full; x += step) bins.push({ lo: x, hi: Math.min(full, x + step), n: 0 });
+    scores.forEach(function (v) { bins[Math.min(bins.length - 1, Math.floor(v / step))].n++; });
+    const peak = bins.reduce(function (m, b) { return Math.max(m, b.n); }, 1);
+    const mean = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
+    const med = medianNums(scores);
+    const W = 520, H = 120, l = 28, btm = 22;
+    const bw = (W - l - 8) / bins.length;
+    let bars = bins.map(function (bin, i) {
+      const h = bin.n / peak * (H - btm - 8);
+      return "<rect x=\"" + (l + i * bw + 2).toFixed(1) + "\" y=\"" + (H - btm - h).toFixed(1) + "\" width=\"" + (bw - 4).toFixed(1) + "\" height=\"" + h.toFixed(1) + "\" fill=\"#3d6e8c\"></rect>" +
+        "<text x=\"" + (l + i * bw + bw / 2).toFixed(1) + "\" y=\"" + (H - 6) + "\" text-anchor=\"middle\" font-size=\"9\" fill=\"#6b645b\">" + bin.lo + "</text>";
+    }).join("");
+    const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - 8); };
+    bars += "<line x1=\"" + xOf(mean).toFixed(1) + "\" y1=\"4\" x2=\"" + xOf(mean).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#1c1915\" stroke-width=\"1.5\"/>";
+    bars += "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"4\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>";
+    hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bars + "</svg><p class=\"hint\">實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分</p>";
+  }
+  const kind = paper === "m2" ? "m2" : "core";
+  const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
+  let strip = "<p class=\"hint\">未有等級線。</p>";
+  if (pack && pack.starts) {
+    const starts = pack.starts.slice().sort(function (a, b) { return a[1] - b[1]; });
+    const counts = {};
+    let pending = 0, none = 0;
+    people.forEach(function (n) {
+      const keep = currentProfile;
+      currentProfile = n;
+      const p1 = paperScoreOf(n, "p1", year), p2 = paperScoreOf(n, "p2", year), m2 = paperScoreOf(n, "m2", year);
+      currentProfile = keep;
+      if (kind === "m2") {
+        if (m2 == null) { none++; return; }
+        const lv = estimateShort("m2", year, m2);
+        if (lv === "資料未齊") { pending++; return; }
+        counts[lv.replace("暫估 ", "")] = (counts[lv.replace("暫估 ", "")] || 0) + 1;
+        return;
+      }
+      if (p1 == null && p2 == null) { none++; return; }
+      if (p1 == null || p2 == null) { pending++; return; }
+      const cp = corePct(year, p1, p2);
+      const lv = cp == null ? "資料未齊" : estimateShort("core", year, cp);
+      if (lv === "資料未齊") { pending++; return; }
+      counts[lv.replace("暫估 ", "")] = (counts[lv.replace("暫估 ", "")] || 0) + 1;
+    });
+    const peak = Math.max(1, Object.keys(counts).reduce(function (m, k) { return Math.max(m, counts[k]); }, 0));
+    strip = "<div class=\"lv-strip\">" + starts.map(function (row, i) {
+      const next = starts[i + 1] ? starts[i + 1][1] : 100;
+      const w = Math.max(4, next - row[1]);
+      const n = counts[row[0]] || 0;
+      const h = 18 + n / peak * 48;
+      return "<div class=\"lv-band\" style=\"flex:" + w.toFixed(2) + ";height:" + h.toFixed(0) + "px\"><b>" + n + "</b><span>" + row[0] + "</span></div>";
+    }).join("") + "</div><p class=\"lv-out\">未齊 " + pending + "　未入 " + none + "。格寬跟該年等級線間距。</p>";
+  }
+  const dots = people.filter(function (n) { return classEligible(db.profiles[n], paper); }).map(function (n) {
+    const sc = paperScoreOf(n, paper, year);
+    const ab = masteryOf(n, paper);
+    return { n: n, sc: sc, pct: ab.pct, filled: ab.filled };
+  }).filter(function (d) { return d.sc != null && d.pct != null; });
+  let scatter = "<p class=\"hint\">入圍兼有分的人未夠，未畫掌握對分數。</p>";
+  if (dots.length) {
+    const W = 520, H = 180, l = 32, btm = 22, t = 10, r = 8;
+    const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - r); };
+    const yOf = function (v) { return t + (1 - Math.max(0, Math.min(100, v)) / 100) * (H - t - btm); };
+    const mx = medianNums(dots.map(function (d) { return d.sc; }));
+    const my = medianNums(dots.map(function (d) { return d.pct; }));
+    const maxF = dots.reduce(function (m, d) { return Math.max(m, d.filled); }, 1);
+    let marks = "<line x1=\"" + xOf(mx).toFixed(1) + "\" y1=\"" + t + "\" x2=\"" + xOf(mx).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#e4ddd2\"/>" +
+      "<line x1=\"" + l + "\" y1=\"" + yOf(my).toFixed(1) + "\" x2=\"" + (W - r) + "\" y2=\"" + yOf(my).toFixed(1) + "\" stroke=\"#e4ddd2\"/>";
+    dots.forEach(function (d) {
+      const rad = 3 + d.filled / maxF * 5;
+      marks += "<circle cx=\"" + xOf(d.sc).toFixed(1) + "\" cy=\"" + yOf(d.pct).toFixed(1) + "\" r=\"" + rad.toFixed(1) + "\" fill=\"#3d6e8c\" fill-opacity=\"0.75\"><title>" + esc(d.n) + " " + d.sc + " / " + Math.round(d.pct) + "%</title></circle>";
+    });
+    scatter = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + marks + "</svg><p class=\"hint\">只計入圍。點愈大＝已標題愈多。十字係中位。</p>";
+  }
+  return "<div class=\"class-charts\"><div class=\"class-chart\"><h3>" + year + " 最多人錯</h3>" + missHtml + "</div>" +
+    "<div class=\"class-chart\"><h3>分數分佈</h3>" + hist + "</div>" +
+    "<div class=\"class-chart\"><h3>" + (paper === "m2" ? "M2 等級" : "必修等級") + "</h3>" + strip + "</div>" +
+    "<div class=\"class-chart\"><h3>掌握對分數</h3>" + scatter + "</div></div>";
+}
+
 function renderClassPage() {
   if (!classUnlocked()) return;
   const paper = classPaperId();
@@ -338,9 +495,14 @@ function renderClassPage() {
     const on = prefs.classAxis === row.ax.id ? " on" : "";
     return "<button type=\"button\" class=\"class-axis" + on + "\" data-axis=\"" + row.ax.id + "\" style=\"--d:" + (i * 35) + "ms\">" +
       "<span>" + esc(row.ax.name) + "</span>" +
-      "<i class=\"bar-track\"><b class=\"class-bar\" style=\"width:" + pct + "%\"></b></i>" +
+      "<i class=\"bar-track\"><b class=\"class-bar " + (row.L == null ? "" : bandClass(row.L * 100)) + "\" style=\"width:" + pct + "%\"></b></i>" +
       "<em>" + lab + (row.n ? " · " + row.n + " 人" : "") + "</em></button>";
   }).join("");
+  const ratedAxes = axes.filter(function (row) { return row.L != null; }).slice().sort(function (a, b) { return b.L - a.L; });
+  if (ratedAxes.length) {
+    const best = ratedAxes[0], worst = ratedAxes[ratedAxes.length - 1];
+    document.getElementById("classAxes").innerHTML += "<p class=\"hint\">最強：" + esc(best.ax.name.replace("\u3000", " ")) + " " + Math.round(best.L * 100) + "%　最弱：" + esc(worst.ax.name.replace("\u3000", " ")) + " " + Math.round(worst.L * 100) + "%</p>";
+  }
   const topicRows = [];
   axisList.forEach(function (ax) {
     ax.topics.filter(function (t) { return !skipOldTopic(t) && paperHasTopic(paper, ax.part, t); }).forEach(function (t) {
@@ -354,25 +516,25 @@ function renderClassPage() {
   });
   const ranked = topicRows.slice().sort(function (a, b) { return a.L - b.L; });
   const weak = ranked.slice(0, 5);
-  const strong = topicRows.slice().sort(function (a, b) { return b.L - a.L; }).slice(0, 3);
-  const weakTable = weak.length
-    ? "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>課題</th><th>班掌握</th><th>全港得分</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>" +
-      weak.map(function (x) {
+  const weakKey = {};
+  weak.forEach(function (x) { weakKey[x.part + "\n" + x.topic] = 1; });
+  const strong = topicRows.slice().sort(function (a, b) { return b.L - a.L; }).filter(function (x) { return !weakKey[x.part + "\n" + x.topic]; }).slice(0, 5);
+  const topicTable = function (list, empty) {
+    if (!list.length) return "<p class=\"hint\">" + empty + "</p>";
+    return "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>課題</th><th>班掌握</th><th>全港得分</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>" +
+      list.map(function (x) {
         return "<tr class=\"clickable" + (prefs.classTopic === x.topic && prefs.classPart === x.part ? " on-row" : "") + "\" data-class-topic=\"" + esc(x.topic) + "\" data-class-part=\"" + x.part + "\">" +
           "<td>" + esc(topicLabel(x.topic)) + "</td>" +
-          "<td>" + Math.round(x.L * 100) + "%</td>" +
+          "<td class=\"" + bandClass(x.L * 100) + "\">" + Math.round(x.L * 100) + "%" + gapBarHtml(x.L, x.hk) + "</td>" +
           "<td class=\"" + (x.hk == null ? "" : bandClass(x.hk * 100)) + "\">" + (x.hk == null ? "—" : Math.round(x.hk * 100) + "%") + "</td>" +
           "<td>" + x.markedPeople + "／" + people.length + "</td>" +
           "<td>" + (x.worst ? qJumpHtml(x.worst) : "—") + "</td></tr>";
-      }).join("") +
-      "</tbody></table></div>"
-    : "<p class=\"hint\">弱課題未夠人標。</p>";
+      }).join("") + "</tbody></table></div>";
+  };
   document.getElementById("classTopics").innerHTML =
-    "<div class=\"class-sw\"><div><b>強</b><ul>" + (strong.length ? strong.map(function (x) {
-      return "<li>" + esc(topicLabel(x.topic)) + "　" + Math.round(x.L * 100) + "%</li>";
-    }).join("") : "<li>標記未夠</li>") + "</ul></div>" +
-    "<div><b>弱課題</b>" + weakTable + "</div></div>" +
-    "<p class=\"hint\">入圍＝已標 ≥" + minN + " 題（" + eligible.length + "／" + people.length + "）。未做唔入平均。錯題只計唔識。</p>";
+    "<div class=\"class-sw\"><div><b>強課題</b>" + topicTable(strong, "強課題未夠，或已出現在弱課題。") + "</div>" +
+    "<div><b>弱課題</b>" + topicTable(weak, "弱課題未夠人標。") + "</div></div>" +
+    "<p class=\"hint\">入圍＝已標 ≥" + minN + " 題（" + eligible.length + "／" + people.length + "）。未做唔入平均。錯題只計唔識。掌握格的棒：右高全港，左低全港。</p>";
   const axis = axisList.find(function (a) { return a.id === prefs.classAxis; });
   const drill = document.getElementById("classDrill");
   if (prefs.classLow) {
@@ -433,17 +595,42 @@ function renderClassPage() {
   prefs.classYear = year;
   const scoreEl = document.getElementById("classScores");
   if (scoreEl) {
-    scoreEl.innerHTML = "<p class=\"hint\">分數一覽（課題軸見上方雷達）。</p>" +
-      "<table class=\"data-table\"><thead><tr><th>學生</th><th>必修綜合</th><th>等級</th><th>M1</th><th>M2</th></tr></thead><tbody>" +
-      people.map(function (n) {
-        const keep = currentProfile;
-        currentProfile = n;
-        const p1 = getScore("p1", year), p2 = getScore("p2", year);
-        const cp = corePct(year, p1, p2);
-        const lv = cp == null ? "—" : estimateShort("core", year, cp);
-        const m1 = getScore("m1", year), m2 = getScore("m2", year);
-        currentProfile = keep;
-        return "<tr><td>" + esc(n) + "</td><td>" + (cp == null ? "—" : Math.round(cp) + "%") + "</td><td>" + lv + "</td><td>" + (m1 === "" ? "—" : m1) + "</td><td>" + (m2 === "" ? "—" : m2) + "</td></tr>";
+    const rows = people.map(function (n) {
+      const p1 = paperScoreOf(n, "p1", year);
+      const p2 = paperScoreOf(n, "p2", year);
+      const m1 = paperScoreOf(n, "m1", year);
+      const m2 = paperScoreOf(n, "m2", year);
+      const cp = p1 != null && p2 != null ? corePct(year, p1, p2) : null;
+      let coreLv = "—";
+      if (p1 == null && p2 == null) coreLv = "—";
+      else if (p1 == null || p2 == null) coreLv = "未齊";
+      else coreLv = cp == null ? "資料未齊" : estimateShort("core", year, cp);
+      const m2Lv = m2 == null ? "—" : estimateShort("m2", year, m2);
+      return { n: n, p1: p1, p2: p2, m1: m1, m2: m2, cp: cp, coreLv: coreLv, m2Lv: m2Lv };
+    });
+    const showM1 = rows.some(function (r) { return r.m1 != null; });
+    const p1s = rows.map(function (r) { return r.p1; }).filter(function (v) { return v != null; });
+    const m2s = rows.map(function (r) { return r.m2; }).filter(function (v) { return v != null; });
+    const avg = function (a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; };
+    const box = function (lab, v, pct) {
+      return "<div class=\"stat\"><b class=\"" + (pct == null ? "" : bandClass(pct)) + "\">" + (v == null ? "—" : Math.round(v * 10) / 10) + "</b><span>" + lab + "</span></div>";
+    };
+    const lvCount = {};
+    rows.forEach(function (r) {
+      const key = paper === "m2" ? r.m2Lv : r.coreLv;
+      lvCount[key] = (lvCount[key] || 0) + 1;
+    });
+    const lvLine = Object.keys(lvCount).map(function (k) { return k + "×" + lvCount[k]; }).join("、");
+    const p1Avg = avg(p1s), m2Avg = avg(m2s);
+    scoreEl.innerHTML = classChartsHtml(people, paper, year) +
+      "<div class=\"stats\">" + box("卷一平均", p1Avg, p1Avg == null ? null : p1Avg / 105 * 100) + box("卷一中位", medianNums(p1s), null) + box("M2 平均", m2Avg, m2Avg) + box("M2 中位", medianNums(m2s), null) + "</div>" +
+      "<p class=\"hint\">等級分佈：" + (lvLine || "—") + "。無分唔當 0。中位雙數取中間兩人平均。</p>" +
+      "<table class=\"data-table\"><thead><tr><th>學生</th><th>卷一</th><th>卷二</th><th>必修％</th><th>必修等級</th>" +
+      (showM1 ? "<th>M1</th>" : "") + "<th>M2</th><th>M2等級</th></tr></thead><tbody>" +
+      rows.map(function (r) {
+        return "<tr><td>" + esc(r.n) + "</td><td>" + (r.p1 == null ? "—" : r.p1) + "</td><td>" + (r.p2 == null ? "—" : r.p2) + "</td><td class=\"" + (r.cp == null ? "" : bandClass(r.cp)) + "\">" + (r.cp == null ? "—" : Math.round(r.cp) + "%") + "</td><td>" + r.coreLv + "</td>" +
+          (showM1 ? "<td>" + (r.m1 == null ? "—" : r.m1) + "</td>" : "") +
+          "<td>" + (r.m2 == null ? "—" : r.m2) + "</td><td>" + r.m2Lv + "</td></tr>";
       }).join("") + "</tbody></table>";
   }
   const roster = document.getElementById("classRoster");

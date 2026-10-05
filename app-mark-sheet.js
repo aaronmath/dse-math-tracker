@@ -146,14 +146,76 @@
     markItems(paper, year).forEach(it => {
       const name = it.sec || "全卷";
       let s = map.get(name);
-      if (!s) { s = { name, earned: 0, all: 0, any: false }; map.set(name, s); }
+      if (!s) { s = { name, earned: 0, all: 0, any: false, hk: 0, hkN: 0 }; map.set(name, s); }
       s.all += +it.marks || 0;
+      if (it.hk != null && it.hk !== "") { s.hk += +it.hk; s.hkN++; }
       const v = partVal(paper, year, it.q, it.sub);
       if (v == null) return;
       s.any = true;
       s.earned += v;
     });
     return [...map.values()];
+  }
+  function enteredScore(paper, year) {
+    if ((paper === "p1" || paper === "m2") && hasPartScores(paper, year)) {
+      const s = partSum(paper, year);
+      if (s != null) return s;
+    }
+    const raw = getScore(paper, year);
+    if (raw === "" || raw == null) return null;
+    const n = +raw;
+    return Number.isFinite(n) ? n : null;
+  }
+  function levelCol(kind, year, pct, kicker, emptyText) {
+    const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
+    if (pct == null) return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">${emptyText}</b></aside>`;
+    const lv = estimateShort(kind, year, Number(pct));
+    if (!pack || lv === "資料未齊") return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">資料未齊</b></aside>`;
+    const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
+    const p = Math.round(levelProgress(starts, Number(pct)));
+    let idx = 0;
+    for (let i = 0; i < starts.length; i++) if (Number(pct) + 1e-9 >= starts[i][1]) idx = i;
+    const next = starts[idx + 1];
+    const gap = next ? Math.max(0, Math.ceil(next[1] - Number(pct) - 1e-9)) : 0;
+    const unit = kind === "m2" ? "分" : "";
+    const gapTxt = next ? `差 ${gap}${unit} 上 ${next[0]}` : "已到頂";
+    return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div><span class="lv-gap">${gapTxt}</span></aside>`;
+  }
+  window.levelCol = levelCol;
+  function scoreVisual(paper, year) {
+    const secs = secStats(paper, year);
+    const full = secs.reduce((s, x) => s + x.all, 0);
+    const sum = partSum(paper, year);
+    const earned = sum == null ? 0 : sum;
+    const hkAll = secs.reduce((s, x) => s + (x.hkN ? x.hk : 0), 0);
+    const hkOk = secs.some(x => x.hkN);
+    const parts = secs.map(s => ({ n: s.earned, col: secColor(s.name) }));
+    const ring = donutSvg(parts, Math.max(0, full - earned), sum == null ? "—" : String(sum), "/" + full);
+    const bar = (lab, got, all, any, color, key, hk) => {
+      const pct = any && all ? Math.round(got * 100 / all) : 0;
+      const on = key && mkUi.sec === key ? " on" : "";
+      const dim = key && mkUi.sec && mkUi.sec !== key ? " dim" : "";
+      const tick = hk != null && all ? `<em class="hk-tick" style="left:${Math.max(0, Math.min(100, hk * 100 / all)).toFixed(1)}%"></em>` : "";
+      let note = "";
+      if (hk != null) {
+        const diff = any ? got - hk : null;
+        const gap = diff == null ? "" : diff >= 0 ? ` · 高 ${diff.toFixed(1)}` : ` · 低 ${Math.abs(diff).toFixed(1)}`;
+        note = `<small class="hk-note">全港 ${hk.toFixed(1)}${gap}</small>`;
+      }
+      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${any ? got + "/" + all : "—/" + all}${note}</span></button>`;
+    };
+    const rows = bar("總分", earned, full, sum != null, "#2f5d50", "*", hkOk ? hkAll : null) + secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name, s.hkN ? s.hk : null)).join("");
+    let lv = "";
+    if (paper === "m2") lv = levelCol("m2", year, enteredScore("m2", year), "M2", "—");
+    else {
+      const p1 = enteredScore("p1", year), p2 = enteredScore("p2", year);
+      const cp = p1 != null && p2 != null ? corePct(year, p1, p2) : null;
+      lv = levelCol("core", year, cp, "必修", "未齊");
+    }
+    const note = paper === "m2"
+      ? "圓環係已得分，顏色分甲、乙。灰色係未得分。棒上黑線係全港。撳條篩下面的題。"
+      : "圓環係已得分，顏色分甲一、甲二、乙部。灰色係未得分。棒上黑線係全港。撳條篩下面的題。";
+    return `<div class="score-layout"><div class="score-main"><div class="mc-visual mk-visual">${ring}<div class="mk-bars">${rows}</div></div></div>${lv}</div><p class="hint">${note}</p>`;
   }
   function donutSvg(parts, rest, center, sub) {
     const radius = 42, circ = 2 * Math.PI * radius;
