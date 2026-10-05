@@ -873,7 +873,7 @@
       };
       body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>題</th><th>課題</th><th>答案</th><th>全港</th><th>班命中</th><th>A</th><th>B</th><th>C</th><th>D</th><th>黑筆錯</th></tr></thead><tbody>${rows.map(r => {
         const flags = `${maxWrong > 0 && r.wrong === maxWrong ? `<i class="q-flag bad">錯</i>` : ""}${maxSure > 0 && r.sureBad === maxSure ? `<i class="q-flag sure">信</i>` : ""}`;
-        return `<tr><td>${r.q}${flags}</td><td>${esc(r.topic)}</td><td>${esc(r.key.ans || "—")}</td><td class="${r.key.pct == null ? "" : bandClass(r.key.pct)}">${r.key.pct == null ? "—" : Math.round(r.key.pct) + "%"}</td><td class="${r.hitPct == null ? "" : bandClass(r.hitPct)}">${r.hitPct == null ? "—" : r.hitPct + "%"}</td>${optCell("A", r)}${optCell("B", r)}${optCell("C", r)}${optCell("D", r)}<td>${r.sureBad}</td></tr>`;
+        return `<tr><td>${r.q}${flags}</td><td>${esc(r.topic)}</td><td>${esc(r.key.ans || "—")}</td><td class="${r.key.pct == null ? "" : bandClass(r.key.pct)}">${r.key.pct == null ? "—" : Math.round(r.key.pct) + "%"}</td><td class="${r.hitPct == null ? "" : bandClass(r.hitPct)}">${r.hitPct == null ? "—" : r.hitPct + "%"}${typeof gapBarHtml === "function" && r.hitPct != null && r.key.pct != null ? gapBarHtml(r.hitPct / 100, r.key.pct / 100) : ""}</td>${optCell("A", r)}${optCell("B", r)}${optCell("C", r)}${optCell("D", r)}<td>${r.sureBad}</td></tr>`;
       }).join("") || `<tr><td colspan="10">冇符合嘅題。</td></tr>`}</tbody></table></div><p class="hint">棕色愈深＝該題已作答入面愈多人揀。粗體＝正確答案。右上藍字＝藍筆人數。錯＝答錯最多的題，信＝黑筆錯最多的題。</p>`;
     } else {
       body = `<div style="overflow:auto"><table class="data-table"><thead><tr><th>姓名</th><th>總分</th><th>黑筆</th><th>撞中</th><th>信心錯</th><th>已標狀態</th></tr></thead><tbody>`;

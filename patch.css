@@ -316,7 +316,18 @@ button.mk-axis-name {
 .lv-band b { display: block; font-size: 14px; }
 .lv-band span { display: block; font-size: 10px; color: var(--muted); }
 .lv-out { margin-top: 6px; font-size: 12px; color: var(--muted); }
-td.opt0 { background: transparent; }
+.paper-chip { border: 1px solid transparent; font-weight: 700; }
+.paper-chip.p1 { background: #d7ebe3; color: #2f7d5b; }
+.paper-chip.p2 { background: #d7e7f2; color: #3d7ea6; }
+.paper-chip.m1 { background: #efe6f6; color: #8b6bb5; }
+.paper-chip.m2 { background: #f6e7d4; color: #c4843a; }
+.paper-chip.p1.on { background: #2f7d5b; color: #fff; }
+.paper-chip.p2.on { background: #3d7ea6; color: #fff; }
+.paper-chip.m1.on { background: #8b6bb5; color: #fff; }
+.paper-chip.m2.on { background: #c4843a; color: #fff; }
+.stats.tight { grid-template-columns: repeat(auto-fit, minmax(88px, 1fr)); gap: 6px; margin-top: 8px; }
+.stats.tight .stat { padding: 8px 4px; }
+.stats.tight .stat b { font-size: 18px; }
 td.opt1 { background: #f3efe6; }
 td.opt2 { background: #e4d3b4; }
 td.opt3 { background: #8c6a3a; color: #fff; }

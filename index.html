@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20261004e" />
-  <link rel="stylesheet" href="./patch.css?v=20261005a" />
+  <link rel="stylesheet" href="./patch.css?v=20261005b" />
 </head>
 <body>
   <header>
@@ -250,13 +250,18 @@
       <h2 class="page-title">班況</h2>
       <p class="hint">必修 8 軸／M2 6 軸同具體弱課題。撐軸睇每人同最多人錯題；撐名去能力頁。未做唔入平均。</p>
       <div class="toolbar">
-        <label>試卷
-          <select id="classPaper">
-            <option value="p1">必修數學卷一</option>
-            <option value="p2">必修數學卷二</option>
-            <option value="m2">M2</option>
-          </select>
-        </label>
+        <div class="chip-row paper-filters" id="classPaperChips">
+          <button type="button" class="paper-chip p1" data-class-paper="p1">必修卷一</button>
+          <button type="button" class="paper-chip p2" data-class-paper="p2">必修卷二</button>
+          <button type="button" class="paper-chip m1" data-class-paper="m1">M1</button>
+          <button type="button" class="paper-chip m2" data-class-paper="m2">M2</button>
+        </div>
+        <select id="classPaper" hidden>
+          <option value="p1">必修數學卷一</option>
+          <option value="p2">必修數學卷二</option>
+          <option value="m1">M1</option>
+          <option value="m2">M2</option>
+        </select>
         <button type="button" class="ghost" id="classOldBtn">含舊課程　關</button>
         <button type="button" class="ghost" id="classMingBtn">明返人數　開</button>
         <button type="button" class="ghost" id="classHkBtn">全港參照　開</button>
@@ -450,8 +455,8 @@
   <script src="./app-m2c.js?v=20260920m"></script>
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
-  <script src="./app-m2-ui.js?v=20261005a"></script>
-  <script src="./app-mc-sheet.js?v=20261005a"></script>
+  <script src="./app-m2-ui.js?v=20261005b"></script>
+  <script src="./app-mc-sheet.js?v=20261005b"></script>
   <script src="./app-mark-sheet.js?v=20261005a"></script>
   <script src="./app-qr-pack.js?v=20261004g"></script>
 </body>

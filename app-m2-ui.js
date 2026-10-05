@@ -1,6 +1,6 @@
 /* Last-load M2 UI overlay: 明返點、能力跳轉、全港％、班況 M2、全港平均課題欄 */
 function classPaperId() {
-  return prefs.classPaper === "p2" || prefs.classPaper === "m2" ? prefs.classPaper : "p1";
+  return prefs.classPaper === "p2" || prefs.classPaper === "m1" || prefs.classPaper === "m2" ? prefs.classPaper : "p1";
 }
 
 function axisHkFromItems(items, paper) {
@@ -333,7 +333,32 @@ function missRows(people, paper, year) {
     return { q: q, n: n, sure: n, other: 0 };
   }).filter(function (r) { return r.n > 0; }).sort(function (a, b) { return b.n - a.n; }).slice(0, 8);
 }
-function classChartsHtml(people, paper, year) {
+function subRowsHtml(people, paper, year) {
+  if (paper !== "p1" && paper !== "m2") return "";
+  const src = paper === "m2" ? ((window.M2_TOPICS && M2_TOPICS.items) || []) : ((window.P1_TOPICS && P1_TOPICS.items) || []);
+  const items = src.filter(function (x) { return x.y === year; });
+  if (!items.length) return "<p class=\"hint\">呢年未有分題表。</p>";
+  const body = items.map(function (it) {
+    const vals = [];
+    people.forEach(function (name) {
+      const pts = (getCellOf(db.profiles[name], paper, year, it.q).pts) || {};
+      if (pts[it.sub] == null || pts[it.sub] === "") return;
+      const v = +pts[it.sub];
+      if (Number.isFinite(v)) vals.push(v);
+    });
+    const avg = vals.length ? vals.reduce(function (a, b) { return a + b; }, 0) / vals.length : null;
+    const hk = it.hk == null || it.hk === "" ? null : +it.hk;
+    const full = +it.marks || 0;
+    const rate = avg != null && full ? avg / full : null;
+    const hkRate = hk != null && full ? hk / full : null;
+    return "<tr><td>" + esc(it.sub) + "</td><td>" + esc(it.topic || "") + "</td><td class=\"" + (rate == null ? "" : bandClass(rate * 100)) + "\">" +
+      (avg == null ? "—" : Math.round(avg * 10) / 10) + "／" + full + gapBarHtml(rate, hkRate) + "</td><td>" +
+      (hk == null ? "—" : Math.round(hk * 10) / 10) + "</td><td>" + vals.length + "／" + people.length + "</td></tr>";
+  }).join("");
+  return "<div class=\"class-chart\"><h3>" + year + " 分題得分</h3><div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>分題</th><th>課題</th><th>班平均</th><th>全港平均</th><th>已入分</th></tr></thead><tbody>" +
+    body + "</tbody></table></div><p class=\"hint\">未入分唔當 0。棒：右高全港，左低全港。</p></div>";
+}
+function classChartsHtml(people, paper, year, statsHtml) {
   const misses = missRows(people, paper, year);
   const maxN = misses.reduce(function (m, r) { return Math.max(m, r.n); }, 1);
   const missHtml = misses.length ? "<div class=\"class-miss\">" + misses.map(function (r) {
@@ -344,7 +369,7 @@ function classChartsHtml(people, paper, year) {
   }).join("") + "</div>" : "<p class=\"hint\">呢年未有可排的錯題。</p>";
   const scores = people.map(function (n) { return paperScoreOf(n, paper, year); }).filter(function (v) { return v != null; });
   const step = paper === "p2" ? 5 : 10;
-  const full = paper === "p2" ? 45 : paper === "m2" ? 100 : 105;
+  const full = paper === "p2" ? 45 : paper === "p1" ? 105 : 100;
   let hist = "<p class=\"hint\">未有分數。</p>";
   if (scores.length) {
     const bins = [];
@@ -365,7 +390,7 @@ function classChartsHtml(people, paper, year) {
     bars += "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"4\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>";
     hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bars + "</svg><p class=\"hint\">實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分</p>";
   }
-  const kind = paper === "m2" ? "m2" : "core";
+  const kind = paper === "m2" ? "m2" : paper === "m1" ? "m1" : "core";
   const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
   let strip = "<p class=\"hint\">未有等級線。</p>";
   if (pack && pack.starts) {
@@ -375,11 +400,12 @@ function classChartsHtml(people, paper, year) {
     people.forEach(function (n) {
       const keep = currentProfile;
       currentProfile = n;
-      const p1 = paperScoreOf(n, "p1", year), p2 = paperScoreOf(n, "p2", year), m2 = paperScoreOf(n, "m2", year);
+      const p1 = paperScoreOf(n, "p1", year), p2 = paperScoreOf(n, "p2", year), m1 = paperScoreOf(n, "m1", year), m2 = paperScoreOf(n, "m2", year);
       currentProfile = keep;
-      if (kind === "m2") {
-        if (m2 == null) { none++; return; }
-        const lv = estimateShort("m2", year, m2);
+      if (kind === "m2" || kind === "m1") {
+        const sc = kind === "m2" ? m2 : m1;
+        if (sc == null) { none++; return; }
+        const lv = estimateShort(kind, year, sc);
         if (lv === "資料未齊") { pending++; return; }
         counts[lv.replace("暫估 ", "")] = (counts[lv.replace("暫估 ", "")] || 0) + 1;
         return;
@@ -421,9 +447,11 @@ function classChartsHtml(people, paper, year) {
     });
     scatter = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + marks + "</svg><p class=\"hint\">只計入圍。點愈大＝已標題愈多。十字係中位。</p>";
   }
+  const lvName = paper === "m2" ? "M2 等級" : paper === "m1" ? "M1 等級" : "必修等級";
   return "<div class=\"class-charts\"><div class=\"class-chart\"><h3>" + year + " 最多人錯</h3>" + missHtml + "</div>" +
-    "<div class=\"class-chart\"><h3>分數分佈</h3>" + hist + "</div>" +
-    "<div class=\"class-chart\"><h3>" + (paper === "m2" ? "M2 等級" : "必修等級") + "</h3>" + strip + "</div>" +
+    subRowsHtml(people, paper, year) +
+    "<div class=\"class-chart\"><h3>分數分佈</h3>" + hist + (statsHtml || "") + "</div>" +
+    "<div class=\"class-chart\"><h3>" + lvName + "</h3>" + strip + "</div>" +
     "<div class=\"class-chart\"><h3>掌握對分數</h3>" + scatter + "</div></div>";
 }
 
@@ -434,6 +462,9 @@ function renderClassPage() {
   const minN = classMinFor(paper);
   const paperSel = document.getElementById("classPaper");
   if (paperSel) paperSel.value = paper;
+  document.querySelectorAll("#classPaperChips [data-class-paper]").forEach(function (btn) {
+    btn.classList.toggle("on", btn.dataset.classPaper === paper);
+  });
   const mingBtn = document.getElementById("classMingBtn");
   if (mingBtn) {
     mingBtn.textContent = prefs.classMing !== false ? "明返人數　開" : "明返人數　關";
@@ -484,8 +515,15 @@ function renderClassPage() {
     "<div class=\"stat\"><b>" + st.mid + "</b><span>已標題中位</span></div>" +
     "<div class=\"stat\"><b>" + (st.masteredPct == null ? "—" : st.masteredPct + "%") + "</b><span>已掌握％</span></div>" +
     (prefs.classMing !== false ? "<div class=\"stat\"><b>" + st.mingPeople + "</b><span>明返人數</span></div>" : "");
-  document.getElementById("classRadar").innerHTML = classRadarHtml(people, paper, cmpPeople);
-  const axes = axisList.map(function (ax) {
+  document.getElementById("classRadar").innerHTML = paper === "m1"
+    ? "<p class=\"hint\">M1 未有課題表，下面只顯示分數同等級。</p>"
+    : classRadarHtml(people, paper, cmpPeople);
+  if (paper === "m1") {
+    document.getElementById("classAxes").innerHTML = "";
+    document.getElementById("classTopics").innerHTML = "";
+    document.getElementById("classDrill").innerHTML = "";
+  }
+  const axes = paper === "m1" ? [] : axisList.map(function (ax) {
     const a = classAxisAvg(people, ax, paper);
     return { ax: ax, L: a.L, n: a.n };
   });
@@ -515,10 +553,10 @@ function renderClassPage() {
     });
   });
   const ranked = topicRows.slice().sort(function (a, b) { return a.L - b.L; });
-  const weak = ranked.slice(0, 5);
+  const weak = ranked.slice(0, 10);
   const weakKey = {};
   weak.forEach(function (x) { weakKey[x.part + "\n" + x.topic] = 1; });
-  const strong = topicRows.slice().sort(function (a, b) { return b.L - a.L; }).filter(function (x) { return !weakKey[x.part + "\n" + x.topic]; }).slice(0, 5);
+  const strong = topicRows.slice().sort(function (a, b) { return b.L - a.L; }).filter(function (x) { return !weakKey[x.part + "\n" + x.topic]; }).slice(0, 10);
   const topicTable = function (list, empty) {
     if (!list.length) return "<p class=\"hint\">" + empty + "</p>";
     return "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>課題</th><th>班掌握</th><th>全港得分</th><th>已標人數</th><th>最多人錯</th></tr></thead><tbody>" +
@@ -531,13 +569,14 @@ function renderClassPage() {
           "<td>" + (x.worst ? qJumpHtml(x.worst) : "—") + "</td></tr>";
       }).join("") + "</tbody></table></div>";
   };
-  document.getElementById("classTopics").innerHTML =
+  if (paper !== "m1") document.getElementById("classTopics").innerHTML =
     "<div class=\"class-sw\"><div><b>強課題</b>" + topicTable(strong, "強課題未夠，或已出現在弱課題。") + "</div>" +
     "<div><b>弱課題</b>" + topicTable(weak, "弱課題未夠人標。") + "</div></div>" +
-    "<p class=\"hint\">入圍＝已標 ≥" + minN + " 題（" + eligible.length + "／" + people.length + "）。未做唔入平均。錯題只計唔識。掌握格的棒：右高全港，左低全港。</p>";
+    "<p class=\"hint\">入圍＝已標 ≥" + minN + " 題（" + eligible.length + "／" + people.length + "）。未做唔入平均。錯題只計唔識。掌握格的棒：右高全港，左低全港。每邊最多 10 個。</p>";
   const axis = axisList.find(function (a) { return a.id === prefs.classAxis; });
   const drill = document.getElementById("classDrill");
-  if (prefs.classLow) {
+  if (paper === "m1") drill.innerHTML = "";
+  else if (prefs.classLow) {
     drill.innerHTML = "<h3 class=\"sec-title\">標少過 " + minN + " 題　" + esc(cls || "未分班") + "</h3>" +
       "<p class=\"hint\">計人數、唔入軸平均。撳名去能力頁。</p>" +
       "<div class=\"class-people\">" + (low.length ? low.map(function (n) {
@@ -608,8 +647,11 @@ function renderClassPage() {
       const m2Lv = m2 == null ? "—" : estimateShort("m2", year, m2);
       return { n: n, p1: p1, p2: p2, m1: m1, m2: m2, cp: cp, coreLv: coreLv, m2Lv: m2Lv };
     });
-    const showM1 = rows.some(function (r) { return r.m1 != null; });
+    const showM1Box = paper === "m1";
+    const showM1Col = rows.some(function (r) { return r.m1 != null; });
     const p1s = rows.map(function (r) { return r.p1; }).filter(function (v) { return v != null; });
+    const p2s = rows.map(function (r) { return r.p2; }).filter(function (v) { return v != null; });
+    const m1s = rows.map(function (r) { return r.m1; }).filter(function (v) { return v != null; });
     const m2s = rows.map(function (r) { return r.m2; }).filter(function (v) { return v != null; });
     const avg = function (a) { return a.length ? a.reduce(function (x, y) { return x + y; }, 0) / a.length : null; };
     const box = function (lab, v, pct) {
@@ -617,19 +659,27 @@ function renderClassPage() {
     };
     const lvCount = {};
     rows.forEach(function (r) {
-      const key = paper === "m2" ? r.m2Lv : r.coreLv;
+      const key = paper === "m2" ? r.m2Lv : paper === "m1" ? (r.m1 == null ? "—" : estimateShort("m1", year, r.m1)) : r.coreLv;
       lvCount[key] = (lvCount[key] || 0) + 1;
     });
     const lvLine = Object.keys(lvCount).map(function (k) { return k + "×" + lvCount[k]; }).join("、");
-    const p1Avg = avg(p1s), m2Avg = avg(m2s);
-    scoreEl.innerHTML = classChartsHtml(people, paper, year) +
-      "<div class=\"stats\">" + box("卷一平均", p1Avg, p1Avg == null ? null : p1Avg / 105 * 100) + box("卷一中位", medianNums(p1s), null) + box("M2 平均", m2Avg, m2Avg) + box("M2 中位", medianNums(m2s), null) + "</div>" +
-      "<p class=\"hint\">等級分佈：" + (lvLine || "—") + "。無分唔當 0。中位雙數取中間兩人平均。</p>" +
+    const p1Avg = avg(p1s), p2Avg = avg(p2s), m1Avg = avg(m1s), m2Avg = avg(m2s);
+    const sel = paper === "p2" ? p2s : paper === "m1" ? m1s : paper === "m2" ? m2s : p1s;
+    const medLab = paper === "p2" ? "卷二中位" : paper === "m1" ? "M1 中位" : paper === "m2" ? "M2 中位" : "卷一中位";
+    const statsHtml = "<div class=\"stats tight\">" +
+      box("卷一平均", p1Avg, p1Avg == null ? null : p1Avg / 105 * 100) +
+      box("卷二平均", p2Avg, p2Avg == null ? null : p2Avg / 45 * 100) +
+      (showM1Box ? box("M1 平均", m1Avg, m1Avg) : "") +
+      box("M2 平均", m2Avg, m2Avg) +
+      box(medLab, medianNums(sel), null) + "</div>" +
+      "<p class=\"hint\">等級分佈：" + (lvLine || "—") + "。無分唔當 0。中位跟所選卷，雙數取中間兩人平均。</p>";
+    const m1Lv = function (r) { return r.m1 == null ? "—" : estimateShort("m1", year, r.m1); };
+    scoreEl.innerHTML = classChartsHtml(people, paper, year, statsHtml) +
       "<table class=\"data-table\"><thead><tr><th>學生</th><th>卷一</th><th>卷二</th><th>必修％</th><th>必修等級</th>" +
-      (showM1 ? "<th>M1</th>" : "") + "<th>M2</th><th>M2等級</th></tr></thead><tbody>" +
+      (showM1Col ? "<th>M1</th><th>M1等級</th>" : "") + "<th>M2</th><th>M2等級</th></tr></thead><tbody>" +
       rows.map(function (r) {
         return "<tr><td>" + esc(r.n) + "</td><td>" + (r.p1 == null ? "—" : r.p1) + "</td><td>" + (r.p2 == null ? "—" : r.p2) + "</td><td class=\"" + (r.cp == null ? "" : bandClass(r.cp)) + "\">" + (r.cp == null ? "—" : Math.round(r.cp) + "%") + "</td><td>" + r.coreLv + "</td>" +
-          (showM1 ? "<td>" + (r.m1 == null ? "—" : r.m1) + "</td>" : "") +
+          (showM1Col ? "<td>" + (r.m1 == null ? "—" : r.m1) + "</td><td>" + m1Lv(r) + "</td>" : "") +
           "<td>" + (r.m2 == null ? "—" : r.m2) + "</td><td>" + r.m2Lv + "</td></tr>";
       }).join("") + "</tbody></table>";
   }
@@ -835,18 +885,20 @@ function renderItemYear(focusSec) {
 }
 
 (function bindM2Ui() {
-  const classPaper = document.getElementById("classPaper");
-  if (classPaper) {
-    classPaper.onchange = function (e) {
-      const v = e.target.value;
-      prefs.classPaper = v === "p2" || v === "m2" ? v : "p1";
+  const classPaper = document.getElementById("classPaperChips");
+  if (classPaper && !classPaper.dataset.bound) {
+    classPaper.dataset.bound = "1";
+    classPaper.addEventListener("click", function (e) {
+      const btn = e.target.closest("[data-class-paper]");
+      if (!btn) return;
+      prefs.classPaper = btn.dataset.classPaper;
       prefs.classAxis = "";
       prefs.classTopic = "";
       prefs.classPart = "";
       prefs.classLow = false;
       savePrefs();
       renderClassPage();
-    };
+    });
   }
   const axisLegend = document.getElementById("axisLegend");
   if (axisLegend && !axisLegend.dataset.m2Jump) {
