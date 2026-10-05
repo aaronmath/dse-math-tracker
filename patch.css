@@ -283,10 +283,14 @@ button.mk-axis-name {
 
 
 
-.score-layout { display: grid; grid-template-columns: minmax(0, 1fr) 96px; gap: 12px; align-items: center; }
-.lv-col { text-align: center; min-width: 0; }
+.score-layout { display: flex; align-items: center; gap: 12px; }
+.score-main { flex: 1 1 auto; min-width: 0; }
+.lv-col {
+  flex: 0 0 104px; width: 104px; text-align: center; min-width: 104px;
+  background: #f7f3eb; border-radius: 12px; padding: 8px 4px;
+}
 .lv-kicker { display: block; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
-.lv-big { display: block; font-size: 40px; line-height: 1.05; font-variant-numeric: tabular-nums; margin: 2px 0 6px; }
+.lv-big { display: block; font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; margin: 2px 0 6px; color: #1c1915; }
 .lv-big.lv-wait { font-size: 18px; font-weight: 700; }
 .lv-col .lv-bar { height: 8px; background: #eee8dc; border-radius: 99px; overflow: hidden; }
 .lv-col .lv-bar i { display: block; height: 100%; background: #2f5d50; }
@@ -338,8 +342,9 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
 @media (max-width: 720px) {
-  .score-layout { grid-template-columns: minmax(0, 1fr) 72px; gap: 8px; }
-  .lv-big { font-size: 28px; }
+  .score-layout { gap: 8px; }
+  .lv-col { flex-basis: 84px; width: 84px; min-width: 84px; }
+  .lv-big { font-size: 26px; }
   .mc-bar i { height: 12px; }
   .class-sw { grid-template-columns: 1fr; }
 }
