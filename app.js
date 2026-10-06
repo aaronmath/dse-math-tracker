@@ -4026,7 +4026,8 @@ document.getElementById("classOldBtn").onclick = () => {
   if (currentView === "ability") renderWeak();
   renderClassPage();
 };
-document.getElementById("classHkBtn").onclick = () => {
+const classHkBtn = document.getElementById("classHkBtn");
+if (classHkBtn) classHkBtn.onclick = () => {
   prefs.hkRef = !prefs.hkRef;
   savePrefs();
   if (currentView === "ability") renderWeak();

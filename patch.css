@@ -285,7 +285,10 @@ button.mk-axis-name {
 
 .score-stack { display: flex; flex-direction: column; gap: 8px; }
 .score-ring-only { display: flex; justify-content: center; }
-.score-stack .lv-col { width: 100%; min-width: 0; flex: none; }
+.score-stack .lv-col {
+  width: 100%; min-width: 0; flex: none;
+  background: #f4efe4; border: 1px solid #e4dccf; border-radius: 12px; padding: 8px 10px;
+}
 .score-stack .lv-bar { width: min(220px, 80%); margin: 0 auto; }
 .seg.metric button.on { background: var(--accent); color: #fff; }
 .score-main { flex: 1 1 auto; min-width: 0; }

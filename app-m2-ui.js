@@ -982,6 +982,7 @@ function renderItemYear(focusSec) {
         .catch(function () { askBox({ notice: true, text: "示範班載入失敗，請再試。" }); });
     };
   }
+  const classPaper = document.getElementById("classPaperChips");
   if (classPaper && !classPaper.dataset.bound) {
     classPaper.dataset.bound = "1";
     classPaper.addEventListener("click", function (e) {
@@ -996,6 +997,11 @@ function renderItemYear(focusSec) {
       renderClassPage();
     });
   }
+  document.querySelectorAll("#classMetric, #weakMetric").forEach(function (box) {
+    box.querySelectorAll("[data-metric]").forEach(function (btn) {
+      btn.classList.toggle("on", btn.dataset.metric === (prefs.metric === "know" ? "know" : "score"));
+    });
+  });
   document.querySelectorAll("#classMetric, #weakMetric").forEach(function (box) {
     if (box.dataset.bound) return;
     box.dataset.bound = "1";
