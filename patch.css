@@ -283,11 +283,11 @@ button.mk-axis-name {
 
 
 
-.score-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
-.score-ring { flex: 0 0 120px; }
-.score-ring .mc-donut { width: 120px; height: 120px; }
+.score-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.score-ring { flex: 0 0 108px; }
+.score-ring .mc-donut { width: 108px; height: 108px; }
 .score-row .mk-bars { flex: 1 1 auto; min-width: 0; }
-.score-row .lv-col { flex: 0 0 88px; width: 88px; min-width: 88px; }
+.score-row .lv-col { flex: 0 0 76px; width: 76px; min-width: 76px; margin-left: 16px; }
 .score-row .lv-big { font-size: 28px; }
 .offline-link { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; text-decoration: none; }
 .seg.metric button.on { background: var(--accent); color: #fff; }

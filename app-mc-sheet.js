@@ -211,7 +211,7 @@
       return { id: ax.id, name, n, v: n ? sum / n : 0, hk: hkN ? hkSum / hkN : 0 };
     });
   }
-  function radarHtml(rows, showHk, draw) {
+  function radarHtml(rows, showHk, draw, know) {
     const cx = 170, cy = 170, r = 112, N = rows.length;
     let rings = "", spokes = "", labels = "";
     [0.25, 0.5, 0.75, 1].forEach(k => {
@@ -235,9 +235,9 @@
       hk = `<polygon points="${pts}" fill="none" stroke="#8a8178" stroke-width="1.5" stroke-dasharray="5 4"/>`;
     }
     const stu = `<polygon class="radar-stu" points="${poly}" fill="rgba(61,110,140,.28)" stroke="#3d6e8c" stroke-width="2"/>`;
-    const cap = showHk
-      ? `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅對錯　虛線＝全港命中率</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`
-      : `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝今次揀嘅狀態</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`;
+    const cap = know
+      ? `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝明白程度　虛線＝全港命中率</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`
+      : `<text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅對錯　虛線＝全港命中率</text><text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　撳軸名篩下面的題</text>`;
     return `<svg viewBox="0 0 340 340" class="${draw ? "radar-draw" : ""}">${rings}${spokes}${hk}${stu}${labels}${cap}</svg>`;
   }
   function axisList(rows, showHk) {
@@ -507,8 +507,8 @@
             <button type="button" class="ghost${!know ? " on-toggle" : ""}" data-mc-radar="mark">對錯</button>
             <button type="button" class="ghost${know ? " on-toggle" : ""}" data-mc-radar="know">明白程度</button>
           </div>
-          ${radarHtml(axes, !know, draw)}
-          <p class="hint">${know ? "實色係今次揀嘅狀態。未揀嘅軸當 0。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
+          ${radarHtml(axes, true, draw, know)}
+          <p class="hint">${know ? "實色＝明白程度。虛線＝全港命中率，唔係掌握。能力頁唔跟呢度。" : "實色＝今次對錯　虛線＝呢份卷全港。留空唔入你的平均，冇題嘅軸當 0。"}</p>
         </div>
         <div class="mk-topics">
           ${boardHtml(year, d, know)}
@@ -523,11 +523,12 @@
             ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
           </div>
           ${window.levelCol ? window.levelCol("core", year, (function () {
-            const p1 = typeof hasPartScores === "function" && hasPartScores("p1", year) && partSum("p1", year) != null
-              ? partSum("p1", year)
-              : (getScore("p1", year) === "" || getScore("p1", year) == null ? null : +getScore("p1", year));
-            return p1 == null ? null : corePct(year, p1, s.ok);
-          })(), "必修", "未齊") : `<aside class="lv-col"><span class="lv-kicker">必修</span><b class="lv-big lv-wait">資料未齊</b></aside>`}
+            const scoreOf = window.enteredScore;
+            const p1 = typeof scoreOf === "function" ? scoreOf("p1", year) : null;
+            const p2 = typeof scoreOf === "function" ? scoreOf("p2", year) : null;
+            if (p1 == null || p2 == null) return null;
+            return corePct(year, p1, p2);
+          })(), "必修", "未齊") : ""}
         </div>
         <div class="stats">
           <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>

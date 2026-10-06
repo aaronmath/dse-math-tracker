@@ -34,6 +34,7 @@
   }
   window.hasPartScores = hasPartScores;
   window.partSum = partSum;
+  window.enteredScore = enteredScore;
 
   function setPart(paper, year, q, sub, val) {
     const pts = Object.assign({}, getCell(paper, year, q).pts || {});
@@ -170,16 +171,10 @@
     const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
     if (pct == null) return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">${emptyText}</b></aside>`;
     const lv = estimateShort(kind, year, Number(pct));
-    if (!pack || lv === "資料未齊") return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">資料未齊</b></aside>`;
+    if (!pack || !lv || lv === "資料未齊") return "";
     const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
     const p = Math.round(levelProgress(starts, Number(pct)));
-    let idx = 0;
-    for (let i = 0; i < starts.length; i++) if (Number(pct) + 1e-9 >= starts[i][1]) idx = i;
-    const next = starts[idx + 1];
-    const gap = next ? Math.max(0, Math.ceil(next[1] - Number(pct) - 1e-9)) : 0;
-    const unit = kind === "m2" ? "分" : "";
-    const gapTxt = next ? `差 ${gap}${unit} 上 ${next[0]}` : "已到頂";
-    return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div><span class="lv-gap">${gapTxt}</span></aside>`;
+    return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
   }
   window.levelCol = levelCol;
   function scoreVisual(paper, year) {

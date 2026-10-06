@@ -2252,6 +2252,12 @@ function paintClassTab() {
   const hint = document.getElementById("adminXferHint");
   if (hint) hint.hidden = !on;
   document.querySelectorAll(".admin-xfer").forEach(o => { o.hidden = !on; });
+  const off = document.getElementById("offlineLink");
+  if (off) {
+    off.hidden = !on;
+    if (on) off.setAttribute("href", "./dse-math-tracker-offline.zip");
+    else off.removeAttribute("href");
+  }
 }
 function itemsForAxis(axis, paper) {
   const seen = new Map();

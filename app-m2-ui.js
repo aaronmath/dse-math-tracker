@@ -435,27 +435,36 @@ function classChartsHtml(people, paper, year, statsHtml) {
     return "<button type=\"button\" data-jump=\"" + year + ":" + r.q + "\" data-jump-paper=\"" + paper + "\"><span>" + year + " Q" + r.q + "</span>" + bar + "</button>";
   }).join("") + "</div>" : "<p class=\"hint\">呢年未有可排的錯題。</p>";
   const scores = people.map(function (n) { return paperScoreOf(n, paper, year); }).filter(function (v) { return v != null; });
-  const step = paper === "p2" ? 5 : 10;
   const full = paper === "p2" ? 45 : paper === "p1" ? 105 : 100;
   let hist = "<p class=\"hint\">未有分數。</p>";
   if (scores.length) {
-    const bins = [];
-    for (let x = 0; x < full; x += step) bins.push({ lo: x, hi: Math.min(full, x + step), n: 0 });
-    scores.forEach(function (v) { bins[Math.min(bins.length - 1, Math.floor(v / step))].n++; });
-    const peak = bins.reduce(function (m, b) { return Math.max(m, b.n); }, 1);
     const mean = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
     const med = medianNums(scores);
-    const W = 520, H = 120, l = 28, btm = 22;
-    const bw = (W - l - 8) / bins.length;
-    let bars = bins.map(function (bin, i) {
-      const h = bin.n / peak * (H - btm - 8);
-      return "<rect x=\"" + (l + i * bw + 2).toFixed(1) + "\" y=\"" + (H - btm - h).toFixed(1) + "\" width=\"" + (bw - 4).toFixed(1) + "\" height=\"" + h.toFixed(1) + "\" fill=\"#3d6e8c\"></rect>" +
-        "<text x=\"" + (l + i * bw + bw / 2).toFixed(1) + "\" y=\"" + (H - 6) + "\" text-anchor=\"middle\" font-size=\"9\" fill=\"#6b645b\">" + bin.lo + "</text>";
+    const W = 520, H = 108, l = 28, r = 12, top = 16, base = 78;
+    const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - r); };
+    let bg = "";
+    if ((paper === "m1" || paper === "m2") && window.CUTOFFS && CUTOFFS[paper] && CUTOFFS[paper][String(year)]) {
+      const starts = CUTOFFS[paper][String(year)].starts.slice().sort(function (a, b) { return a[1] - b[1]; });
+      const cols = { U: "#f3efe6", "1": "#f3efe6", "2": "#f6e7d4", "3": "#f3e7c2", "4": "#e7f0ea", "5": "#d7ebe3", "5*": "#c5e0d4", "5**": "#b7d7c8" };
+      starts.forEach(function (row, i) {
+        const next = starts[i + 1] ? starts[i + 1][1] : full;
+        bg += "<rect x=\"" + xOf(row[1]).toFixed(1) + "\" y=\"8\" width=\"" + Math.max(0, xOf(next) - xOf(row[1])).toFixed(1) + "\" height=\"" + (base - 8) + "\" fill=\"" + (cols[row[0]] || "#f7f3eb") + "\"></rect>";
+      });
+    }
+    const used = {};
+    const dots = scores.map(function (v) {
+      const key = Math.round(v);
+      const slot = used[key] || 0;
+      used[key] = slot + 1;
+      const y = base - 8 - (slot % 4) * 14;
+      return "<circle cx=\"" + xOf(v).toFixed(1) + "\" cy=\"" + y + "\" r=\"5\" fill=\"#3d6e8c\" fill-opacity=\"0.85\"><title>" + v + "</title></circle>";
     }).join("");
-    const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - 8); };
-    bars += "<line x1=\"" + xOf(mean).toFixed(1) + "\" y1=\"4\" x2=\"" + xOf(mean).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#1c1915\" stroke-width=\"1.5\"/>";
-    bars += "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"4\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + (H - btm) + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>";
-    hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bars + "</svg><p class=\"hint\">實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分</p>";
+    const axis = "<line x1=\"" + l + "\" y1=\"" + base + "\" x2=\"" + (W - r) + "\" y2=\"" + base + "\" stroke=\"#e4ddd2\"/>" +
+      "<line x1=\"" + xOf(mean).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(mean).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\"/>" +
+      "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>" +
+      "<text x=\"" + l + "\" y=\"" + (H - 8) + "\" font-size=\"10\" fill=\"#6b645b\">0</text>" +
+      "<text x=\"" + (W - r) + "\" y=\"" + (H - 8) + "\" text-anchor=\"end\" font-size=\"10\" fill=\"#6b645b\">" + full + "</text>";
+    hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bg + axis + dots + "</svg><p class=\"hint\">每人一點。實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分" + ((paper === "m1" || paper === "m2") ? "。底色係該年等級帶。" : "") + "</p>";
   }
   const kind = paper === "m2" ? "m2" : paper === "m1" ? "m1" : "core";
   const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
