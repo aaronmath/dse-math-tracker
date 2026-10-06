@@ -515,9 +515,12 @@
         </div>
       </div>
       <div class="mc-scoreboard score-card">
-        <div class="score-stack">
-          <div class="mc-visual mk-visual score-ring-only">
-            ${donutSvg(s.ok, wrong, s.blank)}
+        <div class="score-row">
+          <div class="score-ring">${donutSvg(s.ok, wrong, s.blank)}</div>
+          <div class="mk-bars">
+            ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
+            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
+            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
           </div>
           ${window.levelCol ? window.levelCol("core", year, (function () {
             const p1 = typeof hasPartScores === "function" && hasPartScores("p1", year) && partSum("p1", year) != null
@@ -525,19 +528,14 @@
               : (getScore("p1", year) === "" || getScore("p1", year) == null ? null : +getScore("p1", year));
             return p1 == null ? null : corePct(year, p1, s.ok);
           })(), "必修", "未齊") : `<aside class="lv-col"><span class="lv-kicker">必修</span><b class="lv-big lv-wait">資料未齊</b></aside>`}
-          <div class="mk-bars">
-            ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
-            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
-            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
-          </div>
-          <div class="stats">
-            <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
-            <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
-            <div class="stat"><b>${s.blank}</b><span>留空</span></div>
-            <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
-          </div>
         </div>
-        <p class="hint">圓環係答對、答錯、留空。棒上黑線係全港。等級在圓環下面。撳甲或乙篩下面的題。</p>
+        <div class="stats">
+          <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
+          <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
+          <div class="stat"><b>${s.blank}</b><span>留空</span></div>
+          <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
+        </div>
+        <p class="hint">左圓環，中間分部，右邊等級。棒上黑線係全港。撳甲或乙篩下面的題。</p>
       </div>
       <div class="mc-filters mk-filters">${statHtml}<span class="mc-flt-gap"></span>${paperBtns}<span class="mc-flt-gap"></span><button type="button" class="mk-stf${clearOn}" data-mc-clear="1">顯示全部</button></div>
       ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" data-mc-clear="1">顯示全部</button></p>` : ""}

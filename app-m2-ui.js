@@ -20,6 +20,11 @@ function axisHkFromItems(items, paper) {
   return hkW ? hkSum / hkW : null;
 }
 
+function paintMetricButtons() {
+  document.querySelectorAll("#classMetric [data-metric], #weakMetric [data-metric]").forEach(function (btn) {
+    btn.classList.toggle("on", btn.dataset.metric === (prefs.metric === "know" ? "know" : "score"));
+  });
+}
 function useScoreMetric() { return prefs.metric !== "know"; }
 function partRate(cell, sub, marks) {
   if (!cell || !cell.pts || cell.pts[sub] == null || cell.pts[sub] === "" || !marks) return null;
@@ -1010,8 +1015,9 @@ function renderItemYear(focusSec) {
       if (!btn) return;
       prefs.metric = btn.dataset.metric === "know" ? "know" : "score";
       savePrefs();
-      if (typeof renderWeak === "function") renderWeak();
-      if (typeof renderClassPage === "function") renderClassPage();
+      paintMetricButtons();
+      try { if (typeof renderWeak === "function") renderWeak(); } catch (err) {}
+      try { if (typeof renderClassPage === "function") renderClassPage(); } catch (err) {}
     });
   });
   const axisLegend = document.getElementById("axisLegend");

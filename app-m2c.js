@@ -3,8 +3,11 @@ function renderWeak() {
   const wp = document.getElementById("weakPaper");
   if (wp && prefs.weakPaper && [...wp.options].some(o => o.value === prefs.weakPaper && !o.disabled)) wp.value = prefs.weakPaper;
   const hkBtn = document.getElementById("hkRefBtn");
-  hkBtn.textContent = prefs.hkRef ? "全港參照　開" : "全港參照　關";
-  hkBtn.classList.toggle("on-toggle", !!prefs.hkRef);
+  if (hkBtn) {
+    hkBtn.textContent = prefs.hkRef ? "全港參照　開" : "全港參照　關";
+    hkBtn.classList.toggle("on-toggle", !!prefs.hkRef);
+  }
+  if (typeof paintMetricButtons === "function") paintMetricButtons();
   const oldBtn = document.getElementById("oldSyllBtn");
   if (oldBtn) {
     oldBtn.textContent = prefs.includeOld ? "含舊課程　開" : "含舊課程　關";

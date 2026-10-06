@@ -283,13 +283,13 @@ button.mk-axis-name {
 
 
 
-.score-stack { display: flex; flex-direction: column; gap: 8px; }
-.score-ring-only { display: flex; justify-content: center; }
-.score-stack .lv-col {
-  width: 100%; min-width: 0; flex: none;
-  background: #f4efe4; border: 1px solid #e4dccf; border-radius: 12px; padding: 8px 10px;
-}
-.score-stack .lv-bar { width: min(220px, 80%); margin: 0 auto; }
+.score-row { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.score-ring { flex: 0 0 120px; }
+.score-ring .mc-donut { width: 120px; height: 120px; }
+.score-row .mk-bars { flex: 1 1 auto; min-width: 0; }
+.score-row .lv-col { flex: 0 0 88px; width: 88px; min-width: 88px; }
+.score-row .lv-big { font-size: 28px; }
+.offline-link { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; text-decoration: none; }
 .seg.metric button.on { background: var(--accent); color: #fff; }
 .score-main { flex: 1 1 auto; min-width: 0; }
 .lv-col {
@@ -349,9 +349,11 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
 @media (max-width: 720px) {
-  .score-layout { gap: 8px; }
-  .lv-col { flex-basis: 84px; width: 84px; min-width: 84px; }
-  .lv-big { font-size: 26px; }
+  .score-row { gap: 6px; }
+  .score-ring { flex-basis: 96px; }
+  .score-ring .mc-donut { width: 96px; height: 96px; }
+  .score-row .lv-col { flex-basis: 72px; width: 72px; min-width: 72px; }
+  .score-row .lv-big { font-size: 22px; }
   .mc-bar i { height: 12px; }
   .class-sw { grid-template-columns: 1fr; }
 }
