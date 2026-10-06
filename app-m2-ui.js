@@ -950,7 +950,38 @@ function renderItemYear(focusSec) {
 }
 
 (function bindM2Ui() {
-  const classPaper = document.getElementById("classPaperChips");
+  const loadDemoBtn = document.getElementById("loadDemoBtn");
+  if (loadDemoBtn && !loadDemoBtn.dataset.bound) {
+    loadDemoBtn.dataset.bound = "1";
+    loadDemoBtn.onclick = function () {
+      fetch("./samples/dse-math-tracker-示範五人.json?v=20261006b")
+        .then(function (r) { if (!r.ok) throw new Error("示範檔讀唔到"); return r.json(); })
+        .then(function (incoming) {
+          const src = incoming.profiles || {};
+          Object.keys(src).forEach(function (name) {
+            const p = src[name];
+            db.profiles[name] = {
+              name: name,
+              className: p.className || "示範班",
+              cells: p.cells || {},
+              scores: p.scores || {},
+              dates: p.dates || {},
+              times: p.times || {},
+              updatedAt: p.updatedAt || Date.now()
+            };
+            if (typeof ensureClassName === "function") ensureClassName(p.className || "示範班");
+          });
+          currentProfile = db.profiles["示範甲"] ? "示範甲" : currentProfile;
+          prefs.classSel = "示範班";
+          prefs.classPaper = prefs.classPaper || "p1";
+          savePrefs();
+          if (typeof saveDb === "function") saveDb();
+          if (typeof refreshAfterProfile === "function") refreshAfterProfile();
+          if (typeof showView === "function") showView("class");
+        })
+        .catch(function () { askBox({ notice: true, text: "示範班載入失敗，請再試。" }); });
+    };
+  }
   if (classPaper && !classPaper.dataset.bound) {
     classPaper.dataset.bound = "1";
     classPaper.addEventListener("click", function (e) {
