@@ -334,13 +334,6 @@ button.mk-axis-name {
 .lv-band.hot b { background: #2f5d50; color: #fff; }
 .lv-band.empty b { height: 6px !important; background: transparent; border-top: 2px solid #e4ddd2; padding: 0; }
 .lv-band span { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
-.show-menu { position: relative; }
-.show-menu summary {
-  list-style: none; cursor: pointer; height: 36px; display: inline-flex; align-items: center;
-  padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: transparent;
-}
-.show-menu summary::-webkit-details-marker { display: none; }
-.show-menu[open] { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .class-jumps { margin: 8px 0; }
 .class-jumps button { background: #f4efe4; color: #1c1915; }
 .lv-out { margin-top: 6px; font-size: 12px; color: var(--muted); }

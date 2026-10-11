@@ -436,12 +436,15 @@ function classChartsHtml(people, paper, year, statsHtml) {
       : "<i><b style=\"width:" + (r.n * 100 / maxN).toFixed(1) + "%\"></b></i><em>" + r.n + " 唔識</em>";
     return "<button type=\"button\" data-jump=\"" + year + ":" + r.q + "\" data-jump-paper=\"" + paper + "\"><span>" + year + " Q" + r.q + "</span>" + bar + "</button>";
   }).join("") + "</div>" : "<p class=\"hint\">呢年未有可排的錯題。</p>";
-  const scores = people.map(function (n) { return paperScoreOf(n, paper, year); }).filter(function (v) { return v != null; });
+  const scores = people.map(function (n) {
+    const v = paperScoreOf(n, paper, year);
+    return v == null ? null : { n: n, v: v };
+  }).filter(Boolean);
   const full = paper === "p2" ? 45 : paper === "p1" ? 105 : 100;
   let hist = "<p class=\"hint\">未有分數。</p>";
   if (scores.length) {
-    const mean = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
-    const med = medianNums(scores);
+    const mean = scores.reduce(function (a, b) { return a + b.v; }, 0) / scores.length;
+    const med = medianNums(scores.map(function (d) { return d.v; }));
     const W = 520, H = 128, l = 28, r = 16, base = 86;
     const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - r); };
     const ticks = paper === "p2" ? [0, 10, 20, 30, 40, 45] : paper === "p1" ? [0, 20, 40, 60, 80, 105] : [0, 20, 40, 60, 80, 100];
@@ -454,13 +457,26 @@ function classChartsHtml(people, paper, year, statsHtml) {
         bg += "<rect x=\"" + xOf(row[1]).toFixed(1) + "\" y=\"8\" width=\"" + Math.max(0, xOf(next) - xOf(row[1])).toFixed(1) + "\" height=\"" + (base - 8) + "\" fill=\"" + (cols[row[0]] || "#f7f3eb") + "\"></rect>";
       });
     }
+    const lvFill = { U: "#8a8178", "1": "#8a8178", "2": "#c4843a", "3": "#b0893e", "4": "#5a8f72", "5": "#2f7d5b", "5*": "#247056", "5**": "#1a5c42" };
     const used = {};
-    const dots = scores.map(function (v) {
-      const key = Math.round(v);
+    const dots = scores.map(function (d) {
+      const key = Math.round(d.v);
       const slot = used[key] || 0;
       used[key] = slot + 1;
       const y = base - 8 - (slot % 4) * 14;
-      return "<circle cx=\"" + xOf(v).toFixed(1) + "\" cy=\"" + y + "\" r=\"5\" fill=\"#3d6e8c\" fill-opacity=\"0.85\"><title>" + v + "</title></circle>";
+      let fill = "#3d6e8c";
+      let extra = "";
+      if (paper === "p1" || paper === "p2") {
+        const p1 = paperScoreOf(d.n, "p1", year);
+        const p2 = paperScoreOf(d.n, "p2", year);
+        if (p1 != null && p2 != null) {
+          const cp = corePct(year, p1, p2);
+          const lv = cp == null ? "" : estimateShort("core", year, cp);
+          const name = String(lv).replace("暫估 ", "");
+          if (lvFill[name]) { fill = lvFill[name]; extra = " " + name; }
+        }
+      }
+      return "<circle cx=\"" + xOf(d.v).toFixed(1) + "\" cy=\"" + y + "\" r=\"5\" fill=\"" + fill + "\" fill-opacity=\"0.9\"><title>" + esc(d.n) + " " + d.v + extra + "</title></circle>";
     }).join("");
     const axis = ticks.map(function (t, i) {
       const x = xOf(t).toFixed(1);
@@ -471,7 +487,7 @@ function classChartsHtml(people, paper, year, statsHtml) {
       "<line x1=\"" + l + "\" y1=\"" + base + "\" x2=\"" + (W - r) + "\" y2=\"" + base + "\" stroke=\"#e4ddd2\"/>" +
       "<line x1=\"" + xOf(mean).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(mean).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\"/>" +
       "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>";
-    hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bg + axis + dots + "</svg><p class=\"hint\">每人一點。實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分" + ((paper === "m1" || paper === "m2") ? "。底色係該年等級帶。" : "") + "</p>";
+    hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bg + axis + dots + "</svg><p class=\"hint\">每人一點。實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分" + ((paper === "m1" || paper === "m2") ? "。底色係該年等級帶。" : "。點色係必修等級，未齊兩卷保持藍色。") + "</p>";
   }
   const kind = paper === "m2" ? "m2" : paper === "m1" ? "m1" : "core";
   const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
