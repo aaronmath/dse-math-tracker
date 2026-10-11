@@ -84,7 +84,7 @@ function axisScore(axis) {
       wsum += m;
       seenQ.add(x.y + ":" + x.q);
     });
-    const hk = useScoreMetric() ? axisHkFromItems(items, "p1") : null;
+    const hk = axisHkFromItems(items, "p1");
     if (seenQ.size < axisMinN(paper)) return { n: seenQ.size, L: null, hk: hk };
     return { n: seenQ.size, L: wsum ? sum / wsum : null, hk: hk };
   }
@@ -101,7 +101,7 @@ function axisScore(axis) {
       wsum += m;
       seenQ.add(x.y + ":" + x.q);
     });
-    const hk = useScoreMetric() ? axisHkFromItems(items, "m2") : null;
+    const hk = axisHkFromItems(items, "m2");
     if (seenQ.size < axisMinN(paper)) return { n: seenQ.size, L: null, hk: hk };
     return { n: seenQ.size, L: wsum ? sum / wsum : null, hk: hk };
   }
@@ -115,7 +115,7 @@ function axisScore(axis) {
     sum += c.s === 3 ? 1 : c.s === 2 ? 0.5 : 0;
     n++;
   });
-  const hk = useScoreMetric() ? axisHkFromItems(items, "p2") : null;
+  const hk = axisHkFromItems(items, "p2");
   if (n < 4) return { n: n, L: null, hk: hk };
   return { n: n, L: sum / n, hk: hk };
 }
@@ -314,7 +314,7 @@ function classRadarHtml(people, paper, cmpPeople) {
     const ang = -Math.PI / 2 + i * 2 * Math.PI / N;
     stu += "<circle cx=\"" + (cx + r * Math.cos(ang)).toFixed(1) + "\" cy=\"" + (cy + r * Math.sin(ang)).toFixed(1) + "\" r=\"4\" class=\"miss\"/>";
   });
-  const showHk = useScoreMetric() && prefs.hkRef;
+  const showHk = !!prefs.hkRef;
   if (showHk) {
     const ratedH = radarPolyRated(H, cx, cy, r);
     if (ratedH.length >= 4) hk = "<polygon points=\"" + ratedH.join(" ") + "\" fill=\"none\" stroke=\"#8a8178\" stroke-width=\"1.5\" stroke-dasharray=\"5 4\"/>";
@@ -332,7 +332,9 @@ function classRadarHtml(people, paper, cmpPeople) {
   const drawKey = (prefs.classSel || "") + ":" + paper + ":" + (prefs.classCmp || "") + ":" + (showHk ? 1 : 0) + ":" + (useScoreMetric() ? "score" : "know");
   const draw = classRadarDrawn !== drawKey;
   classRadarDrawn = drawKey;
-  const cap = useScoreMetric() ? "實色＝已入分得分率　虛線＝全港" : "實色＝掌握程度　掌握模式唔畫全港";
+  const cap = !showHk
+    ? (useScoreMetric() ? "實色＝已入分得分率　全港參照已關" : "實色＝掌握　全港參照已關")
+    : (useScoreMetric() ? "實色＝已入分得分率　虛線＝全港命中率" : "實色＝掌握　虛線＝全港命中率");
   return "<svg viewBox=\"0 0 340 340\" class=\"" + (draw ? "radar-draw" : "") + "\">" + rings + spokes + hk + cmp + stu + labels +
     "<text x=\"170\" y=\"318\" text-anchor=\"middle\" font-size=\"11\" fill=\"#6b645b\">" + cap + "</text></svg>";
 }
@@ -440,8 +442,9 @@ function classChartsHtml(people, paper, year, statsHtml) {
   if (scores.length) {
     const mean = scores.reduce(function (a, b) { return a + b; }, 0) / scores.length;
     const med = medianNums(scores);
-    const W = 520, H = 108, l = 28, r = 12, top = 16, base = 78;
+    const W = 520, H = 128, l = 28, r = 16, base = 86;
     const xOf = function (v) { return l + Math.max(0, Math.min(full, v)) / full * (W - l - r); };
+    const ticks = paper === "p2" ? [0, 10, 20, 30, 40, 45] : paper === "p1" ? [0, 20, 40, 60, 80, 105] : [0, 20, 40, 60, 80, 100];
     let bg = "";
     if ((paper === "m1" || paper === "m2") && window.CUTOFFS && CUTOFFS[paper] && CUTOFFS[paper][String(year)]) {
       const starts = CUTOFFS[paper][String(year)].starts.slice().sort(function (a, b) { return a[1] - b[1]; });
@@ -459,11 +462,15 @@ function classChartsHtml(people, paper, year, statsHtml) {
       const y = base - 8 - (slot % 4) * 14;
       return "<circle cx=\"" + xOf(v).toFixed(1) + "\" cy=\"" + y + "\" r=\"5\" fill=\"#3d6e8c\" fill-opacity=\"0.85\"><title>" + v + "</title></circle>";
     }).join("");
-    const axis = "<line x1=\"" + l + "\" y1=\"" + base + "\" x2=\"" + (W - r) + "\" y2=\"" + base + "\" stroke=\"#e4ddd2\"/>" +
+    const axis = ticks.map(function (t, i) {
+      const x = xOf(t).toFixed(1);
+      const anchor = i === 0 ? "start" : i === ticks.length - 1 ? "end" : "middle";
+      return "<line x1=\"" + x + "\" y1=\"8\" x2=\"" + x + "\" y2=\"" + base + "\" stroke=\"#efeae2\"/>" +
+        "<text x=\"" + x + "\" y=\"" + (H - 8) + "\" text-anchor=\"" + anchor + "\" font-size=\"10\" fill=\"#6b645b\">" + t + "</text>";
+    }).join("") +
+      "<line x1=\"" + l + "\" y1=\"" + base + "\" x2=\"" + (W - r) + "\" y2=\"" + base + "\" stroke=\"#e4ddd2\"/>" +
       "<line x1=\"" + xOf(mean).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(mean).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\"/>" +
-      "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>" +
-      "<text x=\"" + l + "\" y=\"" + (H - 8) + "\" font-size=\"10\" fill=\"#6b645b\">0</text>" +
-      "<text x=\"" + (W - r) + "\" y=\"" + (H - 8) + "\" text-anchor=\"end\" font-size=\"10\" fill=\"#6b645b\">" + full + "</text>";
+      "<line x1=\"" + xOf(med).toFixed(1) + "\" y1=\"6\" x2=\"" + xOf(med).toFixed(1) + "\" y2=\"" + base + "\" stroke=\"#1c1915\" stroke-width=\"1.5\" stroke-dasharray=\"4 3\"/>";
     hist = "<svg viewBox=\"0 0 " + W + " " + H + "\" width=\"100%\">" + bg + axis + dots + "</svg><p class=\"hint\">每人一點。實線平均 " + (Math.round(mean * 10) / 10) + "　虛線中位 " + (Math.round(med * 10) / 10) + "　" + scores.length + " 人有分" + ((paper === "m1" || paper === "m2") ? "。底色係該年等級帶。" : "") + "</p>";
   }
   const kind = paper === "m2" ? "m2" : paper === "m1" ? "m1" : "core";
@@ -494,13 +501,15 @@ function classChartsHtml(people, paper, year, statsHtml) {
       counts[lv.replace("暫估 ", "")] = (counts[lv.replace("暫估 ", "")] || 0) + 1;
     });
     const peak = Math.max(1, Object.keys(counts).reduce(function (m, k) { return Math.max(m, counts[k]); }, 0));
+    const topN = Object.keys(counts).reduce(function (m, k) { return Math.max(m, counts[k]); }, 0);
     strip = "<div class=\"lv-strip\">" + starts.map(function (row, i) {
       const next = starts[i + 1] ? starts[i + 1][1] : 100;
       const w = Math.max(4, next - row[1]);
       const n = counts[row[0]] || 0;
-      const h = 18 + n / peak * 48;
-      return "<div class=\"lv-band\" style=\"flex:" + w.toFixed(2) + ";height:" + h.toFixed(0) + "px\"><b>" + n + "</b><span>" + row[0] + "</span></div>";
-    }).join("") + "</div><p class=\"lv-out\">未齊 " + pending + "　未入 " + none + "。格寬跟該年等級線間距。</p>";
+      const hot = n > 0 && n === topN ? " hot" : "";
+      const h = n ? 22 + n / peak * 46 : 6;
+      return "<div class=\"lv-band" + (n ? "" : " empty") + hot + "\" style=\"flex:" + w.toFixed(2) + "\"><b style=\"height:" + h.toFixed(0) + "px\">" + (n || "") + "</b><span>" + row[0] + "</span></div>";
+    }).join("") + "</div><p class=\"lv-out\">未齊 " + pending + "　未入 " + none + "。柱高係人數，格寬跟該年等級線。</p>";
   }
   const dots = people.filter(function (n) { return classEligible(db.profiles[n], paper); }).map(function (n) {
     const sc = paperScoreOf(n, paper, year);
@@ -1011,6 +1020,14 @@ function renderItemYear(focusSec) {
       renderClassPage();
     });
   }
+  document.querySelectorAll("[data-jump-sec]").forEach(function (btn) {
+    if (btn.dataset.bound) return;
+    btn.dataset.bound = "1";
+    btn.addEventListener("click", function () {
+      const el = document.getElementById(btn.dataset.jumpSec);
+      if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  });
   document.querySelectorAll("#classMetric, #weakMetric").forEach(function (box) {
     box.querySelectorAll("[data-metric]").forEach(function (btn) {
       btn.classList.toggle("on", btn.dataset.metric === (prefs.metric === "know" ? "know" : "score"));

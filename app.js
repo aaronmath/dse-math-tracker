@@ -995,11 +995,15 @@ function renderRadar() {
   const drawKey = currentProfile + ":" + weakPaperId();
   const first = radarDrawn !== drawKey;
   if (!empty) radarDrawn = drawKey;
+  const know = typeof useScoreMetric === "function" && !useScoreMetric();
+  const cap = !prefs.hkRef
+    ? (know ? "實色＝掌握　全港參照已關" : "實色＝你嘅標記平均　全港參照已關")
+    : (know ? "實色＝掌握　虛線＝全港命中率" : "實色＝你嘅標記平均　虛線＝全港命中率");
   document.getElementById("radarBox").innerHTML = empty
     ? `<p class="hint">${emptyHint}</p>`
     : `<svg viewBox="0 0 340 340" class="${first ? "radar-draw" : ""}">${rings}${spokes}${hk}${stu}${labels}
-      <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">實色＝你嘅標記平均　虛線＝全港命中率</text>
-      <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%　卷一按分數加權</text></svg>`;
+      <text x="170" y="318" text-anchor="middle" font-size="11" fill="#6b645b">${cap}</text>
+      <text x="170" y="332" text-anchor="middle" font-size="11" fill="#6b645b">紅線＝40%　綠線＝60%</text></svg>`;
   document.getElementById("axisLegend").innerHTML = AXES.map((a, i) => {
     const sc = scores[i];
     const stuLab = sc.L == null ? "未評" : Math.round(sc.L * 100) + "%";

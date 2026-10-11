@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20261004e" />
-  <link rel="stylesheet" href="./patch.css?v=20261006e" />
+  <link rel="stylesheet" href="./patch.css?v=20261011a" />
 </head>
 <body>
   <header>
@@ -148,7 +148,10 @@
         </div>
         <button type="button" class="ghost" id="hkRefBtn">全港參照　開</button>
         <button type="button" class="ghost" id="sumBtn">強弱摘要</button>
-        <button type="button" class="ghost" id="oldSyllBtn">含舊課程　關</button>
+        <details class="show-menu">
+          <summary>顯示</summary>
+          <button type="button" class="ghost" id="oldSyllBtn">含舊課程　關</button>
+        </details>
       </div>
       <div class="radar-wrap">
         <div id="radarBox" class="radar-box"></div>
@@ -267,8 +270,11 @@
           <option value="m2">M2</option>
         </select>
         <button type="button" class="ghost" id="classHkBtn">全港參照　開</button>
-        <button type="button" class="ghost" id="classOldBtn">含舊課程　關</button>
-        <button type="button" class="ghost" id="classMingBtn">明返人數　開</button>
+        <details class="show-menu">
+          <summary>顯示</summary>
+          <button type="button" class="ghost" id="classOldBtn">含舊課程　關</button>
+          <button type="button" class="ghost" id="classMingBtn">明返人數　開</button>
+        </details>
         <div class="seg metric" id="classMetric">
           <button type="button" data-metric="score">分數</button>
           <button type="button" data-metric="know">掌握</button>
@@ -279,10 +285,16 @@
         <button type="button" class="danger" id="classDelBtn">刪班</button>
         <button type="button" class="ghost" id="classCsvBtn">匯出 CSV</button>
       </div>
-      <p class="class-warn" id="classWarn" hidden></p>
+      <div class="chip-row class-jumps">
+        <button type="button" data-jump-sec="classRadarWrap">雷達</button>
+        <button type="button" data-jump-sec="classTopics">強弱</button>
+        <button type="button" data-jump-sec="classScoreBlock">分數</button>
+        <button type="button" data-jump-sec="classRoster">學生</button>
+      </div>
       <div class="chip-row class-pills" id="classPills"></div>
+      <p class="class-warn" id="classWarn" hidden></p>
       <div class="stats" id="classStats"></div>
-      <div class="radar-wrap">
+      <div class="radar-wrap" id="classRadarWrap">
         <div id="classRadar" class="radar-box"></div>
         <div id="classAxes" class="class-axes"></div>
       </div>
@@ -292,7 +304,7 @@
         <summary class="sec-title">班對照</summary>
         <div style="overflow:auto" id="classMatrix"></div>
       </details>
-      <div class="toolbar">
+      <div class="toolbar" id="classScoreBlock">
         <h3 class="sec-title" style="margin:0">分數</h3>
         <label>年份 <select id="classYear"></select></label>
         <button type="button" class="ghost" id="classScoreCsv">匯出成績 CSV</button>
@@ -342,7 +354,7 @@
       <div id="markSheet" hidden></div>
     </section>
   </main>
-  <footer>Powered by Chan Yiu Hei · 20261006e · <a id="offlineLink" hidden>離線版</a></footer>
+  <footer>Powered by Chan Yiu Hei · 20261011a · <a id="offlineLink" hidden>離線版</a></footer>
   <button type="button" id="toTop" class="to-top" hidden aria-label="回到頂">↑</button>
   <dialog id="askDlg">
     <div class="dlg">
@@ -458,15 +470,15 @@
   <script src="./data/m2-y24-26.js?v=20260930b"></script>
   <script src="./data/m2-join.js?v=20260930b"></script>
   <script src="./data/item-stats.js?v=20260930a"></script>
-  <script src="./app.js?v=20261006e"></script>
+  <script src="./app.js?v=20261011a"></script>
   <script src="./app-m2a.js?v=20260920m"></script>
   <script src="./app-m2b.js?v=20260920m"></script>
   <script src="./app-m2c.js?v=20261006d"></script>
   <script src="./app-m2-fix.js?v=20260920m"></script>
   <script src="./app-patch.js?v=20260920m"></script>
-  <script src="./app-m2-ui.js?v=20261006e"></script>
-  <script src="./app-mc-sheet.js?v=20261006e"></script>
-  <script src="./app-mark-sheet.js?v=20261006e"></script>
+  <script src="./app-m2-ui.js?v=20261011a"></script>
+  <script src="./app-mc-sheet.js?v=20261011a"></script>
+  <script src="./app-mark-sheet.js?v=20261011a"></script>
   <script src="./app-qr-pack.js?v=20261004g"></script>
 </body>
 </html>

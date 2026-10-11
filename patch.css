@@ -322,10 +322,27 @@ button.mk-axis-name {
 .class-miss i { display: flex; height: 10px; background: #eee8dc; border-radius: 99px; overflow: hidden; }
 .class-miss i b { display: block; height: 100%; background: #a35a4a; }
 .class-miss i b.other { background: #c4a35a; }
-.lv-strip { display: flex; align-items: flex-end; gap: 2px; min-height: 72px; }
-.lv-band { flex: 1 1 auto; background: #f7f3eb; border-radius: 6px 6px 0 0; text-align: center; padding: 4px 2px; min-width: 0; }
-.lv-band b { display: block; font-size: 14px; }
-.lv-band span { display: block; font-size: 10px; color: var(--muted); }
+.score-row .mc-bar { grid-template-columns: auto minmax(0, 1fr) auto; }
+.score-row .hk-note { grid-column: 1 / -1; display: block; margin-top: -4px; }
+.lv-strip { display: flex; align-items: flex-end; gap: 3px; min-height: 96px; }
+.lv-band { min-width: 0; text-align: center; display: flex; flex-direction: column; justify-content: flex-end; }
+.lv-band b {
+  display: flex; align-items: flex-end; justify-content: center;
+  background: #d7ebe3; color: #1c1915; border-radius: 6px 6px 0 0;
+  font-size: 13px; line-height: 1; padding-bottom: 3px;
+}
+.lv-band.hot b { background: #2f5d50; color: #fff; }
+.lv-band.empty b { height: 6px !important; background: transparent; border-top: 2px solid #e4ddd2; padding: 0; }
+.lv-band span { display: block; margin-top: 4px; font-size: 10px; color: var(--muted); }
+.show-menu { position: relative; }
+.show-menu summary {
+  list-style: none; cursor: pointer; height: 36px; display: inline-flex; align-items: center;
+  padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; background: transparent;
+}
+.show-menu summary::-webkit-details-marker { display: none; }
+.show-menu[open] { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.class-jumps { margin: 8px 0; }
+.class-jumps button { background: #f4efe4; color: #1c1915; }
 .lv-out { margin-top: 6px; font-size: 12px; color: var(--muted); }
 .paper-chip { border: 1px solid transparent; font-weight: 700; }
 .paper-chip.p1 { background: #d7ebe3; color: #2f7d5b; }

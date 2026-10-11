@@ -171,7 +171,7 @@
     const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
     if (pct == null) return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">${emptyText}</b></aside>`;
     const lv = estimateShort(kind, year, Number(pct));
-    if (!pack || !lv || lv === "資料未齊") return "";
+    if (!pack || !lv || lv === "資料未齊") return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">資料未齊</b></aside>`;
     const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
     const p = Math.round(levelProgress(starts, Number(pct)));
     return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
@@ -197,7 +197,7 @@
         const gap = diff == null ? "" : diff >= 0 ? ` · 高 ${diff.toFixed(1)}` : ` · 低 ${Math.abs(diff).toFixed(1)}`;
         note = `<small class="hk-note">全港 ${hk.toFixed(1)}${gap}</small>`;
       }
-      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${any ? got + "/" + all : "—/" + all}${note}</span></button>`;
+      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${any ? got + "/" + all : "—/" + all}</span>${note}</button>`;
     };
     const rows = bar("總分", earned, full, sum != null, "#2f5d50", "*", hkOk ? hkAll : null) + secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name, s.hkN ? s.hk : null)).join("");
     let lv = "";

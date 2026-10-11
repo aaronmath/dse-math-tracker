@@ -407,7 +407,7 @@
       const diff = fill - hk;
       note = `<small class="hk-note">全港 ${hk.toFixed(1)}${diff >= 0 ? " · 高 " + diff.toFixed(1) : " · 低 " + Math.abs(diff).toFixed(1)}</small>`;
     }
-    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${fill}/${total}${note}</span></button>`;
+    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${fill}/${total}</span>${note}</button>`;
   }
   function hkExpect(year, from, to) {
     let s = 0, n = 0;
