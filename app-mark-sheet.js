@@ -177,41 +177,6 @@
     return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
   }
   window.levelCol = levelCol;
-  function scoreVisual(paper, year) {
-    const secs = secStats(paper, year);
-    const full = secs.reduce((s, x) => s + x.all, 0);
-    const sum = partSum(paper, year);
-    const earned = sum == null ? 0 : sum;
-    const hkAll = secs.reduce((s, x) => s + (x.hkN ? x.hk : 0), 0);
-    const hkOk = secs.some(x => x.hkN);
-    const parts = secs.map(s => ({ n: s.earned, col: secColor(s.name) }));
-    const ring = donutSvg(parts, Math.max(0, full - earned), sum == null ? "—" : String(sum), "/" + full);
-    const bar = (lab, got, all, any, color, key, hk) => {
-      const pct = any && all ? Math.round(got * 100 / all) : 0;
-      const on = key && mkUi.sec === key ? " on" : "";
-      const dim = key && mkUi.sec && mkUi.sec !== key ? " dim" : "";
-      const tick = hk != null && all ? `<em class="hk-tick" style="left:${Math.max(0, Math.min(100, hk * 100 / all)).toFixed(1)}%"></em>` : "";
-      let note = "";
-      if (hk != null) {
-        const diff = any ? got - hk : null;
-        const gap = diff == null ? "" : diff >= 0 ? ` · 高 ${diff.toFixed(1)}` : ` · 低 ${Math.abs(diff).toFixed(1)}`;
-        note = `<small class="hk-note">全港 ${hk.toFixed(1)}${gap}</small>`;
-      }
-      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${any ? got + "/" + all : "—/" + all}</span>${note}</button>`;
-    };
-    const rows = bar("總分", earned, full, sum != null, "#2f5d50", "*", hkOk ? hkAll : null) + secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name, s.hkN ? s.hk : null)).join("");
-    let lv = "";
-    if (paper === "m2") lv = levelCol("m2", year, enteredScore("m2", year), "M2", "—");
-    else {
-      const p1 = enteredScore("p1", year), p2 = enteredScore("p2", year);
-      const cp = p1 != null && p2 != null ? corePct(year, p1, p2) : null;
-      lv = levelCol("core", year, cp, "必修", "未齊");
-    }
-    const note = paper === "m2"
-      ? "圓環係已得分，顏色分甲、乙。灰色係未得分。棒上黑線係全港。撳條篩下面的題。"
-      : "圓環係已得分，顏色分甲一、甲二、乙部。灰色係未得分。棒上黑線係全港。撳條篩下面的題。";
-    return `<div class="score-row"><div class="score-ring">${ring}</div><div class="mk-bars">${rows}</div>${lv}</div><p class="hint">${note}</p>`;
-  }
   function donutSvg(parts, rest, center, sub) {
     const radius = 42, circ = 2 * Math.PI * radius;
     const total = parts.reduce((s, p) => s + p.n, 0) + rest || 1;
@@ -240,17 +205,28 @@
     const earned = sum == null ? 0 : sum;
     const parts = secs.map(s => ({ n: s.earned, col: secColor(s.name) }));
     const ring = donutSvg(parts, Math.max(0, full - earned), sum == null ? "—" : String(sum), "/" + full);
-    const bar = (lab, got, all, any, color, key) => {
+    const bar = (lab, got, all, any, color, key, hk) => {
       const pct = any && all ? Math.round(got * 100 / all) : 0;
       const on = key && mkUi.sec === key ? " on" : "";
       const dim = key && mkUi.sec && mkUi.sec !== key ? " dim" : "";
-      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span>${esc(lab)}</span><i><b style="width:${pct}%"></b></i><span>${any ? got + "/" + all : "—/" + all}</span></button>`;
+      const tick = hk != null && all ? `<em class="hk-tick" style="left:${Math.max(0, Math.min(100, hk * 100 / all)).toFixed(1)}%"></em>` : "";
+      let gap = "";
+      if (hk != null && any && mkUi.sec === key) {
+        const diff = got - hk;
+        gap = diff >= 0 ? ` · 高 ${diff.toFixed(1)}` : ` · 低 ${Math.abs(diff).toFixed(1)}`;
+      }
+      const note = hk != null ? `<small class="hk-note">全港 ${hk.toFixed(1)}${gap}</small>` : "";
+      return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mk-sec="${esc(key)}" style="--mk-fill:${color}"><span class="sec-lab"><b class="sec-dot" style="background:${color}"></b>${esc(lab)}</span><i class="sec-track"><b style="width:${pct}%"></b>${tick}</i><span>${any ? got + "/" + all : "—/" + all}</span>${note}</button>`;
     };
-    const rows = bar("總分", earned, full, sum != null, "#2f5d50", "*") + secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name)).join("");
-    const note = paper === "m2"
-      ? "圓環係已得分，顏色分甲、乙。灰色係未得分。撳條篩下面的題。"
-      : "圓環係已得分，顏色分甲一、甲二、乙部。灰色係未得分。撳條篩下面的題。";
-    return `<div class="mc-visual mk-visual">${ring}<div class="mk-bars">${rows}</div></div><p class="hint">${note}</p>`;
+    const rows = secs.map(s => bar(secLabel(paper, s.name), s.earned, s.all, s.any, secColor(s.name), s.name, s.hkN ? s.hk : null)).join("");
+    let lv = "";
+    if (paper === "m2") lv = levelCol("m2", year, enteredScore("m2", year), "M2", "—");
+    else {
+      const p1 = enteredScore("p1", year), p2 = enteredScore("p2", year);
+      const cp = p1 != null && p2 != null ? corePct(year, p1, p2) : null;
+      lv = levelCol("core", year, cp, "必修", "未齊");
+    }
+    return `<div class="score-head"><div class="score-ring">${ring}</div>${lv}</div><div class="mk-bars">${rows}</div><p class="hint">撳分部睇該部分 · 黑剔係全港</p>`;
   }
   function statusCell(paper, year, q) {
     const c = getCell(paper, year, q);

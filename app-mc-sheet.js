@@ -384,30 +384,33 @@
     if (p.ink === "b") return "guess";
     return judged(year, q, p.letter) ? "ok" : "bad";
   }
-  function donutSvg(ok, bad, blank) {
-    const parts = [[ok, "#3e9a62"], [bad, "#d15a4a"], [blank, "#d9d3c8"]];
-    const total = ok + bad + blank || 1;
+  function donutSvg(aOk, bOk, rest) {
+    const parts = [[aOk, "#3d6e8c"], [bOk, "#c48a3a"], [Math.max(0, rest), "#d9d3c8"]];
+    const total = aOk + bOk + Math.max(0, rest) || 1;
     const radius = 42, circ = 2 * Math.PI * radius;
     let acc = 0;
     const arcs = parts.map(([n, col]) => {
+      if (!n) return "";
       const len = circ * n / total;
       const el = `<circle cx="54" cy="54" r="${radius}" fill="none" stroke="${col}" stroke-width="12" stroke-dasharray="${len.toFixed(2)} ${(circ - len).toFixed(2)}" stroke-dashoffset="${(-acc).toFixed(2)}"/>`;
       acc += len;
       return el;
     }).join("");
-    return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="52" text-anchor="middle" font-size="18" fill="#1c1915">${ok}</text><text x="54" y="68" text-anchor="middle" font-size="11" fill="#6b645b">/45</text></svg>`;
+    const got = aOk + bOk;
+    return `<svg viewBox="0 0 108 108" class="mc-donut"><g transform="rotate(-90 54 54)">${arcs}</g><text x="54" y="52" text-anchor="middle" font-size="18" fill="#1c1915">${got}</text><text x="54" y="68" text-anchor="middle" font-size="11" fill="#6b645b">/45</text></svg>`;
   }
   function secBar(label, fill, total, key, color, hk) {
     const pct = total ? Math.max(0, Math.min(100, Math.round(fill * 100 / total))) : 0;
-    const on = key !== "*" && mcUi.sec === key ? " on" : "";
+    const on = mcUi.sec === key ? " on" : "";
     const dim = mcUi.sec && mcUi.sec !== key ? " dim" : "";
     const tick = hk != null && total ? `<em class="hk-tick" style="left:${Math.max(0, Math.min(100, hk * 100 / total)).toFixed(1)}%"></em>` : "";
-    let note = "";
-    if (hk != null) {
+    let gap = "";
+    if (hk != null && mcUi.sec === key) {
       const diff = fill - hk;
-      note = `<small class="hk-note">全港 ${hk.toFixed(1)}${diff >= 0 ? " · 高 " + diff.toFixed(1) : " · 低 " + Math.abs(diff).toFixed(1)}</small>`;
+      gap = diff >= 0 ? ` · 高 ${diff.toFixed(1)}` : ` · 低 ${Math.abs(diff).toFixed(1)}`;
     }
-    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span>${label}</span><i><b style="width:${pct}%"></b>${tick}</i><span>${fill}/${total}</span>${note}</button>`;
+    const note = hk != null ? `<small class="hk-note">全港 ${hk.toFixed(1)}${gap}</small>` : "";
+    return `<button type="button" class="mc-bar mk-sec${on}${dim}" data-mc-sec="${key}" style="--mk-fill:${color}"><span class="sec-lab"><b class="sec-dot" style="background:${color}"></b>${label}</span><i class="sec-track"><b style="width:${pct}%"></b>${tick}</i><span>${fill}/${total}</span>${note}</button>`;
   }
   function hkExpect(year, from, to) {
     let s = 0, n = 0;
@@ -495,7 +498,6 @@
     if (mcUi.status !== "") bits.push(["未標", "唔識", "一般", "已掌握"][+mcUi.status] || "");
     if (mcUi.paper) bits.push({ ok: "答對", bad: "答錯", guess: "撞", blank: "留空" }[mcUi.paper] || "");
     const watch = bits.filter(Boolean).join(" · ");
-    const wrong = s.seen - s.ok;
     const drawKey = year + ":" + (know ? "know" : "mark");
     const draw = mcUi.radarKey !== drawKey;
     mcUi.radarKey = drawKey;
@@ -515,13 +517,8 @@
         </div>
       </div>
       <div class="mc-scoreboard score-card">
-        <div class="score-row">
-          <div class="score-ring">${donutSvg(s.ok, wrong, s.blank)}</div>
-          <div class="mk-bars">
-            ${secBar("總分", s.ok, 45, "*", "#3e9a62", hkExpect(year, 1, 45))}
-            ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
-            ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
-          </div>
+        <div class="score-head">
+          <div class="score-ring">${donutSvg(s.sec.A.ok, s.sec.B.ok, 45 - s.ok)}</div>
           ${window.levelCol ? window.levelCol("core", year, (function () {
             const scoreOf = window.enteredScore;
             const p1 = typeof scoreOf === "function" ? scoreOf("p1", year) : null;
@@ -530,13 +527,17 @@
             return corePct(year, p1, p2);
           })(), "必修", "未齊") : ""}
         </div>
+        <div class="mk-bars">
+          ${secBar("甲", s.sec.A.ok, 30, "A", "#3d6e8c", hkExpect(year, 1, 30))}
+          ${secBar("乙", s.sec.B.ok, 15, "B", "#c48a3a", hkExpect(year, 31, 45))}
+        </div>
         <div class="stats">
           <div class="stat"><b>${s.bkOk}/${s.bk}</b><span>黑筆</span></div>
           <div class="stat"><b>${s.blOk}/${s.bl}</b><span>藍筆</span></div>
           <div class="stat"><b>${s.blank}</b><span>留空</span></div>
           <div class="stat"><b>${s.sureBad}</b><span>黑筆錯</span></div>
         </div>
-        <p class="hint">左圓環，中間分部，右邊等級。棒上黑線係全港。撳甲或乙篩下面的題。</p>
+        <p class="hint">撳分部睇該部分 · 黑剔係全港</p>
       </div>
       <div class="mc-filters mk-filters">${statHtml}<span class="mc-flt-gap"></span>${paperBtns}<span class="mc-flt-gap"></span><button type="button" class="mk-stf${clearOn}" data-mc-clear="1">顯示全部</button></div>
       ${watch ? `<p class="hint">而家只顯示：${esc(watch)}　<button type="button" class="ghost" data-mc-clear="1">顯示全部</button></p>` : ""}

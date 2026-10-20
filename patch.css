@@ -358,12 +358,25 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag { display: inline-block; margin-left: 4px; font-size: 10px; border-radius: 999px; padding: 0 5px; border: 1px solid var(--line); }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
+.score-head { display: flex; align-items: center; gap: 18px; }
+.score-head .score-ring { flex: 0 0 108px; }
+.score-head .mc-donut { width: 108px; height: 108px; }
+.score-head .lv-col { margin-left: 4px; }
+.score-card .mk-bars { margin-top: 10px; }
+.score-card .mc-bar { grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; }
+.score-card .sec-lab { display: inline-flex; align-items: center; gap: 6px; }
+.score-card .sec-dot { width: 8px; height: 8px; border-radius: 99px; flex: 0 0 8px; }
+.score-card .mc-bar i.sec-track { height: 8px; border-radius: 4px; background: #eee8dc; }
+.score-card .mc-bar i.sec-track b { height: 100%; border-radius: 4px; }
+.score-card .hk-note { grid-column: 1 / -1; margin: 0; }
 @media (max-width: 720px) {
   .score-row { gap: 6px; }
+  .score-head .score-ring, .score-head .mc-donut { width: 96px; height: 96px; flex-basis: 96px; }
   .score-ring { flex-basis: 96px; }
   .score-ring .mc-donut { width: 96px; height: 96px; }
-  .score-row .lv-col { flex-basis: 72px; width: 72px; min-width: 72px; }
-  .score-row .lv-big { font-size: 22px; }
+  .score-row .lv-col, .score-head .lv-col { flex-basis: 72px; width: 72px; min-width: 72px; }
+  .score-row .lv-big, .score-head .lv-big { font-size: 22px; }
   .mc-bar i { height: 12px; }
+  .score-card .mc-bar i.sec-track { height: 8px; }
   .class-sw { grid-template-columns: 1fr; }
 }
