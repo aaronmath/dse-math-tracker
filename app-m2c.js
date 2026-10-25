@@ -19,6 +19,7 @@ function renderWeak() {
     legendSum.textContent = n + " 軸課題對照";
   }
   renderRadar();
+  renderTagFocus();
   const paper = weakPaperId();
   const items0 = excerptItems();
   const box = document.getElementById("weakBox");
@@ -346,6 +347,64 @@ if (strandBoxEl && !strandBoxEl.dataset.bound) {
   });
 }
 
+function renderTagFocus() {
+  const el = document.getElementById("tagFocus");
+  if (!el) return;
+  const paper = weakPaperId();
+  const items = [];
+  YEARS.forEach(y => {
+    allQs(paper, y).forEach(q => {
+      const c = getCell(paper, y, q);
+      if (!(c.s === 1 || c.s === 2)) return;
+      const tags = c.tags || [];
+      if (!tags.length) return;
+      let topic = "";
+      let axisPart = "";
+      if (paper === "p1") {
+        topic = p1MainTopic(y, q) || "";
+        const subs = p1Subs(y, q);
+        axisPart = p1PartOfSec((subs[0] && subs[0].sec) || "");
+      } else if (paper === "m2") {
+        topic = m2MainTopic(y, q) || "";
+        axisPart = "M2";
+      } else {
+        if (isHexQ(y, q)) return;
+        topic = topicOf(y, q) || "";
+        axisPart = q <= 30 ? "甲" : "乙";
+      }
+      if (!topic || topic === "未分類" || skipOldTopic(topic)) return;
+      items.push({ topic: topic, axisPart: axisPart, tags: tags });
+    });
+  });
+  let rows = items;
+  if (radarAxis) {
+    const ax = axesFor(paper).find(a => a.id === radarAxis);
+    if (ax) rows = rows.filter(it => it.axisPart === ax.part && ax.topics.includes(it.topic));
+  }
+  const byTopic = new Map();
+  rows.forEach(it => {
+    const row = byTopic.get(it.topic) || { n: 0, tags: {} };
+    row.n += 1;
+    it.tags.forEach(id => { row.tags[id] = (row.tags[id] || 0) + 1; });
+    byTopic.set(it.topic, row);
+  });
+  const ranked = [];
+  byTopic.forEach((row, topic) => {
+    if (row.n < 3) return;
+    let best = "", bestN = 0;
+    Object.keys(row.tags).forEach(id => { if (row.tags[id] > bestN) { best = id; bestN = row.tags[id]; } });
+    if (!bestN) return;
+    const name = (TAGS.find(t => t[0] === best) || [])[1] || best;
+    ranked.push({ topic: topic, name: name, n: bestN, total: row.n });
+  });
+  ranked.sort((a, b) => b.n - a.n || b.total - a.total || a.topic.localeCompare(b.topic, "zh"));
+  const top = ranked.slice(0, 3);
+  if (!top.length) { el.hidden = true; el.innerHTML = ""; return; }
+  el.hidden = false;
+  el.innerHTML = "<h3 class=\"sec-title\">錯因</h3>" + top.map(r =>
+    "<div class=\"tag-line\"><span>" + esc(topicLabel(r.topic)) + "</span><b>" + esc(r.name) + " " + r.n + "/" + r.total + "</b></div>"
+  ).join("");
+}
 function classEligible(pr, paper) {
   return markedCountOf(pr, paper) >= classMinFor(paper);
 }

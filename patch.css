@@ -301,7 +301,12 @@ button.mk-axis-name {
 .lv-big.lv-wait { font-size: 18px; font-weight: 700; }
 .lv-col .lv-bar { width: 100%; max-width: 100%; height: 8px; background: #eee8dc; border-radius: 99px; overflow: hidden; flex-shrink: 1; }
 .lv-col .lv-bar i { display: block; height: 100%; max-width: 100%; background: #2f5d50; }
-.lv-gap { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.lv-col.has-next { max-width: 168px; }
+.lv-gap { display: block; margin-top: 6px; font-size: 11px; line-height: 1.35; color: var(--muted); font-weight: 400; }
+#tagFocus { margin: 2px 0 12px; }
+#tagFocus .sec-title { margin: 10px 0 4px; }
+.tag-line { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: 14px; border-bottom: 1px solid var(--line); }
+.tag-line b { font-weight: 700; white-space: nowrap; }
 .mc-bar i { position: relative; overflow: visible; height: 18px; }
 .mc-bar i b { border-radius: 99px; }
 .hk-tick { position: absolute; top: -4px; bottom: -4px; width: 2px; background: #1c1915; transform: translateX(-1px); }

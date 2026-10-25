@@ -167,6 +167,43 @@
     const n = +raw;
     return Number.isFinite(n) ? n : null;
   }
+  function nextLevelNote(kind, year, pct) {
+    const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
+    if (!pack || pct == null || !Number.isFinite(+pct)) return "";
+    const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
+    let idx = 0;
+    for (let i = 0; i < starts.length; i++) if (+pct + 1e-9 >= starts[i][1]) idx = i;
+    const nxt = starts[idx + 1];
+    if (!nxt) return "";
+    const target = nxt[1];
+    const lv = nxt[0];
+    if (kind === "m2") {
+      const marks = Math.ceil(target - +pct - 1e-6);
+      if (marks < 1 || marks > 5) return "";
+      return "再取 " + marks + " 分上 " + lv;
+    }
+    if (kind !== "core") return "";
+    const p1 = enteredScore("p1", year);
+    const p2 = enteredScore("p2", year);
+    if (p1 == null || p2 == null) return "";
+    const cur = (p1 / pack.p1full) * pack.p1w + (p2 / pack.p2full) * pack.p2w;
+    const need = target / 100 * pack.total - cur;
+    if (need <= 0.05) return "";
+    const one = (full, w, curScore) => {
+      if (!w) return 0;
+      const marks = Math.ceil(need * full / w - 1e-6);
+      if (marks < 1 || marks > 5 || curScore + marks > full + 1e-6) return 0;
+      return marks;
+    };
+    const a = one(pack.p1full, pack.p1w, p1);
+    const b = one(pack.p2full, pack.p2w, p2);
+    const bits = [];
+    if (a) bits.push("卷一再取 " + a + " 分");
+    if (b) bits.push("卷二再取 " + b + " 分");
+    if (!bits.length) return "";
+    if (bits.length === 1) return bits[0] + "上 " + lv;
+    return bits[0] + "，或" + bits[1] + "，上 " + lv;
+  }
   function levelCol(kind, year, pct, kicker, emptyText) {
     const pack = window.CUTOFFS && CUTOFFS[kind] && CUTOFFS[kind][String(year)];
     if (pct == null) return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">${emptyText}</b></aside>`;
@@ -177,7 +214,9 @@
     const kick = provisional ? kicker + " · 暫估" : kicker;
     const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
     const p = Math.max(0, Math.min(100, Math.round(levelProgress(starts, Number(pct)))));
-    return `<aside class="lv-col"><span class="lv-kicker">${esc(kick)}</span><b class="lv-big">${esc(big)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
+    const note = nextLevelNote(kind, year, Number(pct));
+    const noteHtml = note ? `<small class="lv-gap">${esc(note)}</small>` : "";
+    return `<aside class="lv-col${note ? " has-next" : ""}"><span class="lv-kicker">${esc(kick)}</span><b class="lv-big">${esc(big)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div>${noteHtml}</aside>`;
   }
   window.levelCol = levelCol;
   function donutSvg(parts, rest, center, sub) {
