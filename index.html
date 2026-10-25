@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./styles.css?v=20261004e" />
-  <link rel="stylesheet" href="./patch.css?v=20261025c" />
+  <link rel="stylesheet" href="./patch.css?v=20261025d" />
 </head>
 <body>
   <header>
@@ -190,7 +190,7 @@
       <h2 class="page-title">卷二 MC 查詢</h2>
       <p class="hint">命中率來自考評局公開考生表現數據。DSE 每題 1 個主課題。CE 1980–2011 只有答案同命中率。撐小卡開大卡可即時標記。課題反查按「年份次序」排。</p>
       <div id="mcResult"></div>
-      <details class="freq-box" id="mcFreqBox">
+      <details class="freq-box" id="mcFreqBox" open>
         <summary>課題頻率（只列該部分曾出現過嘅課題；已隱藏舊課程）</summary>
         <div id="mcFreq"></div>
       </details>
@@ -352,7 +352,7 @@
       <div id="markSheet" hidden></div>
     </section>
   </main>
-  <footer>Powered by Chan Yiu Hei · 20261025c · <a id="offlineLink" hidden>離線版</a></footer>
+  <footer>Powered by Chan Yiu Hei · 20261025d · <a id="offlineLink" hidden>離線版</a></footer>
   <button type="button" id="toTop" class="to-top" hidden aria-label="回到頂">↑</button>
   <dialog id="askDlg">
     <div class="dlg">
@@ -392,6 +392,7 @@
       <div id="xferShow" hidden>
         <h3 style="margin:0 0 6px">出示進度碼</h3>
         <p class="hint" id="xferShowMeta"></p>
+        <label class="hint xfer-notes"><input type="checkbox" id="xferNotes"> 包括筆記</label>
         <div id="xferQrRow" class="xfer-qr-row"></div>
         <div class="row xfer-qr-nav" id="xferQrNav">
           <button type="button" class="ghost" id="xferQrPrev">上一個</button>
@@ -399,7 +400,7 @@
           <button type="button" class="ghost" id="xferQrNext">下一個</button>
         </div>
         <canvas id="xferQr" width="360" height="360" hidden></canvas>
-        <p class="hint">用另一部裝置：過檔 → 掃入。一個學生可能有 1–4 個碼，掃齊先寫入。含狀態、分數、細分、錯因、用時、操卷日、MC 選項；筆記唔在碼內。</p>
+        <p class="hint">用另一部裝置：過檔 → 掃入。一個學生可能有 1–4 個碼，掃齊先寫入。含狀態、分數、細分、錯因、用時、操卷日、MC 選項。筆記預設不入；勾選後一個碼裝得下就用一個。</p>
         <div class="row"><button type="button" class="ghost" id="xferShowClose">關閉</button></div>
       </div>
       <div id="xferScan" hidden>
@@ -468,15 +469,15 @@
   <script src="./data/m2-y24-26.js?v=20260930b"></script>
   <script src="./data/m2-join.js?v=20260930b"></script>
   <script src="./data/item-stats.js?v=20260930a"></script>
-  <script src="./app.js?v=20261025c"></script>
-  <script src="./app-m2a.js?v=20261025c"></script>
-  <script src="./app-m2b.js?v=20261025c"></script>
-  <script src="./app-m2c.js?v=20261025c"></script>
+  <script src="./app.js?v=20261025d"></script>
+  <script src="./app-m2a.js?v=20261025d"></script>
+  <script src="./app-m2b.js?v=20261025d"></script>
+  <script src="./app-m2c.js?v=20261025d"></script>
   <script src="./app-m2-fix.js?v=20260920m"></script>
-  <script src="./app-patch.js?v=20261025c"></script>
-  <script src="./app-m2-ui.js?v=20261025c"></script>
-  <script src="./app-mc-sheet.js?v=20261025c"></script>
-  <script src="./app-mark-sheet.js?v=20261025c"></script>
-  <script src="./app-qr-pack.js?v=20261004g"></script>
+  <script src="./app-patch.js?v=20261025d"></script>
+  <script src="./app-m2-ui.js?v=20261025d"></script>
+  <script src="./app-mc-sheet.js?v=20261025d"></script>
+  <script src="./app-mark-sheet.js?v=20261025d"></script>
+  <script src="./app-qr-pack.js?v=20261025d"></script>
 </body>
 </html>

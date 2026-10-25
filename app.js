@@ -3635,6 +3635,15 @@ function applyQrSnap(targetName, snap, mode) {
     Object.entries(snap.times || {}).forEach(([k, v]) => { if (v) p.times[k] = v; });
     Object.entries(snap.dates || {}).forEach(([k, v]) => { if (v) p.dates[k] = v; });
   }
+  if (snap.notes) {
+    Object.entries(snap.notes).forEach(([k, note]) => {
+      const text = String(note || "").trim();
+      if (!text) return;
+      const cur = p.cells[k] || { s: 0, note: "", tags: [] };
+      cur.note = text;
+      p.cells[k] = cur;
+    });
+  }
   p.updatedAt = Date.now();
 }
 function refreshAfterProfile() {

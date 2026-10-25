@@ -369,6 +369,7 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .freq-table th:not(.sticky-col),
 .freq-table td:not(.sticky-col) { text-align: center; white-space: nowrap; width: 32px; padding: 6px 4px; }
 .lang-seg { flex: none; align-self: flex-start; }
+.xfer-notes { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
 .lang-seg button { min-width: 36px; height: 28px; padding: 0 10px; font-weight: 700; }
 .score-head { display: flex; align-items: center; gap: 18px; }
 .score-head .score-ring { flex: 0 0 108px; }

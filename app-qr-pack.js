@@ -1,4 +1,4 @@
-/* 進度碼：位元打包，1–4 個 QR，掃齊先寫入。舊 DSEMT 碼仍可掃。筆記唔入。 */
+/* 進度碼：位元打包，1–4 個 QR，掃齊先寫入。舊 DSEMT 碼仍可掃。筆記只在勾選時附於末尾。 */
 (function () {
   const PAP = ["p1", "p2", "m1", "m2"];
 
@@ -74,7 +74,64 @@
     });
   }
 
-  function packBits(profile) {
+  function noteBytes(profile) {
+    const enc = new TextEncoder();
+    const rows = [];
+    const cells = (profile && profile.cells) || {};
+    Object.keys(cells).forEach(k => {
+      const note = String((cells[k] && cells[k].note) || "").trim();
+      if (!note) return;
+      const bits = k.split(":");
+      if (bits.length < 3) return;
+      const pi = PAP.indexOf(bits[0]);
+      const y = +bits[1];
+      const q = +bits[2];
+      if (pi < 0 || y < 2012 || y > 2027 || q < 1 || q > 255) return;
+      const nb = enc.encode(note);
+      if (nb.length > 65535) return;
+      rows.push({ pi: pi, y: y, q: q, nb: nb });
+    });
+    if (!rows.length) return new Uint8Array(0);
+    let len = 6;
+    rows.forEach(r => { len += 5 + r.nb.length; });
+    const out = new Uint8Array(len);
+    out[0] = 68; out[1] = 78; out[2] = 84; out[3] = 49;
+    out[4] = rows.length & 255;
+    out[5] = (rows.length >> 8) & 255;
+    let o = 6;
+    rows.forEach(r => {
+      out[o++] = r.pi;
+      out[o++] = r.y - 2012;
+      out[o++] = r.q;
+      out[o++] = r.nb.length & 255;
+      out[o++] = (r.nb.length >> 8) & 255;
+      out.set(r.nb, o);
+      o += r.nb.length;
+    });
+    return out;
+  }
+  function readNoteTail(bitBuf, bitIndex) {
+    const start = (bitIndex + 7) >> 3;
+    if (!bitBuf || start + 6 > bitBuf.length) return {};
+    if (bitBuf[start] !== 68 || bitBuf[start + 1] !== 78 || bitBuf[start + 2] !== 84 || bitBuf[start + 3] !== 49) return {};
+    const n = bitBuf[start + 4] | (bitBuf[start + 5] << 8);
+    const dec = new TextDecoder();
+    const notes = {};
+    let o = start + 6;
+    for (let i = 0; i < n; i++) {
+      if (o + 5 > bitBuf.length) break;
+      const pi = bitBuf[o++];
+      const y = 2012 + bitBuf[o++];
+      const q = bitBuf[o++];
+      const ln = bitBuf[o++] | (bitBuf[o++] << 8);
+      if (o + ln > bitBuf.length) break;
+      const paper = PAP[pi];
+      if (paper) notes[paper + ":" + y + ":" + q] = dec.decode(bitBuf.subarray(o, o + ln));
+      o += ln;
+    }
+    return notes;
+  }
+  function packBits(profile, withNotes) {
     const nb = nameBytes(profile && profile.name);
     const w = new BitWriter();
     const years = [];
@@ -140,10 +197,12 @@
       });
     });
     const bits = w.bytes();
-    const out = new Uint8Array(1 + nb.length + bits.length);
+    const extra = withNotes ? noteBytes(profile) : new Uint8Array(0);
+    const out = new Uint8Array(1 + nb.length + bits.length + extra.length);
     out[0] = nb.length;
     out.set(nb, 1);
     out.set(bits, 1 + nb.length);
+    if (extra.length) out.set(extra, 1 + nb.length + bits.length);
     return out;
   }
 
@@ -215,7 +274,8 @@
       times,
       dates,
       mc,
-      parts
+      parts,
+      notes: readNoteTail(buf.subarray(1 + nameLen), r.i)
     };
   }
 
@@ -251,8 +311,8 @@
     }
     return out;
   }
-  async function studentBlob(profile) {
-    const raw = packBits(profile);
+  async function studentBlob(profile, withNotes) {
+    const raw = packBits(profile, !!withNotes);
     let z = null;
     try { z = await deflateBytes(raw); } catch (e) { z = null; }
     if (z && z.length + 1 < raw.length) {
@@ -271,8 +331,8 @@
     const raw = (blob[0] & 1) ? await inflateBytes(body) : body;
     return unpackBits(raw);
   }
-  async function buildQrSet(profile) {
-    const payload = await studentBlob(profile);
+  async function buildQrSet(profile, withNotes) {
+    const payload = await studentBlob(profile, !!withNotes);
     const eccs = ["H", "Q", "M", "L"];
     for (let n = 1; n <= 4; n++) {
       const codes = chunkBytes(payload, n);
@@ -484,20 +544,27 @@
     document.getElementById("xferShow").hidden = false;
     const row = document.getElementById("xferQrRow");
     if (row) row.innerHTML = "";
+    const withNotes = !!(document.getElementById("xferNotes") && document.getElementById("xferNotes").checked);
     try {
-      const made = await buildQrSet(prof());
+      const made = await buildQrSet(prof(), withNotes);
       if (!made) {
-        askBox({ notice: true, text: "進度碼太大，四個都裝唔落。請用匯出 JSON。" });
+        askBox({ notice: true, text: withNotes ? "包括筆記之後超過 4 個碼。取消勾選，或改用匯出 JSON。" : "進度碼太大，四個都裝唔落。請用匯出 JSON。" });
         return;
       }
       paintQrSet(made);
-      document.getElementById("xferShowMeta").textContent = "學生：" + currentProfile + "　" + made.n + " 個碼" + (made.n > 1 ? "　掃齊先寫入" : "");
+      const noteLab = withNotes ? (noteBytes(prof()).length ? "　含筆記" : "　沒有筆記") : "";
+      document.getElementById("xferShowMeta").textContent = "學生：" + currentProfile + "　" + made.n + " 個碼" + noteLab + (made.n > 1 ? "　掃齊先寫入" : "");
       dlg.classList.toggle("wide", made.n > 1);
       if (!dlg.open) dlg.showModal();
     } catch (err) {
       askBox({ notice: true, text: "出示失敗：" + (err && err.message ? err.message : "未知") + "。改用匯出 JSON。" });
     }
   };
+  const noteToggle = document.getElementById("xferNotes");
+  if (noteToggle && !noteToggle.dataset.bound) {
+    noteToggle.dataset.bound = "1";
+    noteToggle.addEventListener("change", () => { openXferShow(); });
+  }
 
   const prevBtn = document.getElementById("xferQrPrev");
   const nextBtn = document.getElementById("xferQrNext");
