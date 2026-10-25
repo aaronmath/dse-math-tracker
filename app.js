@@ -838,7 +838,7 @@ function itemRowHtml(it) {
   const sk = syllKind(it.paper || "p2", it.y, it.q);
   const topic = it.topics || it.topic;
   const ming = it.s === 3 && it.w ? "　<span class='ming-lab'>明返</span>" : "";
-  return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(topic)}${ming}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
+  return `<tr data-jump="${it.y}:${it.q}" data-jump-paper="${it.paper || "p2"}" class="clickable"><td>${it.y}</td><td>Q${it.q}</td><td>${it.part}</td><td>${esc(typeof topicLineLabel === "function" ? topicLineLabel(topic) : topic)}${ming}${sk === "part" ? "　<span class='sub'>部分舊課程</span>" : sk === "old" ? "　<span class='sub'>舊課程</span>" : ""}</td><td class="${bandClass(it.pct)}">${pct}</td><td>${sh}</td><td>${(it.tags || []).map(tagName).join("、")}</td></tr>`;
 }
 function paintWeakChips() {
   const bands = prefs.weakBands || { hi: true, mid: true, lo: true };

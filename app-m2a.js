@@ -52,6 +52,9 @@ function topicLabel(t) {
   if (t && typeof prefs !== "undefined" && prefs.lang === "en" && TOPIC_EN[t]) return TOPIC_EN[t];
   return (M2_TOPIC_LABEL && M2_TOPIC_LABEL[t]) || t;
 }
+function topicLineLabel(text) {
+  return String(text || "").split("／").map(function (part) { return topicLabel(part); }).join("／");
+}
 function axisLabel(name) {
   const raw = String(name || "");
   const key = raw.replace(/ /g, "\u3000");

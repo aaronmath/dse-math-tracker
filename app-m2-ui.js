@@ -977,7 +977,7 @@ function renderItemYear(focusSec) {
     list.forEach(function (p) {
       const topic = showT ? (paper === "m2" ? m2TopicForSub(year, p.q) : p1TopicForSub(year, p.q)) : "";
       html += "<tr class=\"" + bandClass(p.pct) + "\"><td>" + esc(normQLabel(p.q)) + "</td><td>" + p.full + "</td><td>" +
-        (p.mean == null ? "-" : fmt1(p.mean)) + "</td>" + (showT ? "<td>" + esc(typeof topicLabel === "function" ? topicLabel(topic) : topic) + "</td>" : "") + "</tr>";
+        (p.mean == null ? "-" : fmt1(p.mean)) + "</td>" + (showT ? "<td>" + esc(typeof topicLineLabel === "function" ? topicLineLabel(topic) : topic) + "</td>" : "") + "</tr>";
     });
     html += "</tbody></table></div>";
   });
