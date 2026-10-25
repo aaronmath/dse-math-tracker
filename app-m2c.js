@@ -132,56 +132,221 @@ function renderItemTopics() {
   if (!wrap || !box) return;
   paintItemP1TopicBtn();
   wrap.open = false;
-  if (paper === "p1") {
-    wrap.hidden = false;
-    if (sum) sum.textContent = "卷一課題表現（所有合計）";
-    const rows = sortTopicRows(window.P1_TOPICS && P1_TOPICS.freq || []).map(f => {
-      const items = p1Items().filter(x => p1PartOfSec(x.sec) === f.part && x.topic === f.topic);
-      let hk = 0, m = 0, n = 0;
-      items.forEach(x => {
-        if (x.hk == null || x.hk === "" || !x.marks) return;
-        hk += x.hk; m += x.marks; n++;
-      });
-      if (!m) return null;
-      return { part: f.part, topic: f.topic, avg: hk / m * 100, n: n, old: OLD_TOPICS.has(f.topic) };
-    }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
-    box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
-      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
-      "</tbody></table></div><p class=\"hint\">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋，可隨時打開（唔使開「顯示卷一課題」）。</p>";
-    return;
-  }
-  if (paper === "m2") {
-    wrap.hidden = false;
-    if (sum) sum.textContent = "M2 課題表現（所有合計）";
-    const rows = ((window.M2_TOPICS && M2_TOPICS.freq) || []).map(f => {
-      const items = m2Items().filter(x => x.topic === f.topic);
-      let hk = 0, m = 0, n = 0;
-      items.forEach(x => {
-        if (x.hk == null || x.hk === "" || !x.marks) return;
-        hk += Number(x.hk); m += x.marks; n++;
-      });
-      if (!m) return null;
-      const ax = M2_AXES.find(a => a.topics.includes(f.topic));
-      return { part: ax ? axisLabel(ax.name) : "", topic: f.topic, avg: hk / m * 100, n: n };
-    }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.topic.localeCompare(b.topic));
-    box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>軸</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
-      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + esc(r.part) + "</td><td>" + esc(topicLabel(r.topic)) + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
-      "</tbody></table></div><p class=\"hint\">2012–2025 DSE，按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。樣本／練習唔入。</p>";
-    return;
-  }
-  if (paper !== "p2") { wrap.hidden = true; box.innerHTML = ""; return; }
+  const ys = recentItemYears(paper);
+  const nY = ys.length || 1;
+  const title = paper === "p1" ? "卷一課題表現（近五年，按預期失分）"
+    : paper === "m2" ? "M2 課題表現（近五年，按預期失分）"
+    : paper === "p2" ? "卷二課題表現（近五年，按預期失分）" : "";
+  if (paper !== "p1" && paper !== "p2" && paper !== "m2") { wrap.hidden = true; box.innerHTML = ""; return; }
   wrap.hidden = false;
-  if (sum) sum.textContent = "卷二課題表現（所有合計）";
-  const rows = sortTopicRows(P2_TOPICS.freq || []).map(f => {
-    const items = (P2_TOPICS.items || []).filter(x => x.part === f.part && x.topic === f.topic);
-    const pcts = items.map(x => p2Hit(x.y, x.q)).filter(p => p != null);
-    if (!pcts.length) return null;
-    const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
-    return { part: f.part, topic: f.topic, avg: avg, n: pcts.length, old: OLD_TOPICS.has(f.topic) };
-  }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
-  box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>" +
-    rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
-    "</tbody></table></div><p class=\"hint\">按全港命中率由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>";
+  if (sum) sum.textContent = title;
+  const rows = topicLossRows(paper, ys).sort((a, b) => b.loss - a.loss || String(a.part).localeCompare(String(b.part)) || a.topic.localeCompare(b.topic));
+  const head = paper === "m2"
+    ? "<th>軸</th><th>課題</th><th>佔分</th><th>全港得分率</th><th>預期失分</th>"
+    : "<th>部</th><th>課題</th><th>佔分</th><th>全港" + (paper === "p2" ? "命中率" : "得分率") + "</th><th>預期失分</th>";
+  box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr>" + head + "</tr></thead><tbody>" +
+    rows.map(r => "<tr class=\"" + bandClass(r.rate) + "\"><td>" + esc(paper === "m2" ? r.part : r.part) + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + fmt1(r.share) + "</td><td>" + Math.round(r.rate) + "%</td><td>" + fmt1(r.loss) + "</td></tr>").join("") +
+    "</tbody></table></div><p class=\"hint\">" + ys[0] + "–" + ys[ys.length - 1] + " 平均，每年佔分。預期失分 = 佔分 ×（1 − 全港得分率）。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>";
+}
+
+const STRANDS = [
+  { id: "alg", zh: "數與代數", en: "Number and Algebra", color: "#8c6a3a", ink: "#fff" },
+  { id: "meas", zh: "度量圖形", en: "Measures and Figures", color: "#5d738c", ink: "#fff" },
+  { id: "coord", zh: "坐標幾何", en: "Coordinate Geometry", color: "#a65d3f", ink: "#fff" },
+  { id: "stat", zh: "統計與概率", en: "Statistics and Probability", color: "#1f6f6a", ink: "#fff" }
+];
+const M2_STRANDS = [
+  { id: "m2-base", zh: "基礎知識", en: "Foundation", color: "#d9d0c3", ink: "#1c1915" },
+  { id: "m2-trig", zh: "三角學", en: "Trigonometry", color: "#5d738c", ink: "#fff" },
+  { id: "m2-diff", zh: "微分", en: "Differentiation", color: "#1f6f6a", ink: "#fff" },
+  { id: "m2-int", zh: "積分", en: "Integration", color: "#a65d3f", ink: "#fff" },
+  { id: "m2-alg", zh: "矩陣與方程組", en: "Matrices and Systems", color: "#7d6a8a", ink: "#fff" },
+  { id: "m2-vec", zh: "向量", en: "Vectors", color: "#6b7040", ink: "#fff" }
+];
+const strandPick = {};
+
+function recentItemYears(paper) {
+  const years = YEARS.filter(y => {
+    if (paper === "p2") return (P2_TOPICS.items || []).some(x => x.y === y && p2Hit(y, x.q) != null);
+    if (paper === "p1") return p1Items().some(x => x.y === y && x.marks && x.hk != null && x.hk !== "");
+    if (paper === "m2") return m2Items().some(x => x.y === y && x.marks && x.hk != null && x.hk !== "");
+    return false;
+  });
+  return years.slice(-5);
+}
+function strandOfTopic(paper, part, topic) {
+  if (paper === "m2") {
+    const ax = M2_AXES.find(a => a.topics.includes(topic));
+    return ax ? ax.id : "";
+  }
+  const ax = axisOf(part, topic) || AXES.find(a => a.topics.includes(topic));
+  if (!ax) return "";
+  if (ax.id === "a-alg" || ax.id === "b-alg") return "alg";
+  if (ax.id === "a-meas" || ax.id === "b-shape") return "meas";
+  if (ax.id === "a-coord" || ax.id === "b-coord") return "coord";
+  if (ax.id === "a-stat" || ax.id === "b-stat") return "stat";
+  return "";
+}
+function topicLossRows(paper, ys) {
+  const nY = ys.length || 1;
+  const map = new Map();
+  ys.forEach(y => {
+    if (paper === "p2") {
+      (P2_TOPICS.items || []).filter(x => x.y === y).forEach(x => {
+        const pct = p2Hit(y, x.q);
+        if (pct == null) return;
+        const key = x.part + "\n" + x.topic;
+        const row = map.get(key) || { part: x.part, topic: x.topic, marks: 0, hk: 0, old: OLD_TOPICS.has(x.topic) };
+        row.marks += 1;
+        row.hk += pct / 100;
+        map.set(key, row);
+      });
+      return;
+    }
+    const items = paper === "p1" ? p1Items() : m2Items();
+    items.filter(x => x.y === y && x.marks && x.hk != null && x.hk !== "").forEach(x => {
+      const part = paper === "m2" ? ((M2_AXES.find(a => a.topics.includes(x.topic)) || {}).name || "") : p1PartOfSec(x.sec);
+      const key = part + "\n" + x.topic;
+      const row = map.get(key) || { part: paper === "m2" && typeof axisLabel === "function" ? axisLabel(part) : part, topic: x.topic, marks: 0, hk: 0, old: OLD_TOPICS.has(x.topic) };
+      row.marks += +x.marks;
+      row.hk += +x.hk;
+      map.set(key, row);
+    });
+  });
+  return [...map.values()].map(r => {
+    const share = r.marks / nY;
+    const rate = r.marks ? r.hk / r.marks * 100 : 0;
+    return { part: r.part, topic: r.topic, old: r.old, share: share, rate: rate, loss: share * (1 - rate / 100) };
+  });
+}
+function strandYearStat(paper, year, cat) {
+  const marks = {};
+  const got = {};
+  const base = {};
+  cat.forEach(c => { marks[c.id] = 0; got[c.id] = 0; base[c.id] = 0; });
+  if (paper === "p2") {
+    (P2_TOPICS.items || []).filter(x => x.y === year).forEach(x => {
+      const id = strandOfTopic(paper, x.part, x.topic);
+      if (!id || !Object.prototype.hasOwnProperty.call(marks, id)) return;
+      marks[id] += 1;
+      const pct = p2Hit(year, x.q);
+      if (pct != null) { got[id] += pct; base[id] += 100; }
+    });
+  } else {
+    const items = paper === "p1" ? p1Items() : m2Items();
+    items.filter(x => x.y === year && x.marks).forEach(x => {
+      const part = paper === "p1" ? p1PartOfSec(x.sec) : "";
+      const id = strandOfTopic(paper, part, x.topic);
+      if (!id || !Object.prototype.hasOwnProperty.call(marks, id)) return;
+      marks[id] += +x.marks;
+      if (x.hk != null && x.hk !== "") { got[id] += +x.hk; base[id] += +x.marks; }
+    });
+  }
+  const total = cat.reduce((s, c) => s + marks[c.id], 0) || 1;
+  const share = {};
+  const rate = {};
+  cat.forEach(c => {
+    share[c.id] = marks[c.id] / total * 100;
+    rate[c.id] = base[c.id] ? got[c.id] / base[c.id] * 100 : null;
+  });
+  return { year: year, share: share, rate: rate, marks: marks, got: got, base: base };
+}
+function strandBar(cat, share, thin) {
+  return "<div class=\"strand-bar" + (thin ? " thin" : "") + "\">" + cat.map(c => {
+    const w = share[c.id] || 0;
+    const lab = !thin && w >= 14 ? Math.round(w) + "%" : "";
+    return "<i style=\"width:" + w + "%;background:" + c.color + ";color:" + c.ink + "\">" + lab + "</i>";
+  }).join("") + "</div>";
+}
+function strandName(c) { return prefs.lang === "en" ? c.en : c.zh; }
+function strandSentence(cat, pooled, first, last) {
+  let top = cat[0], low = null;
+  cat.forEach(c => {
+    if ((pooled.share[c.id] || 0) > (pooled.share[top.id] || 0)) top = c;
+    if (pooled.rate[c.id] == null) return;
+    if (!low || pooled.rate[c.id] < pooled.rate[low.id]) low = c;
+  });
+  let s = strandName(top) + "佔 " + Math.round(pooled.share[top.id] || 0) + "%";
+  if (low) s += "，得分率最低是" + strandName(low) + " " + Math.round(pooled.rate[low.id]) + "%";
+  s += "。";
+  if (!first || !last || first.year === last.year) return s + "結構穩定。";
+  let up = null, down = null;
+  cat.forEach(c => {
+    const d = (last.share[c.id] || 0) - (first.share[c.id] || 0);
+    if (!up || d > up.d) up = { c: c, d: d };
+    if (!down || d < down.d) down = { c: c, d: d };
+  });
+  if (up.d < 3 && down.d > -3) return s + "結構穩定。";
+  const bits = [];
+  if (up.d >= 3) bits.push(strandName(up.c) + "升 " + Math.round(up.d) + " 個百分點");
+  if (down.d <= -3) bits.push(strandName(down.c) + "跌 " + Math.round(-down.d) + " 個百分點");
+  return s + bits.join("，") + "。";
+}
+function renderStrandShare() {
+  const box = document.getElementById("strandBox");
+  const body = document.getElementById("strandBody");
+  const fromSel = document.getElementById("strandFrom");
+  const toSel = document.getElementById("strandTo");
+  if (!box || !body) return;
+  const paper = document.getElementById("itemPaper").value;
+  if (paper === "m1") { box.hidden = true; return; }
+  box.hidden = false;
+  const cat = paper === "m2" ? M2_STRANDS : STRANDS;
+  const years = YEARS.filter(y => {
+    if (paper === "p2") return (P2_TOPICS.items || []).some(x => x.y === y);
+    if (paper === "p1") return p1Items().some(x => x.y === y && x.marks);
+    return m2Items().some(x => x.y === y && x.marks);
+  });
+  const recent = years.slice(-5);
+  const pick = strandPick[paper] || { from: recent[0], to: recent[recent.length - 1] };
+  let from = years.includes(pick.from) ? pick.from : recent[0];
+  let to = years.includes(pick.to) ? pick.to : recent[recent.length - 1];
+  if (from > to) { const t = from; from = to; to = t; }
+  strandPick[paper] = { from: from, to: to };
+  const opt = years.map(y => "<option value=\"" + y + "\">" + y + "</option>").join("");
+  fromSel.innerHTML = opt;
+  toSel.innerHTML = opt;
+  fromSel.value = String(from);
+  toSel.value = String(to);
+  const span = years.filter(y => y >= from && y <= to);
+  const rows = span.map(y => strandYearStat(paper, y, cat));
+  const pooledMarks = {};
+  const pooledGot = {};
+  const pooledBase = {};
+  cat.forEach(c => { pooledMarks[c.id] = 0; pooledGot[c.id] = 0; pooledBase[c.id] = 0; });
+  rows.forEach(r => cat.forEach(c => {
+    pooledMarks[c.id] += r.marks[c.id];
+    pooledGot[c.id] += r.got[c.id];
+    pooledBase[c.id] += r.base[c.id];
+  }));
+  const total = cat.reduce((s, c) => s + pooledMarks[c.id], 0) || 1;
+  const pooled = { share: {}, rate: {} };
+  cat.forEach(c => {
+    pooled.share[c.id] = pooledMarks[c.id] / total * 100;
+    pooled.rate[c.id] = pooledBase[c.id] ? pooledGot[c.id] / pooledBase[c.id] * 100 : null;
+  });
+  const legend = "<div class=\"strand-legend\">" + cat.map(c => {
+    const rate = pooled.rate[c.id] == null ? "—" : Math.round(pooled.rate[c.id]) + "%";
+    return "<span><b style=\"background:" + c.color + "\"></b>" + esc(strandName(c)) + " " + Math.round(pooled.share[c.id] || 0) + "% · 得分率 " + rate + "</span>";
+  }).join("") + "</div>";
+  const yearsHtml = rows.map(r => "<div class=\"strand-year\"><em>" + r.year + "</em>" + strandBar(cat, r.share, true) + "</div>").join("");
+  body.innerHTML = strandBar(cat, pooled.share, false) + legend + yearsHtml +
+    "<p class=\"hint\">" + esc(strandSentence(cat, pooled, rows[0], rows[rows.length - 1])) + "</p>";
+}
+const _renderItemsStrand = renderItems;
+renderItems = function () {
+  _renderItemsStrand();
+  renderStrandShare();
+};
+const strandBoxEl = document.getElementById("strandBox");
+if (strandBoxEl && !strandBoxEl.dataset.bound) {
+  strandBoxEl.dataset.bound = "1";
+  strandBoxEl.addEventListener("change", e => {
+    if (e.target.id !== "strandFrom" && e.target.id !== "strandTo") return;
+    const paper = document.getElementById("itemPaper").value;
+    strandPick[paper] = { from: +document.getElementById("strandFrom").value, to: +document.getElementById("strandTo").value };
+    renderStrandShare();
+  });
 }
 
 function classEligible(pr, paper) {

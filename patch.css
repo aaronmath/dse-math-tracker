@@ -368,8 +368,18 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .freq-table .freq-topic { left: 36px; min-width: 148px; max-width: 196px; white-space: normal; z-index: 2; box-shadow: 1px 0 0 var(--line); }
 .freq-table th:not(.sticky-col),
 .freq-table td:not(.sticky-col) { text-align: center; white-space: nowrap; width: 32px; padding: 6px 4px; }
-.lang-seg { flex: none; align-self: flex-start; }
+.strand-tools { display: flex; gap: 12px; align-items: center; margin: 8px 0; font-size: 13px; }
+.strand-tools select { margin-left: 4px; }
+.strand-bar { display: flex; height: 28px; border-radius: 99px; overflow: hidden; background: #eee8dc; }
+.strand-bar.thin { height: 10px; }
+.strand-bar i { display: flex; align-items: center; justify-content: center; height: 100%; font-size: 11px; font-weight: 700; overflow: hidden; white-space: nowrap; }
+.strand-legend { display: flex; flex-wrap: wrap; gap: 8px 14px; margin: 8px 0; font-size: 12px; }
+.strand-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.strand-legend b { width: 8px; height: 8px; border-radius: 99px; flex: 0 0 8px; }
+.strand-year { display: grid; grid-template-columns: 42px minmax(0, 1fr); gap: 8px; align-items: center; margin: 4px 0; }
+.strand-year em { font-style: normal; font-size: 12px; color: var(--muted); }
 .xfer-notes { display: flex; align-items: center; gap: 8px; margin: 0 0 8px; }
+.lang-seg { flex: none; align-self: flex-start; }
 .lang-seg button { min-width: 36px; height: 28px; padding: 0 10px; font-weight: 700; }
 .score-head { display: flex; align-items: center; gap: 18px; }
 .score-head .score-ring { flex: 0 0 108px; }
