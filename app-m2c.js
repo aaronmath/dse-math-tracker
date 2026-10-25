@@ -132,21 +132,56 @@ function renderItemTopics() {
   if (!wrap || !box) return;
   paintItemP1TopicBtn();
   wrap.open = false;
-  const ys = recentItemYears(paper);
-  const nY = ys.length || 1;
-  const title = paper === "p1" ? "卷一課題表現（近五年，按預期失分）"
-    : paper === "m2" ? "M2 課題表現（近五年，按預期失分）"
-    : paper === "p2" ? "卷二課題表現（近五年，按預期失分）" : "";
-  if (paper !== "p1" && paper !== "p2" && paper !== "m2") { wrap.hidden = true; box.innerHTML = ""; return; }
+  if (paper === "p1") {
+    wrap.hidden = false;
+    if (sum) sum.textContent = "卷一課題表現（所有合計）";
+    const rows = sortTopicRows(window.P1_TOPICS && P1_TOPICS.freq || []).map(f => {
+      const items = p1Items().filter(x => p1PartOfSec(x.sec) === f.part && x.topic === f.topic);
+      let hk = 0, m = 0, n = 0;
+      items.forEach(x => {
+        if (x.hk == null || x.hk === "" || !x.marks) return;
+        hk += x.hk; m += x.marks; n++;
+      });
+      if (!m) return null;
+      return { part: f.part, topic: f.topic, avg: hk / m * 100, n: n, old: OLD_TOPICS.has(f.topic) };
+    }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
+    box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
+      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+      "</tbody></table></div><p class=\"hint\">按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。短表預設摺埋，可隨時打開（唔使開「顯示卷一課題」）。</p>";
+    return;
+  }
+  if (paper === "m2") {
+    wrap.hidden = false;
+    if (sum) sum.textContent = "M2 課題表現（所有合計）";
+    const rows = ((window.M2_TOPICS && M2_TOPICS.freq) || []).map(f => {
+      const items = m2Items().filter(x => x.topic === f.topic);
+      let hk = 0, m = 0, n = 0;
+      items.forEach(x => {
+        if (x.hk == null || x.hk === "" || !x.marks) return;
+        hk += Number(x.hk); m += x.marks; n++;
+      });
+      if (!m) return null;
+      const ax = M2_AXES.find(a => a.topics.includes(f.topic));
+      return { part: ax ? axisLabel(ax.name) : "", topic: f.topic, avg: hk / m * 100, n: n };
+    }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.topic.localeCompare(b.topic));
+    box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>軸</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
+      rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + esc(r.part) + "</td><td>" + esc(topicLabel(r.topic)) + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+      "</tbody></table></div><p class=\"hint\">2012–2025 DSE，按全港得分率（分數加權）由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。樣本／練習唔入。</p>";
+    return;
+  }
+  if (paper !== "p2") { wrap.hidden = true; box.innerHTML = ""; return; }
   wrap.hidden = false;
-  if (sum) sum.textContent = title;
-  const rows = topicLossRows(paper, ys).sort((a, b) => b.loss - a.loss || String(a.part).localeCompare(String(b.part)) || a.topic.localeCompare(b.topic));
-  const head = paper === "m2"
-    ? "<th>軸</th><th>課題</th><th>佔分</th><th>全港得分率</th><th>預期失分</th>"
-    : "<th>部</th><th>課題</th><th>佔分</th><th>全港" + (paper === "p2" ? "命中率" : "得分率") + "</th><th>預期失分</th>";
-  box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr>" + head + "</tr></thead><tbody>" +
-    rows.map(r => "<tr class=\"" + bandClass(r.rate) + "\"><td>" + esc(paper === "m2" ? r.part : r.part) + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + fmt1(r.share) + "</td><td>" + Math.round(r.rate) + "%</td><td>" + fmt1(r.loss) + "</td></tr>").join("") +
-    "</tbody></table></div><p class=\"hint\">" + ys[0] + "–" + ys[ys.length - 1] + " 平均，每年佔分。預期失分 = 佔分 ×（1 − 全港得分率）。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>";
+  if (sum) sum.textContent = "卷二課題表現（所有合計）";
+  const rows = sortTopicRows(P2_TOPICS.freq || []).map(f => {
+    const items = (P2_TOPICS.items || []).filter(x => x.part === f.part && x.topic === f.topic);
+    const pcts = items.map(x => p2Hit(x.y, x.q)).filter(p => p != null);
+    if (!pcts.length) return null;
+    const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
+    return { part: f.part, topic: f.topic, avg: avg, n: pcts.length, old: OLD_TOPICS.has(f.topic) };
+  }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.part.localeCompare(b.part));
+  box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>部</th><th>課題</th><th>平均命中率</th><th>題數</th></tr></thead><tbody>" +
+    rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + r.part + "</td><td>" + esc(topicLabel(r.topic)) + (r.old ? "　<span class='sub'>舊課程</span>" : "") + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +
+    "</tbody></table></div><p class=\"hint\">按全港命中率由高至低。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>";
 }
 
 const STRANDS = [
@@ -164,16 +199,6 @@ const M2_STRANDS = [
   { id: "m2-vec", zh: "向量", en: "Vectors", color: "#6b7040", ink: "#fff" }
 ];
 const strandPick = {};
-
-function recentItemYears(paper) {
-  const years = YEARS.filter(y => {
-    if (paper === "p2") return (P2_TOPICS.items || []).some(x => x.y === y && p2Hit(y, x.q) != null);
-    if (paper === "p1") return p1Items().some(x => x.y === y && x.marks && x.hk != null && x.hk !== "");
-    if (paper === "m2") return m2Items().some(x => x.y === y && x.marks && x.hk != null && x.hk !== "");
-    return false;
-  });
-  return years.slice(-5);
-}
 function strandOfTopic(paper, part, topic) {
   if (paper === "m2") {
     const ax = M2_AXES.find(a => a.topics.includes(topic));
@@ -186,38 +211,6 @@ function strandOfTopic(paper, part, topic) {
   if (ax.id === "a-coord" || ax.id === "b-coord") return "coord";
   if (ax.id === "a-stat" || ax.id === "b-stat") return "stat";
   return "";
-}
-function topicLossRows(paper, ys) {
-  const nY = ys.length || 1;
-  const map = new Map();
-  ys.forEach(y => {
-    if (paper === "p2") {
-      (P2_TOPICS.items || []).filter(x => x.y === y).forEach(x => {
-        const pct = p2Hit(y, x.q);
-        if (pct == null) return;
-        const key = x.part + "\n" + x.topic;
-        const row = map.get(key) || { part: x.part, topic: x.topic, marks: 0, hk: 0, old: OLD_TOPICS.has(x.topic) };
-        row.marks += 1;
-        row.hk += pct / 100;
-        map.set(key, row);
-      });
-      return;
-    }
-    const items = paper === "p1" ? p1Items() : m2Items();
-    items.filter(x => x.y === y && x.marks && x.hk != null && x.hk !== "").forEach(x => {
-      const part = paper === "m2" ? ((M2_AXES.find(a => a.topics.includes(x.topic)) || {}).name || "") : p1PartOfSec(x.sec);
-      const key = part + "\n" + x.topic;
-      const row = map.get(key) || { part: paper === "m2" && typeof axisLabel === "function" ? axisLabel(part) : part, topic: x.topic, marks: 0, hk: 0, old: OLD_TOPICS.has(x.topic) };
-      row.marks += +x.marks;
-      row.hk += +x.hk;
-      map.set(key, row);
-    });
-  });
-  return [...map.values()].map(r => {
-    const share = r.marks / nY;
-    const rate = r.marks ? r.hk / r.marks * 100 : 0;
-    return { part: r.part, topic: r.topic, old: r.old, share: share, rate: rate, loss: share * (1 - rate / 100) };
-  });
 }
 function strandYearStat(paper, year, cat) {
   const marks = {};
@@ -255,7 +248,7 @@ function strandBar(cat, share, thin) {
   return "<div class=\"strand-bar" + (thin ? " thin" : "") + "\">" + cat.map(c => {
     const w = share[c.id] || 0;
     const lab = !thin && w >= 14 ? Math.round(w) + "%" : "";
-    return "<i style=\"width:" + w + "%;background:" + c.color + ";color:" + c.ink + "\">" + lab + "</i>";
+    return "<span style=\"flex:0 0 " + w + "%;background:" + c.color + ";color:" + c.ink + "\">" + lab + "</span>";
   }).join("") + "</div>";
 }
 function strandName(c) { return prefs.lang === "en" ? c.en : c.zh; }
@@ -287,7 +280,7 @@ function renderStrandShare() {
   const body = document.getElementById("strandBody");
   const fromSel = document.getElementById("strandFrom");
   const toSel = document.getElementById("strandTo");
-  if (!box || !body) return;
+  if (!box || !body || !fromSel || !toSel) return;
   const paper = document.getElementById("itemPaper").value;
   if (paper === "m1") { box.hidden = true; return; }
   box.hidden = false;
@@ -297,6 +290,7 @@ function renderStrandShare() {
     if (paper === "p1") return p1Items().some(x => x.y === y && x.marks);
     return m2Items().some(x => x.y === y && x.marks);
   });
+  if (!years.length) { body.innerHTML = "<p class=\"hint\">未有資料</p>"; return; }
   const recent = years.slice(-5);
   const pick = strandPick[paper] || { from: recent[0], to: recent[recent.length - 1] };
   let from = years.includes(pick.from) ? pick.from : recent[0];
@@ -338,6 +332,9 @@ renderItems = function () {
   _renderItemsStrand();
   renderStrandShare();
 };
+const itemPaperEl = document.getElementById("itemPaper");
+if (itemPaperEl) itemPaperEl.addEventListener("change", () => renderItems());
+try { renderStrandShare(); } catch (e) {}
 const strandBoxEl = document.getElementById("strandBox");
 if (strandBoxEl && !strandBoxEl.dataset.bound) {
   strandBoxEl.dataset.bound = "1";
