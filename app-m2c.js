@@ -162,7 +162,7 @@ function renderItemTopics() {
       });
       if (!m) return null;
       const ax = M2_AXES.find(a => a.topics.includes(f.topic));
-      return { part: ax ? ax.name : "", topic: f.topic, avg: hk / m * 100, n: n };
+      return { part: ax ? axisLabel(ax.name) : "", topic: f.topic, avg: hk / m * 100, n: n };
     }).filter(Boolean).sort((a, b) => b.avg - a.avg || a.topic.localeCompare(b.topic));
     box.innerHTML = "<div style=\"overflow:auto\"><table class=\"data-table\"><thead><tr><th>軸</th><th>課題</th><th>平均得分率</th><th>分部數</th></tr></thead><tbody>" +
       rows.map(r => "<tr class=\"" + bandClass(r.avg) + "\"><td>" + esc(r.part) + "</td><td>" + esc(topicLabel(r.topic)) + "</td><td>" + Math.round(r.avg) + "%</td><td>" + r.n + "</td></tr>").join("") +

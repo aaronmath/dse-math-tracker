@@ -151,7 +151,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026, classCmp: "", classTopic: "", classPart: "", classLow: false };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026, classCmp: "", classTopic: "", classPart: "", classLow: false, lang: "zh" };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -1536,12 +1536,12 @@ function fillMcYears(series) {
 function fillMcTopics() {
   const tSel = document.getElementById("mcTopic");
   const hideOld = prefs.mcIncludeOld === false;
-  const sig = hideOld ? "hide" : "show";
+  const sig = (hideOld ? "hide" : "show") + ":" + (prefs.lang === "en" ? "en" : "zh");
   if (tSel.dataset.ready === sig && tSel.options.length > 1) return;
   const freq = sortTopicRows(window.P2_TOPICS.freq || []).filter(f => !(hideOld && OLD_TOPICS.has(f.topic)));
   const a = freq.filter(f => f.part === "甲");
   const b = freq.filter(f => f.part === "乙");
-  const lab = f => esc(f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
+  const lab = f => esc(typeof topicLabel === "function" ? topicLabel(f.topic) : f.topic) + (OLD_TOPICS.has(f.topic) ? "（舊課程）" : "");
   const keep = tSel.value;
   tSel.innerHTML = `<option value="">全部課題</option>
     <optgroup label="甲">${a.map(f => `<option value="${esc(f.topic)}">${lab(f)}</option>`).join("")}</optgroup>
@@ -1566,7 +1566,7 @@ function mcCard(year, rec, extra, picked, series) {
   const pct = rec.pct == null ? "—" : rec.pct + "%";
   const part = series === "ce" ? "" : (rec.q <= 30 ? " · 甲" : " · 乙");
   const on = picked === rec.q ? " pick" : "";
-  return `<div class="qcard ${b}${on}${sk ? " " + (sk === "old" ? "syll-old" : "syll-part") : ""}" data-q="${rec.q}" data-y="${year}"><small>${extra || ""}Q${rec.q}${part}${tag ? " · " + tag : ""}</small><b>${rec.ans || "?"}</b><small>${pct}</small>${t ? `<small>${esc(t)}</small>` : ""}</div>`;
+  return `<div class="qcard ${b}${on}${sk ? " " + (sk === "old" ? "syll-old" : "syll-part") : ""}" data-q="${rec.q}" data-y="${year}"><small>${extra || ""}Q${rec.q}${part}${tag ? " · " + tag : ""}</small><b>${rec.ans || "?"}</b><small>${pct}</small>${t ? `<small>${esc(typeof topicLabel === "function" ? topicLabel(t) : t)}</small>` : ""}</div>`;
 }
 function focusHtml(series, year, rec, hide) {
   if (!rec) return "";
@@ -1588,7 +1588,7 @@ function focusHtml(series, year, rec, hide) {
       <button type="button" class="ghost${hasNote(getCell("p2", +year, rec.q)) ? " filled-note" : ""}" data-mc-note>筆記</button>
     </div>` : "";
   return `<section class="focus-card sticky-focus" data-fy="${year}" data-fq="${rec.q}">
-    <div class="meta">${series === "dse" ? "DSE 必修卷二" : "CE Maths"}　${year}　Q${rec.q}${part ? "　" + part : ""}${t ? "　·　課題：" + esc(t) : ""}${syllLab}</div>
+    <div class="meta">${series === "dse" ? "DSE 必修卷二" : "CE Maths"}　${year}　Q${rec.q}${part ? "　" + part : ""}${t ? "　·　課題：" + esc(typeof topicLabel === "function" ? topicLabel(t) : t) : ""}${syllLab}</div>
     <div class="ans">${hide ? "？" : (rec.ans || "?")}</div>
     <div class="meta">${pctLine}</div>${bar}${marks}
   </section>`;
@@ -1656,7 +1656,7 @@ function renderMcTopic() {
   const block = (title, arr) => `<h3 class="sec-title">${title}（${arr.length}）</h3><div class="qgrid">${arr.map(card).join("") || "<p class='hint'>無</p>"}</div>`;
   document.getElementById("mcResult").innerHTML = `<div class="${hide ? "hide-ans" : ""}">
     ${focusHtml("dse", picked ? picked.y : recs[0] && recs[0].year, focusRec, hide)}
-    <div class="sec-title">${esc(topic)}</div>
+    <div class="sec-title">${esc(typeof topicLabel === "function" ? topicLabel(topic) : topic)}</div>
     ${block("甲部", a)}${block("乙部", b)}
     ${block("命中率 ≥ 60%", easy)}${block("命中率 41%–59%", mid)}${block("命中率 ≤ 40%", hard)}
   </div>`;

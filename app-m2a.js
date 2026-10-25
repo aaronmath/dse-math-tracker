@@ -11,7 +11,73 @@ var M2_AXES = [
 var M2_TOPIC_ORDER = ["數學歸納法","二項式定理","三角學","基本原理","微分法","切線與法線","極值","變率","曲線描繪","不定積分","積分求方程","定積分","面積與體積","行列式","矩陣","線性方程組","向量簡介","向量的應用"];
 var M2_FILTER_ALIAS = { "定積分": ["定積分","面積與體積"] };
 var M2_TOPIC_LABEL = { "切線與法線": "切線" };
-function topicLabel(t) { return (M2_TOPIC_LABEL && M2_TOPIC_LABEL[t]) || t; }
+var TOPIC_EN = {
+  "指數": "Indices", "主項變換": "Change of subject", "因式分解": "Factorization", "代數分式": "Algebraic fractions",
+  "不等式": "Inequalities", "百分數": "Percentages", "恆等式": "Identities", "量度與誤差": "Measurement and errors",
+  "聯立方程": "Simultaneous equations", "函數": "Functions", "二次方程": "Quadratic equations", "數列": "Sequences",
+  "率與比": "Rates and ratios", "二次函數圖像": "Graphs of quadratic functions", "多項式": "Polynomials",
+  "極坐標": "Polar coordinates", "變分": "Variations", "面積與體積": "Areas and volumes", "扇形": "Sectors",
+  "直線圖形：角度": "Rectilinear figures: angles", "直線圖形：長度與面積": "Rectilinear figures: lengths and areas",
+  "多邊形": "Polygons", "對稱": "Symmetry", "面積比": "Area ratios", "全等與相似三角形": "Congruent and similar triangles",
+  "三角函數": "Trigonometric functions", "三角學（甲部）": "Trigonometry (Section A)", "坐標幾何：點": "Coordinate geometry: points",
+  "圓的性質": "Properties of circles", "直線方程": "Equations of straight lines", "圓方程": "Equations of circles", "軌跡": "Locus",
+  "概率": "Probability", "統計": "Statistics", "進制": "Numeral systems", "複數": "Complex numbers",
+  "H.C.F./L.C.M.": "H.C.F. / L.C.M.", "圖像變換": "Transformation of graphs", "續方程": "More about equations",
+  "指數與對數": "Exponentials and logarithms", "圖像軸的變換": "Change of axes", "線性規劃": "Linear programming",
+  "三角學（乙部）": "Trigonometry (Section B)", "立體三角": "3-D trigonometry", "三角形的心": "Centres of a triangle",
+  "排列組合": "Permutations and combinations", "數學歸納法": "Mathematical induction", "二項式定理": "Binomial theorem",
+  "三角學": "Trigonometry", "基本原理": "Differentiation from first principles", "微分法": "Rules of differentiation",
+  "切線與法線": "Tangents and normals", "極值": "Maxima and minima", "變率": "Rates of change", "曲線描繪": "Curve sketching",
+  "不定積分": "Indefinite integration", "積分求方程": "Equations of curves by integration", "定積分": "Definite integration",
+  "行列式": "Determinants", "矩陣": "Matrices", "線性方程組": "Systems of linear equations",
+  "向量簡介": "Introduction to vectors", "向量的應用": "Applications of vectors"
+};
+var AXIS_EN = {
+  "甲　數與代數": "甲 Number and Algebra",
+  "甲　度量圖形": "甲 Measures and Figures",
+  "甲　坐標幾何": "甲 Coordinate Geometry",
+  "甲　統計與概率": "甲 Statistics and Probability",
+  "乙　數與代數": "乙 Number and Algebra",
+  "乙　圖形與幾何": "乙 Geometry",
+  "乙　坐標幾何": "乙 Coordinate Geometry",
+  "乙　統計與概率": "乙 Statistics and Probability",
+  "基礎知識": "Foundation",
+  "三角學": "Trigonometry",
+  "微分": "Differentiation",
+  "積分": "Integration",
+  "矩陣與方程組": "Matrices and Systems",
+  "向量": "Vectors"
+};
+function topicLabel(t) {
+  if (t && typeof prefs !== "undefined" && prefs.lang === "en" && TOPIC_EN[t]) return TOPIC_EN[t];
+  return (M2_TOPIC_LABEL && M2_TOPIC_LABEL[t]) || t;
+}
+function axisLabel(name) {
+  const raw = String(name || "");
+  const key = raw.replace(/ /g, "\u3000");
+  if (typeof prefs !== "undefined" && prefs.lang === "en" && AXIS_EN[key]) return AXIS_EN[key];
+  return raw.replace(/\u3000/g, " ");
+}
+function paintLang() {
+  document.querySelectorAll("#langSeg [data-lang]").forEach(function (btn) {
+    btn.classList.toggle("on", btn.dataset.lang === (prefs.lang === "en" ? "en" : "zh"));
+  });
+}
+function bindLang() {
+  const box = document.getElementById("langSeg");
+  if (!box || box.dataset.bound) return;
+  box.dataset.bound = "1";
+  box.addEventListener("click", function (e) {
+    const btn = e.target.closest("[data-lang]");
+    if (!btn) return;
+    prefs.lang = btn.dataset.lang === "en" ? "en" : "zh";
+    savePrefs();
+    paintLang();
+    if (typeof showView === "function") showView(currentView || "tracker");
+  });
+  paintLang();
+}
+bindLang();
 if (typeof TOPIC_ORDER === "object") TOPIC_ORDER.M2 = M2_TOPIC_ORDER;
 function classMinFor(paper) { return paper === "m2" ? CLASS_MIN_M2 : CLASS_MIN; }
 function axisMinN(paper) { return paper === "m2" ? 3 : 4; }
@@ -112,7 +178,7 @@ function fillTopicFilter() {
   if (currentPaper === "m2") {
     const freq = ((window.M2_TOPICS && M2_TOPICS.freq) || []).filter(function (f) { return (f.total || 0) > 0; });
     const groups = M2_AXES.map(function (ax) {
-      return { name: ax.name, rows: ax.topics.map(function (t) { return freq.find(function (f) { return f.topic === t; }); }).filter(Boolean) };
+      return { name: axisLabel(ax.name), rows: ax.topics.map(function (t) { return freq.find(function (f) { return f.topic === t; }); }).filter(Boolean) };
     }).filter(function (g) { return g.rows.length; });
     sel.innerHTML = '<option value="">全部課題</option>' + groups.map(function (g) {
       return '<optgroup label="' + esc(g.name) + '">' + g.rows.map(function (f) {

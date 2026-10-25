@@ -53,7 +53,7 @@
       if (hasTopic) {
         topicSel = "<label>\u8ab2\u984c <select id=\"noteTopicSel\"><option value=\"\">\u5168\u90e8\u8ab2\u984c</option>";
         topics.forEach(function (x) {
-          topicSel += "<option value=\"" + esc(x.topic) + "\"" + (noteTopic === x.topic ? " selected" : "") + ">" + esc(x.part ? x.part + "\u3000" : "") + esc(x.topic) + (x.old ? "\uff08\u820a\u8ab2\u7a0b\uff09" : "") + "</option>";
+          topicSel += "<option value=\"" + esc(x.topic) + "\"" + (noteTopic === x.topic ? " selected" : "") + ">" + esc(x.part ? x.part + "\u3000" : "") + esc(typeof topicLabel === "function" ? topicLabel(x.topic) : x.topic) + (x.old ? "\uff08\u820a\u8ab2\u7a0b\uff09" : "") + "</option>";
         });
         topicSel += "</select></label>";
       }
@@ -79,7 +79,7 @@
     box.querySelector("summary").textContent = "\u7b46\u8a18\u4e00\u89bd\u3000" + shown.length + (shown.length !== all.length ? "\uff0f" + all.length : "");
     if (!shown.length) body.innerHTML = "<p class=\"hint\">\u5462\u500b\u7be9\u5187\u7b46\u8a18\u3002</p>";
     else body.innerHTML = shown.map(function (it) {
-      const topic = [it.part, it.topic].filter(Boolean).join("\u3000");
+      const topic = [it.part, typeof topicLabel === "function" ? topicLabel(it.topic) : it.topic].filter(Boolean).join("\u3000");
       return "<button type=\"button\" class=\"note-row\" data-jump=\"" + it.y + ":" + it.q + "\" data-jump-paper=\"" + currentPaper + "\"><b>" + it.y + " Q" + it.q + (topic ? "\u3000" + esc(topic) : "") + "</b><span>" + esc(notePreview(it.c)) + "</span></button>";
     }).join("");
     box.open = wasOpen;

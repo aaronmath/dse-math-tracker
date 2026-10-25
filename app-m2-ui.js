@@ -303,7 +303,7 @@ function classRadarHtml(people, paper, cmpPeople) {
     const x2 = cx + r * Math.cos(ang), y2 = cy + r * Math.sin(ang);
     spokes += "<line x1=\"" + cx + "\" y1=\"" + cy + "\" x2=\"" + x2.toFixed(1) + "\" y2=\"" + y2.toFixed(1) + "\" stroke=\"#e4ddd2\"/>";
     const lx = cx + (r + 22) * Math.cos(ang), ly = cy + (r + 22) * Math.sin(ang);
-    labels += "<text x=\"" + lx.toFixed(1) + "\" y=\"" + ly.toFixed(1) + "\" text-anchor=\"middle\" font-size=\"10\" fill=\"" + (prefs.classAxis === a.id ? "#3d6e8c" : "#1c1915") + "\" data-axis=\"" + a.id + "\" style=\"cursor:pointer\">" + esc(a.name.replace("\u3000", " ")) + "</text>";
+    labels += "<text x=\"" + lx.toFixed(1) + "\" y=\"" + ly.toFixed(1) + "\" text-anchor=\"middle\" font-size=\"10\" fill=\"" + (prefs.classAxis === a.id ? "#3d6e8c" : "#1c1915") + "\" data-axis=\"" + a.id + "\" style=\"cursor:pointer\">" + esc(axisLabel(a.name)) + "</text>";
   });
   let stu = "", hk = "";
   const ratedL = radarPolyRated(L, cx, cy, r);
@@ -636,14 +636,14 @@ function renderClassPage() {
     const lab = row.L == null ? "未評" : pct + "%";
     const on = prefs.classAxis === row.ax.id ? " on" : "";
     return "<button type=\"button\" class=\"class-axis" + on + "\" data-axis=\"" + row.ax.id + "\" style=\"--d:" + (i * 35) + "ms\">" +
-      "<span>" + esc(row.ax.name) + "</span>" +
+      "<span>" + esc(axisLabel(row.ax.name)) + "</span>" +
       "<i class=\"bar-track\"><b class=\"class-bar " + (row.L == null ? "" : bandClass(row.L * 100)) + "\" style=\"width:" + pct + "%\"></b></i>" +
       "<em>" + lab + (row.n ? " · " + row.n + " 人" : "") + "</em></button>";
   }).join("");
   const ratedAxes = axes.filter(function (row) { return row.L != null; }).slice().sort(function (a, b) { return b.L - a.L; });
   if (ratedAxes.length) {
     const best = ratedAxes[0], worst = ratedAxes[ratedAxes.length - 1];
-    document.getElementById("classAxes").innerHTML += "<p class=\"hint\">最強：" + esc(best.ax.name.replace("\u3000", " ")) + " " + Math.round(best.L * 100) + "%　最弱：" + esc(worst.ax.name.replace("\u3000", " ")) + " " + Math.round(worst.L * 100) + "%</p>";
+    document.getElementById("classAxes").innerHTML += "<p class=\"hint\">最強：" + esc(axisLabel(best.ax.name)) + " " + Math.round(best.L * 100) + "%　最弱：" + esc(axisLabel(worst.ax.name)) + " " + Math.round(worst.L * 100) + "%</p>";
   }
   const topicRows = [];
   axisList.forEach(function (ax) {
@@ -705,7 +705,7 @@ function renderClassPage() {
       return { n: n, L: sc.L, ok: ok, marked: markedCountOf(pr, paper) };
     }).sort(function (a, b) { return (a.L == null ? 1 : 0) - (b.L == null ? 1 : 0) || (a.L || 0) - (b.L || 0); });
     const wrongs = topWrong(people, itemsForAxis(axis, paper), 3);
-    drill.innerHTML = "<h3 class=\"sec-title\">" + esc(axis.name) + "　" + esc(cls || "未分班") + "</h3>" +
+    drill.innerHTML = "<h3 class=\"sec-title\">" + esc(axisLabel(axis.name)) + "　" + esc(cls || "未分班") + "</h3>" +
       "<p class=\"hint\">弱 → 強。撳名去該學生能力頁。</p>" +
       "<div class=\"class-people\">" + rows.map(function (r) {
         return "<button type=\"button\" class=\"class-person" + (r.ok ? "" : " dim") + "\" data-go-stu=\"" + esc(r.n) + "\"><b>" + esc(r.n) + "</b><span>" + (r.L == null ? "未評" : Math.round(r.L * 100) + "%") + "　標 " + r.marked + "</span></button>";
@@ -719,7 +719,7 @@ function renderClassPage() {
   else {
     let html = "<table class=\"data-table\"><thead><tr><th>軸</th>" + allCls.map(function (c) { return "<th>" + esc(c) + "</th>"; }).join("") + "</tr></thead><tbody>";
     axisList.forEach(function (ax) {
-      html += "<tr><td>" + esc(ax.name) + "</td>";
+      html += "<tr><td>" + esc(axisLabel(ax.name)) + "</td>";
       allCls.forEach(function (c) {
         const a = classAxisAvg(peopleOfClass(c), ax, paper);
         html += "<td>" + (a.L == null ? "—" : Math.round(a.L * 100) + "%") + "</td>";
@@ -823,7 +823,7 @@ function exportClassCsv() {
     const people = peopleOfClass(c);
     axisList.forEach(function (ax) {
       const a = classAxisAvg(people, ax, paper);
-      lines.push([c || "未分班", paper, ax.name.replace("\u3000", " "), a.L == null ? "" : (Math.round(a.L * 1000) / 10), a.n, people.length].join(","));
+      lines.push([c || "未分班", paper, axisLabel(ax.name), a.L == null ? "" : (Math.round(a.L * 1000) / 10), a.n, people.length].join(","));
     });
   });
   lines.push("");
@@ -977,7 +977,7 @@ function renderItemYear(focusSec) {
     list.forEach(function (p) {
       const topic = showT ? (paper === "m2" ? m2TopicForSub(year, p.q) : p1TopicForSub(year, p.q)) : "";
       html += "<tr class=\"" + bandClass(p.pct) + "\"><td>" + esc(normQLabel(p.q)) + "</td><td>" + p.full + "</td><td>" +
-        (p.mean == null ? "-" : fmt1(p.mean)) + "</td>" + (showT ? "<td>" + esc(topic) + "</td>" : "") + "</tr>";
+        (p.mean == null ? "-" : fmt1(p.mean)) + "</td>" + (showT ? "<td>" + esc(typeof topicLabel === "function" ? topicLabel(topic) : topic) + "</td>" : "") + "</tr>";
     });
     html += "</tbody></table></div>";
   });

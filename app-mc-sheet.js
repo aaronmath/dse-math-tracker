@@ -202,7 +202,7 @@
           n++;
         }
       });
-      const name = ax.name.replace("　", " ");
+      const name = typeof axisLabel === "function" ? axisLabel(ax.name) : ax.name.replace("　", " ");
       let hkSum = 0, hkN = 0;
       items.forEach(x => {
         const row = keyMap(year)[x.q];
@@ -313,10 +313,10 @@
         else if (good) cls = " hi";
         const key = ax.part + "\n" + topic;
         const on = mcUi.topic === key ? " on" : "";
-        return `<button type="button" class="tchip${cls}${on}" data-mc-part="${esc(ax.part)}" data-mc-topic="${esc(topic)}">${esc(topic)}</button>`;
+        return `<button type="button" class="tchip${cls}${on}" data-mc-part="${esc(ax.part)}" data-mc-topic="${esc(topic)}">${esc(typeof topicLabel === "function" ? topicLabel(topic) : topic)}</button>`;
       }).join("");
       const headOn = mcUi.axis === ax.id ? " on" : "";
-      return `<div class="axis-row${headOn}"><button type="button" class="mk-axis-name" data-mc-axis="${esc(ax.id)}">${esc(ax.name.replace("　", " "))}　你 ${pct}　${frac}${hk}</button>${chips}</div>`;
+      return `<div class="axis-row${headOn}"><button type="button" class="mk-axis-name" data-mc-axis="${esc(ax.id)}">${esc(typeof axisLabel === "function" ? axisLabel(ax.name) : ax.name.replace("　", " "))}　你 ${pct}　${frac}${hk}</button>${chips}</div>`;
     }).join("");
     const open = mcUi.boardOpen !== false ? " open" : "";
     return `<details class="mc-board axis-legend"${open}><summary>8軸課題對照</summary>${blocks}</details>`;
@@ -492,7 +492,7 @@
     const topicOn = mcUi.topic ? mcUi.topic.split("\n") : null;
     const bits = [];
     if (mcUi.topic) bits.push(window.topicLabel ? topicLabel(topicOn[1]) : topicOn[1]);
-    else if (axisOn) bits.push(axisOn.name.replace("　", " "));
+    else if (axisOn) bits.push(typeof axisLabel === "function" ? axisLabel(axisOn.name) : axisOn.name.replace("　", " "));
     else if (mcUi.sec === "A") bits.push("甲部");
     else if (mcUi.sec === "B") bits.push("乙部");
     if (mcUi.status !== "") bits.push(["未標", "唔識", "一般", "已掌握"][+mcUi.status] || "");
@@ -883,7 +883,7 @@
             const clsN = (c.ink === "b" ? "b" : "k") + (hit == null ? "" : hit ? " ok" : " bad");
             const topic = topicOf(year, q) || "";
             const stLab = c.s ? STATE_LABEL[c.s] : "未標";
-            cells += `<div class="class-mc-cell ${clsN}" title="${esc(topic)}　${stLab}">${q}<br>${esc(c.mc || "–")}<br>${esc(stLab)}</div>`;
+            cells += `<div class="class-mc-cell ${clsN}" title="${esc(typeof topicLabel === "function" ? topicLabel(topic) : topic)}　${stLab}">${q}<br>${esc(c.mc || "–")}<br>${esc(stLab)}</div>`;
           }
           body += `<tr><td colspan="6"><div class="class-mc-grid">${cells || "冇符合嘅題。"}</div></td></tr>`;
         }

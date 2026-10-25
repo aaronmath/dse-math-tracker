@@ -114,7 +114,7 @@ function renderRadar() {
     const x2 = cx + r * Math.cos(ang), y2 = cy + r * Math.sin(ang);
     spokes += "<line x1=\"" + cx + "\" y1=\"" + cy + "\" x2=\"" + x2.toFixed(1) + "\" y2=\"" + y2.toFixed(1) + "\" stroke=\"#e4ddd2\"/>";
     const lx = cx + (r + 22) * Math.cos(ang), ly = cy + (r + 22) * Math.sin(ang);
-    const short = a.name.replace("\u3000", " ");
+    const short = axisLabel(a.name);
     labels += "<text x=\"" + lx.toFixed(1) + "\" y=\"" + ly.toFixed(1) + "\" text-anchor=\"middle\" font-size=\"10\" fill=\"" + (radarAxis === a.id ? "#3d6e8c" : "#1c1915") + "\" data-axis=\"" + a.id + "\" style=\"cursor:pointer\">" + esc(short) + "</text>";
   });
   const L = scores.map(s => s.L);
@@ -159,7 +159,7 @@ function renderRadar() {
       const bc = abilityBand(ab.L);
       return "<button type=\"button\" class=\"tchip" + (bc ? " " + bc : "") + "\" data-jump-topic=\"" + esc(t) + "\">" + esc(topicLabel(t)) + "</button>";
     }).join("");
-    return "<div class=\"axis-row" + (radarAxis === a.id ? " on" : "") + "\" data-axis=\"" + a.id + "\"><b>" + esc(a.name) + "\u3000" + esc(currentProfile) + " " + stuLab + "\u3000\u5168港 " + hkLab + (sc.n ? " \u00b7 " + sc.n + " 題" : "") + "</b>" + chips + "</div>";
+    return "<div class=\"axis-row" + (radarAxis === a.id ? " on" : "") + "\" data-axis=\"" + a.id + "\"><b>" + esc(axisLabel(a.name)) + "\u3000" + esc(currentProfile) + " " + stuLab + "\u3000\u5168港 " + hkLab + (sc.n ? " \u00b7 " + sc.n + " 題" : "") + "</b>" + chips + "</div>";
   }).join("");
 }
 
@@ -171,7 +171,7 @@ function axisBuckets() {
     const ax = axes[i];
     const rec = {
       id: ax.id,
-      name: ax.name.replace("\u3000", " "),
+      name: axisLabel(ax.name),
       part: ax.part,
       L: sc.L,
       hk: sc.hk,

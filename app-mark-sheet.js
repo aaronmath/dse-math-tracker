@@ -87,7 +87,7 @@
       });
       return {
         id: ax.id,
-        name: ax.name.replace("　", " "),
+        name: typeof axisLabel === "function" ? axisLabel(ax.name) : ax.name.replace("　", " "),
         n: tried,
         v: tried ? earned / tried : 0,
         hk: hkM ? hkS / hkM : 0,
@@ -129,7 +129,7 @@
       }).join("");
       const hk = row.hk ? "　全港 " + Math.round(row.hk * 100) + "%" : "";
       const you = row.pct == null ? "—" : row.pct + "%";
-      return `<div class="axis-row${mkUi.axis === ax.id ? " on" : ""}"><button type="button" class="mk-axis-name" data-mk-axis="${esc(ax.id)}">${esc(row.name || ax.name)}　你 ${you}　${row.earned}/${row.all}${hk}</button>${chips}</div>`;
+      return `<div class="axis-row${mkUi.axis === ax.id ? " on" : ""}"><button type="button" class="mk-axis-name" data-mk-axis="${esc(ax.id)}">${esc(typeof axisLabel === "function" ? axisLabel(row.name || ax.name) : (row.name || ax.name))}　你 ${you}　${row.earned}/${row.all}${hk}</button>${chips}</div>`;
     }).join("");
     const open = mkUi.boardOpen !== false ? " open" : "";
     return `<details class="mc-board axis-legend"${open}><summary>${paper === "m2" ? "6" : "8"}軸課題對照</summary>${blocks}</details>`;
@@ -315,7 +315,7 @@
       bits.push(window.topicLabel ? topicLabel(topic) : topic);
     } else if (mkUi.axis) {
       const ax = axesOf(paper).find(a => a.id === mkUi.axis);
-      if (ax) bits.push(String(ax.name).replace("　", " "));
+      if (ax) bits.push(typeof axisLabel === "function" ? axisLabel(ax.name) : String(ax.name).replace("　", " "));
     } else if (mkUi.sec) bits.push(secLabel(paper, mkUi.sec));
     if (mkUi.st !== "") bits.push(["未做", "唔識", "一般", "已掌握"][+mkUi.st] || "");
     if (mkUi.blank) bits.push("未入分");

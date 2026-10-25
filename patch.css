@@ -358,6 +358,15 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag { display: inline-block; margin-left: 4px; font-size: 10px; border-radius: 999px; padding: 0 5px; border: 1px solid var(--line); }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
+.lang-seg {
+  position: fixed; top: 8px; right: 8px; z-index: 80;
+  box-shadow: 0 1px 2px rgba(28, 25, 21, .08);
+}
+.lang-seg button { min-width: 36px; height: 28px; padding: 0 10px; font-weight: 700; }
+header .wrap { padding-right: 108px; }
+@media (max-width: 720px) {
+  header .wrap { padding-right: 96px; }
+}
 .score-head { display: flex; align-items: center; gap: 18px; }
 .score-head .score-ring { flex: 0 0 108px; }
 .score-head .mc-donut { width: 108px; height: 108px; }
