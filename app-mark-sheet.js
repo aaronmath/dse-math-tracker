@@ -172,9 +172,12 @@
     if (pct == null) return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">${emptyText}</b></aside>`;
     const lv = estimateShort(kind, year, Number(pct));
     if (!pack || !lv || lv === "資料未齊") return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big lv-wait">資料未齊</b></aside>`;
+    const provisional = String(lv).indexOf("暫估") === 0;
+    const big = provisional ? String(lv).replace(/^暫估\s*/, "") : lv;
+    const kick = provisional ? kicker + " · 暫估" : kicker;
     const starts = pack.starts.slice().sort((a, b) => a[1] - b[1]);
-    const p = Math.round(levelProgress(starts, Number(pct)));
-    return `<aside class="lv-col"><span class="lv-kicker">${kicker}</span><b class="lv-big">${esc(lv)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
+    const p = Math.max(0, Math.min(100, Math.round(levelProgress(starts, Number(pct)))));
+    return `<aside class="lv-col"><span class="lv-kicker">${esc(kick)}</span><b class="lv-big">${esc(big)}</b><div class="lv-bar" title="${p}%"><i style="width:${p}%"></i></div></aside>`;
   }
   window.levelCol = levelCol;
   function donutSvg(parts, rest, center, sub) {

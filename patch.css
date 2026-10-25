@@ -287,20 +287,20 @@ button.mk-axis-name {
 .score-ring { flex: 0 0 108px; }
 .score-ring .mc-donut { width: 108px; height: 108px; }
 .score-row .mk-bars { flex: 1 1 auto; min-width: 0; }
-.score-row .lv-col { flex: 0 0 76px; width: 76px; min-width: 76px; margin-left: 16px; }
+.score-row .lv-col { flex: 0 0 auto; width: auto; min-width: 76px; margin-left: 16px; }
 .score-row .lv-big { font-size: 28px; }
 .offline-link { display: inline-flex; align-items: center; height: 36px; padding: 0 12px; text-decoration: none; }
 .seg.metric button.on { background: var(--accent); color: #fff; }
 .score-main { flex: 1 1 auto; min-width: 0; }
 .lv-col {
-  flex: 0 0 104px; width: 104px; text-align: center; min-width: 104px;
-  background: #f7f3eb; border-radius: 12px; padding: 8px 4px;
+  flex: 0 0 auto; width: auto; min-width: 76px; max-width: 128px; box-sizing: border-box;
+  text-align: center; background: #f7f3eb; border-radius: 12px; padding: 8px 8px; overflow: hidden;
 }
 .lv-kicker { display: block; font-size: 12px; color: var(--muted); letter-spacing: .04em; }
 .lv-big { display: block; font-size: 34px; line-height: 1.05; font-variant-numeric: tabular-nums; margin: 2px 0 6px; color: #1c1915; }
 .lv-big.lv-wait { font-size: 18px; font-weight: 700; }
-.lv-col .lv-bar { height: 8px; background: #eee8dc; border-radius: 99px; overflow: hidden; }
-.lv-col .lv-bar i { display: block; height: 100%; background: #2f5d50; }
+.lv-col .lv-bar { width: 100%; max-width: 100%; height: 8px; background: #eee8dc; border-radius: 99px; overflow: hidden; flex-shrink: 1; }
+.lv-col .lv-bar i { display: block; height: 100%; max-width: 100%; background: #2f5d50; }
 .lv-gap { display: block; margin-top: 6px; font-size: 12px; color: var(--muted); }
 .mc-bar i { position: relative; overflow: visible; height: 18px; }
 .mc-bar i b { border-radius: 99px; }
@@ -358,6 +358,16 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag { display: inline-block; margin-left: 4px; font-size: 10px; border-radius: 999px; padding: 0 5px; border: 1px solid var(--line); }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
+.freq-scroll { overflow: auto; }
+.freq-table { width: max-content; min-width: 100%; border-collapse: separate; border-spacing: 0; }
+.freq-table .freq-part,
+.freq-table .freq-topic { position: sticky; background: #fff; }
+.freq-table thead .freq-part,
+.freq-table thead .freq-topic { background: #f7f3eb; }
+.freq-table .freq-part { left: 0; width: 36px; min-width: 36px; max-width: 36px; text-align: center; z-index: 3; }
+.freq-table .freq-topic { left: 36px; min-width: 148px; max-width: 196px; white-space: normal; z-index: 2; box-shadow: 1px 0 0 var(--line); }
+.freq-table th:not(.sticky-col),
+.freq-table td:not(.sticky-col) { text-align: center; white-space: nowrap; width: 32px; padding: 6px 4px; }
 .lang-seg { flex: none; align-self: flex-start; }
 .lang-seg button { min-width: 36px; height: 28px; padding: 0 10px; font-weight: 700; }
 .score-head { display: flex; align-items: center; gap: 18px; }
@@ -376,7 +386,7 @@ td.opt3 .opt-b { color: #d6e4f8; }
   .score-head .score-ring, .score-head .mc-donut { width: 96px; height: 96px; flex-basis: 96px; }
   .score-ring { flex-basis: 96px; }
   .score-ring .mc-donut { width: 96px; height: 96px; }
-  .score-row .lv-col, .score-head .lv-col { flex-basis: 72px; width: 72px; min-width: 72px; }
+  .score-row .lv-col, .score-head .lv-col { flex-basis: auto; width: auto; min-width: 68px; }
   .score-row .lv-big, .score-head .lv-big { font-size: 22px; }
   .mc-bar i { height: 12px; }
   .score-card .mc-bar i.sec-track { height: 8px; }

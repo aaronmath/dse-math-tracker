@@ -1666,17 +1666,18 @@ function renderMcFreq() {
   const yIdx = (P2_TOPICS.years || []).map((_, i) => i).reverse();
   const hexByYear = {};
   HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
-  const head = `<thead><tr><th class="sticky-col">部分</th><th class="sticky-col" style="left:52px">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
+  const head = `<thead><tr><th class="sticky-col freq-part">部分</th><th class="sticky-col freq-topic">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
   const hideOld = prefs.mcIncludeOld === false;
   const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !(hideOld && OLD_TOPICS.has(r.topic))).map(r => {
     if (r.topic !== "進制" || !hideOld) return r;
     const ys = (P2_TOPICS.years || []).map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
     return { part: r.part, topic: r.topic, years: ys, total: ys.reduce((a, b) => a + b, 0) };
   }));
-  const body = `<tbody>` + rows.map(r =>
-    `<tr><td class="sticky-col">${r.part}</td><td class="sticky-col" style="left:52px">${esc(r.topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`
-  ).join("") + `</tbody>`;
-  document.getElementById("mcFreq").innerHTML = `<div style="overflow:auto"><table class="data-table">${head}${body}</table></div>`;
+  const body = `<tbody>` + rows.map(r => {
+    const topic = typeof topicLabel === "function" ? topicLabel(r.topic) : r.topic;
+    return `<tr><td class="sticky-col freq-part">${r.part}</td><td class="sticky-col freq-topic">${esc(topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`;
+  }).join("") + `</tbody>`;
+  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div>`;
 }
 function renderMcKeep() {
   const y = window.scrollY;
