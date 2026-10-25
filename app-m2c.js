@@ -259,7 +259,7 @@ function strandSentence(cat, pooled, first, last) {
     if (pooled.rate[c.id] == null) return;
     if (!low || pooled.rate[c.id] < pooled.rate[low.id]) low = c;
   });
-  let s = strandName(top) + "佔 " + Math.round(pooled.share[top.id] || 0) + "%";
+  let s = strandName(top) + "佔比 " + Math.round(pooled.share[top.id] || 0) + "%";
   if (low) s += "，得分率最低是" + strandName(low) + " " + Math.round(pooled.rate[low.id]) + "%";
   s += "。";
   if (!first || !last || first.year === last.year) return s + "結構穩定。";
@@ -271,8 +271,8 @@ function strandSentence(cat, pooled, first, last) {
   });
   if (up.d < 3 && down.d > -3) return s + "結構穩定。";
   const bits = [];
-  if (up.d >= 3) bits.push(strandName(up.c) + "升 " + Math.round(up.d) + " 個百分點");
-  if (down.d <= -3) bits.push(strandName(down.c) + "跌 " + Math.round(-down.d) + " 個百分點");
+  if (up.d >= 3) bits.push(strandName(up.c) + "佔比升 " + Math.round(up.d) + "%");
+  if (down.d <= -3) bits.push(strandName(down.c) + "佔比跌 " + Math.round(-down.d) + "%");
   return s + bits.join("，") + "。";
 }
 function renderStrandShare() {
@@ -297,7 +297,7 @@ function renderStrandShare() {
   let to = years.includes(pick.to) ? pick.to : recent[recent.length - 1];
   if (from > to) { const t = from; from = to; to = t; }
   strandPick[paper] = { from: from, to: to };
-  const opt = years.map(y => "<option value=\"" + y + "\">" + y + "</option>").join("");
+  const opt = years.slice().reverse().map(y => "<option value=\"" + y + "\">" + y + "</option>").join("");
   fromSel.innerHTML = opt;
   toSel.innerHTML = opt;
   fromSel.value = String(from);
@@ -323,7 +323,7 @@ function renderStrandShare() {
     const rate = pooled.rate[c.id] == null ? "—" : Math.round(pooled.rate[c.id]) + "%";
     return "<span><b style=\"background:" + c.color + "\"></b>" + esc(strandName(c)) + " " + Math.round(pooled.share[c.id] || 0) + "% · 得分率 " + rate + "</span>";
   }).join("") + "</div>";
-  const yearsHtml = rows.map(r => "<div class=\"strand-year\"><em>" + r.year + "</em>" + strandBar(cat, r.share, true) + "</div>").join("");
+  const yearsHtml = rows.slice().reverse().map(r => "<div class=\"strand-year\"><em>" + r.year + "</em>" + strandBar(cat, r.share, true) + "</div>").join("");
   body.innerHTML = strandBar(cat, pooled.share, false) + legend + yearsHtml +
     "<p class=\"hint\">" + esc(strandSentence(cat, pooled, rows[0], rows[rows.length - 1])) + "</p>";
 }
