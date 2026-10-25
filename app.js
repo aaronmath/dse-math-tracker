@@ -1718,10 +1718,10 @@ function renderMcFreq() {
   }).join("") + `</tbody>`;
   const bandBtn = document.getElementById("mcFreqBandBtn");
   if (bandBtn) {
-    bandBtn.textContent = prefs.mcFreqBand ? "年份色階　開" : "年份色階　關";
+    bandBtn.textContent = prefs.mcFreqBand ? "命中率色階　開" : "命中率色階　關";
     bandBtn.classList.toggle("on-toggle", !!prefs.mcFreqBand);
   }
-  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div><p class="hint">近五年合計少於 3 題的課題名用淺灰。年份色階打開後，有題數的年份格按該年命中率上色：綠 ≥60%、黃 41–59%、紅 ≤40%。空白不上色。</p>`;
+  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div><p class="hint">近五年合計少於 3 題的課題底用淺灰，文字顏色不變。命中率色階打開後，有題數的年份格按該年命中率上色：綠 ≥60%、黃 41–59%、紅 ≤40%。空白不上色。</p>`;
 }
 function renderMcKeep() {
   const y = window.scrollY;

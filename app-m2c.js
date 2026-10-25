@@ -398,7 +398,7 @@ function renderTagFocus() {
     ranked.push({ topic: topic, name: name, n: bestN, total: row.n });
   });
   ranked.sort((a, b) => b.n - a.n || b.total - a.total || a.topic.localeCompare(b.topic, "zh"));
-  const top = ranked.slice(0, 3);
+  const top = ranked.slice(0, 8);
   if (!top.length) { el.hidden = true; el.innerHTML = ""; return; }
   el.hidden = false;
   el.innerHTML = "<h3 class=\"sec-title\">錯因</h3>" + top.map(r =>

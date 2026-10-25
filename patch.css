@@ -372,7 +372,7 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .freq-table thead .freq-topic { background: #f7f3eb; }
 .freq-table .freq-part { left: 0; width: 36px; min-width: 36px; max-width: 36px; text-align: center; z-index: 3; }
 .freq-table .freq-topic { left: 36px; width: 160px; min-width: 160px; max-width: 160px; white-space: normal; z-index: 2; box-shadow: 1px 0 0 var(--line); }
-.freq-table .freq-topic.rare { color: var(--muted); }
+.freq-table .freq-topic.rare { background: #e6e4de; color: #1c1915; }
 .freq-table th:not(.sticky-col),
 .freq-table td:not(.sticky-col) { text-align: center; white-space: nowrap; width: 32px; padding: 6px 4px; }
 .freq-table .freq-sum { width: 48px; min-width: 48px; white-space: normal; }
