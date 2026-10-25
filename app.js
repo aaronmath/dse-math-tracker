@@ -1662,22 +1662,40 @@ function renderMcTopic() {
   </div>`;
 }
 function renderMcFreq() {
-  const years = (P2_TOPICS.years || []).slice().reverse();
-  const yIdx = (P2_TOPICS.years || []).map((_, i) => i).reverse();
+  const allYears = P2_TOPICS.years || [];
+  const years = allYears.slice().reverse();
+  const yIdx = allYears.map((_, i) => i).reverse();
+  const recentIdx = allYears.map((_, i) => i).slice(-5);
+  const recentYears = allYears.slice(-5);
   const hexByYear = {};
   HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
-  const head = `<thead><tr><th class="sticky-col freq-part">部分</th><th class="sticky-col freq-topic">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th>合計</th></tr></thead>`;
+  const head = `<thead><tr><th class="sticky-col freq-part">部分</th><th class="sticky-col freq-topic">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th class="freq-sum">合計</th></tr></thead>`;
   const hideOld = prefs.mcIncludeOld === false;
   const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !(hideOld && OLD_TOPICS.has(r.topic))).map(r => {
     if (r.topic !== "進制" || !hideOld) return r;
-    const ys = (P2_TOPICS.years || []).map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
+    const ys = allYears.map((y, i) => Math.max(0, (r.years[i] || 0) - (hexByYear[y] || 0)));
     return { part: r.part, topic: r.topic, years: ys, total: ys.reduce((a, b) => a + b, 0) };
   }));
   const body = `<tbody>` + rows.map(r => {
     const topic = typeof topicLabel === "function" ? topicLabel(r.topic) : r.topic;
-    return `<tr><td class="sticky-col freq-part">${r.part}</td><td class="sticky-col freq-topic">${esc(topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td>${r.total}</td></tr>`;
+    const recent = recentIdx.reduce((s, i) => s + (r.years[i] || 0), 0);
+    let sum = String(r.total);
+    if (recent >= 8) {
+      const rate = mcRecentHit(r.part, r.topic, recentYears);
+      const band = bandOf(rate);
+      const sub = rate == null ? "" : `<small class="${band}">${Math.round(rate)}%</small>`;
+      sum = `<b>${r.total}</b>${sub}`;
+    }
+    return `<tr><td class="sticky-col freq-part">${r.part}</td><td class="sticky-col freq-topic">${esc(topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td class="freq-sum">${sum}</td></tr>`;
   }).join("") + `</tbody>`;
-  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div>`;
+  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div><p class="hint">近五年合計 ≥ 8 的，合計用粗體，下面是近五年命中率。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>`;
+}
+function mcRecentHit(part, topic, years) {
+  const set = {};
+  years.forEach(y => { set[y] = 1; });
+  const pcts = (P2_TOPICS.items || []).filter(x => x.part === part && x.topic === topic && set[x.y]).map(x => p2Hit(x.y, x.q)).filter(p => p != null);
+  if (!pcts.length) return null;
+  return pcts.reduce((a, b) => a + b, 0) / pcts.length;
 }
 function renderMcKeep() {
   const y = window.scrollY;
