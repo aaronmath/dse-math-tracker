@@ -151,7 +151,7 @@ function doUndo() {
 
 
 function loadPrefs() {
-  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026, classCmp: "", classTopic: "", classPart: "", classLow: false, lang: "zh" };
+  const d = { showCore: true, showM1: false, showM2: false, mcMarkOn: false, timerSound: false, weakBands: { hi: true, mid: true, lo: true }, weakStats: { 2: true, 1: true }, itemP1Topics: false, weakPaper: "p1", hkRef: true, includeOld: false, mcIncludeOld: true, mcFreqBand: false, cutKind: "core", cutStu: true, cutLv: { "5**": true, "5*": true, "5": true, "4": true, "3": true, "2": true }, weakMing: false, classPaper: "p1", classMing: true, classSel: "", classAxis: "", classYear: 2026, classCmp: "", classTopic: "", classPart: "", classLow: false, lang: "zh" };
   try { return Object.assign(d, JSON.parse(localStorage.getItem(PREF_KEY) || "{}")); }
   catch { return d; }
 }
@@ -168,7 +168,20 @@ function loadDb() {
       return migrateDb(old);
     }
   } catch {}
-  return { currentProfile: "自己", profiles: { "自己": blankProfile("自己") } };
+  return freshDb();
+}
+function freshDb() {
+  const demo = blankProfile("示範甲");
+  const src = window.DEMO_JIA;
+  if (src) {
+    demo.cells = src.cells || {};
+    demo.scores = src.scores || {};
+    demo.dates = src.dates || {};
+    demo.times = src.times || {};
+    demo.demo = true;
+  }
+  demo.className = "";
+  return { currentProfile: "示範甲", demoSeeded: true, profiles: { "自己": blankProfile("自己"), "示範甲": demo } };
 }
 function migrateDb(data) {
   data.profiles = data.profiles || {};
@@ -472,9 +485,12 @@ function fmtTime(sec) {
 }
 
 function renderProfiles() {
-  document.getElementById("profile").innerHTML = Object.keys(db.profiles).map(n =>
-    `<option ${n === currentProfile ? "selected" : ""}>${esc(n)}</option>`
-  ).join("");
+  document.getElementById("profile").innerHTML = Object.keys(db.profiles).map(n => {
+    const demo = db.profiles[n] && db.profiles[n].demo ? "　示範" : "";
+    return `<option value="${esc(n)}" ${n === currentProfile ? "selected" : ""}>${esc(n)}${demo}</option>`;
+  }).join("");
+  const mark = document.getElementById("demoMark");
+  if (mark) mark.hidden = !(db.profiles[currentProfile] && db.profiles[currentProfile].demo);
   renderProfileClass();
   paintClassTab();
 }
@@ -1666,9 +1682,19 @@ function renderMcFreq() {
   const years = allYears.slice().reverse();
   const yIdx = allYears.map((_, i) => i).reverse();
   const recentIdx = allYears.map((_, i) => i).slice(-5);
-  const recentYears = allYears.slice(-5);
   const hexByYear = {};
   HEX_QS.forEach(k => { const y = +k.split(":")[0]; hexByYear[y] = (hexByYear[y] || 0) + 1; });
+  const yearRate = {};
+  if (prefs.mcFreqBand) {
+    (P2_TOPICS.items || []).forEach(x => {
+      const pct = p2Hit(x.y, x.q);
+      if (pct == null) return;
+      const k = x.part + "\n" + x.topic + "\n" + x.y;
+      const a = yearRate[k] || (yearRate[k] = { s: 0, n: 0 });
+      a.s += pct;
+      a.n += 1;
+    });
+  }
   const head = `<thead><tr><th class="sticky-col freq-part">部分</th><th class="sticky-col freq-topic">課題</th>${years.map(y => `<th>${String(y).slice(2)}</th>`).join("")}<th class="freq-sum">合計</th></tr></thead>`;
   const hideOld = prefs.mcIncludeOld === false;
   const rows = sortTopicRows((P2_TOPICS.freq || []).filter(r => !(hideOld && OLD_TOPICS.has(r.topic))).map(r => {
@@ -1679,23 +1705,23 @@ function renderMcFreq() {
   const body = `<tbody>` + rows.map(r => {
     const topic = typeof topicLabel === "function" ? topicLabel(r.topic) : r.topic;
     const recent = recentIdx.reduce((s, i) => s + (r.years[i] || 0), 0);
-    let sum = String(r.total);
-    if (recent >= 8) {
-      const rate = mcRecentHit(r.part, r.topic, recentYears);
-      const band = bandOf(rate);
-      const sub = rate == null ? "" : `<small class="${band}">${Math.round(rate)}%</small>`;
-      sum = `<b>${r.total}</b>${sub}`;
-    }
-    return `<tr><td class="sticky-col freq-part">${r.part}</td><td class="sticky-col freq-topic">${esc(topic)}</td>${yIdx.map(i => `<td>${r.years[i] || ""}</td>`).join("")}<td class="freq-sum">${sum}</td></tr>`;
+    const rare = recent < 3 ? " rare" : "";
+    const cells = yIdx.map(i => {
+      const n = r.years[i] || 0;
+      if (!n) return "<td></td>";
+      if (!prefs.mcFreqBand) return "<td>" + n + "</td>";
+      const a = yearRate[r.part + "\n" + r.topic + "\n" + allYears[i]];
+      const rate = a && a.n ? a.s / a.n : null;
+      return `<td class="${bandClass(rate)}">${n}</td>`;
+    }).join("");
+    return `<tr><td class="sticky-col freq-part">${r.part}</td><td class="sticky-col freq-topic${rare}">${esc(topic)}</td>${cells}<td class="freq-sum">${r.total}</td></tr>`;
   }).join("") + `</tbody>`;
-  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div><p class="hint">近五年合計 ≥ 8 的，合計用粗體，下面是近五年命中率。綠 ≥60%、黃 41–59%、紅 ≤40%。</p>`;
-}
-function mcRecentHit(part, topic, years) {
-  const set = {};
-  years.forEach(y => { set[y] = 1; });
-  const pcts = (P2_TOPICS.items || []).filter(x => x.part === part && x.topic === topic && set[x.y]).map(x => p2Hit(x.y, x.q)).filter(p => p != null);
-  if (!pcts.length) return null;
-  return pcts.reduce((a, b) => a + b, 0) / pcts.length;
+  const bandBtn = document.getElementById("mcFreqBandBtn");
+  if (bandBtn) {
+    bandBtn.textContent = prefs.mcFreqBand ? "年份色階　開" : "年份色階　關";
+    bandBtn.classList.toggle("on-toggle", !!prefs.mcFreqBand);
+  }
+  document.getElementById("mcFreq").innerHTML = `<div class="freq-scroll"><table class="data-table freq-table">${head}${body}</table></div><p class="hint">近五年合計少於 3 題的課題名用淺灰。年份色階打開後，有題數的年份格按該年命中率上色：綠 ≥60%、黃 41–59%、紅 ≤40%。空白不上色。</p>`;
 }
 function renderMcKeep() {
   const y = window.scrollY;
@@ -3276,6 +3302,12 @@ document.getElementById("mcOldBtn").onclick = () => {
   savePrefs();
   document.getElementById("mcTopic").dataset.ready = "";
   renderMc();
+};
+const mcFreqBandBtn = document.getElementById("mcFreqBandBtn");
+if (mcFreqBandBtn) mcFreqBandBtn.onclick = () => {
+  prefs.mcFreqBand = !prefs.mcFreqBand;
+  savePrefs();
+  renderMcFreq();
 };
 document.getElementById("mcReset").onclick = () => {
   document.getElementById("mcSeries").value = "dse";

@@ -364,22 +364,18 @@ td.opt3 .opt-b { color: #d6e4f8; }
 .q-flag.bad { color: #a33b2c; border-color: #efc2ba; }
 .q-flag.sure { color: #1c1915; border-color: #1c1915; }
 .freq-scroll { overflow: auto; }
+.freq-tools { margin: 8px 0; }
 .freq-table { width: max-content; border-collapse: separate; border-spacing: 0; }
 .freq-table .freq-part,
 .freq-table .freq-topic { position: sticky; background: #fff; }
 .freq-table thead .freq-part,
 .freq-table thead .freq-topic { background: #f7f3eb; }
 .freq-table .freq-part { left: 0; width: 36px; min-width: 36px; max-width: 36px; text-align: center; z-index: 3; }
-.freq-table .freq-topic { left: 36px; width: 120px; min-width: 120px; max-width: 120px; white-space: normal; z-index: 2; box-shadow: 1px 0 0 var(--line); }
+.freq-table .freq-topic { left: 36px; width: 160px; min-width: 160px; max-width: 160px; white-space: normal; z-index: 2; box-shadow: 1px 0 0 var(--line); }
+.freq-table .freq-topic.rare { color: var(--muted); }
 .freq-table th:not(.sticky-col),
 .freq-table td:not(.sticky-col) { text-align: center; white-space: nowrap; width: 32px; padding: 6px 4px; }
 .freq-table .freq-sum { width: 48px; min-width: 48px; white-space: normal; }
-.freq-table .freq-sum b,
-.freq-table .freq-sum small { display: block; line-height: 1.2; }
-.freq-table .freq-sum small { font-size: 10px; font-weight: 700; }
-.freq-table .freq-sum small.hi { color: #2c6b38; }
-.freq-table .freq-sum small.mid { color: #8a6a12; }
-.freq-table .freq-sum small.lo { color: #a33b2c; }
 .strand-tools { display: flex; gap: 12px; align-items: center; margin: 8px 0; font-size: 13px; }
 .strand-tools select { margin-left: 4px; }
 .strand-bar { display: flex; height: 28px; border-radius: 99px; overflow: hidden; background: #eee8dc; }

@@ -993,7 +993,7 @@ function renderItemYear(focusSec) {
   if (loadDemoBtn && !loadDemoBtn.dataset.bound) {
     loadDemoBtn.dataset.bound = "1";
     loadDemoBtn.onclick = function () {
-      fetch("./samples/dse-math-tracker-示範五人.json?v=20261006b")
+      fetch("./samples/dse-math-tracker-示範五人.json?v=20261025j")
         .then(function (r) { if (!r.ok) throw new Error("示範檔讀唔到"); return r.json(); })
         .then(function (incoming) {
           const src = incoming.profiles || {};
